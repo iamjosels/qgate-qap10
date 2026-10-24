@@ -109,10 +109,10 @@ def main():
     bad = [t for t in found if t not in E]
     must = ["340", t1(bf["time_s"]), i0(gl["bound"]), f"{x4['p_feasible'] / x4['random_feasible_baseline']:.0f}",
             p1(xy4["p_feasible"]), p1(xy4["random_feasible_baseline"]), p0(hq8["sub_success_rate"]),
-            p0(hr8["sub_success_rate"]), i0(hq8["final_cost"]), i0(hr8["final_cost"])]
+            p0(hr8["sub_success_rate"]), str(S["hits_ref"]), str(len(S["seeds"]))]
     if hw:
-        xy = next(e for e in hw["experiments"] if e["mixer"] == "xy")
-        must += [p1(xy["feasible_fraction"]), p1(xy["sim_ideal_p_feasible"]), p1(xy["sim_noise_feasible_fraction"])]
+        x_ = next(e for e in hw["experiments"] if e["mixer"] == "x")
+        must += [p1(x_["feasible_fraction"]), p1(x_["random_feasible_baseline"])]
     missing = [t for t in must if t not in found]
     print(f"Números en el Panorama: {len(found)} ({len(set(found))} distintos)")
     for t in sorted(set(found), key=lambda z: (len(z), z)):

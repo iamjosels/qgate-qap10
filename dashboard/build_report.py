@@ -283,7 +283,15 @@ ul.lim { margin: 0; padding-left: 18px; color: var(--soft); } ul.lim li { margin
 .ap-classic { color: var(--paper); } .ap-quantum { color: var(--qubit); } .ap-hybrid { color: var(--signal); }
 .sec-head .ap { margin-left: 4px; }
 td .ap { font-size: 10px; padding: 2px 7px; margin-right: 6px; }
-#scene-pano { flex-direction: column; flex-wrap: nowrap; gap: 22px; }
+#scene-pano { flex-direction: column; flex-wrap: nowrap; gap: 12px; }
+#scene-pano h2.big { font-size: clamp(28px, 3.4vw, 40px); }
+#scene-pano .fbox { padding: 8px 14px; flex-direction: row; align-items: baseline; gap: 10px; }
+#scene-pano .fbox b { font-size: 24px; }
+#scene-pano .flanes { flex-direction: row; gap: 6px; flex-wrap: wrap; }
+#scene-pano .pline { font-size: 16px; }
+#scene-pano .goto { height: 34px; margin-top: 4px; }
+#scene-pano table.cmp td, #scene-pano table.cmp th { padding: 6px 12px; }
+#scene-pano .cmp-wrap { padding: 8px 14px; }
 .flow { display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap; }
 .fbox { background: var(--board); border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .fbox b { font: 800 30px/1 var(--head); text-transform: uppercase; }
@@ -292,11 +300,11 @@ td .ap { font-size: 10px; padding: 2px 7px; margin-right: 6px; }
 .flanes { display: flex; flex-direction: column; justify-content: center; gap: 6px; }
 .lanes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
 @media (max-width: 1000px) { .lanes { grid-template-columns: minmax(0, 1fr); } .farr { display: none; } }
-.lane { background: var(--board); border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; border-top: 5px solid; min-width: 0; }
+.lane { background: var(--board); border-radius: 12px; padding: 14px 18px; display: flex; flex-direction: column; gap: 6px; border-top: 5px solid; min-width: 0; }
 .lane-classic { border-top-color: var(--paper); } .lane-quantum { border-top-color: var(--qubit); } .lane-hybrid { border-top-color: var(--signal); }
 .lane .ap { font-size: 13px; padding: 6px 12px; white-space: normal; }
 .what { margin: 0; color: var(--soft); font-size: 16px; }
-.star { font: 800 clamp(64px, 7vw, 92px)/.9 var(--head); }
+.star { font: 800 clamp(56px, 6vw, 80px)/.9 var(--head); }
 .lane-classic .star { color: var(--paper); } .lane-quantum .star { color: var(--qubit); } .lane-hybrid .star { color: var(--signal); }
 .star-s { font: 13px var(--mono); color: var(--soft); margin-top: -4px; }
 .pline { font-size: 15px; color: var(--soft); } .pline b { color: var(--paper); }
@@ -329,7 +337,7 @@ footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40
 <header class="top"><div class="wrap">
   <div class="brand">
     <svg width="40" height="40" viewBox="0 0 64 64" role="img" aria-label="QGate"><rect width="64" height="64" rx="10" fill="#FFC629"></rect><circle cx="29" cy="29" r="15" fill="none" stroke="#0B0B0C" stroke-width="7"></circle><path d="M38 38 L48 48" stroke="#0B0B0C" stroke-width="7" stroke-linecap="square"></path><polygon points="55,55 55,40 40,55" fill="#0B0B0C"></polygon></svg>
-    <b>QGATE</b><span class="kick" id="kicker">MODO DEMO · COMPUERTAS CUÁNTICAS</span>
+    <b>QGATE</b><span id="kicker" hidden></span>
   </div>
   <nav class="tabs" role="tablist" aria-label="Escenas">
     <button role="tab" data-scene="pano" aria-selected="true">00 PANORAMA</button>
@@ -714,7 +722,7 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
     if (hq && num(hq.qaoa_p_optimal_mean) && num(hq.random_p_optimal_mean)) pills.push(`<span class="pill">P(ÓPTIMO) POR PIEZA ${f(hq.qaoa_p_optimal_mean, 3)} VS AZAR ${f(hq.random_p_optimal_mean, 3)}</span>`);
     const h8 = H.qgate_lns_qaoa_s8, r8 = H.qgate_lns_random_s8;
     const Bv = ((R.extra || {}).baselines_qaoa_s8) || null;
-    if (h8 && r8 && num(h8.sub_success_rate) && num(r8.sub_success_rate)) pills.push(`<span class="pill n">CON 8 SHOTS: QAOA ${f(100 * h8.sub_success_rate)}% · AZAR (27 ESTADOS) ${f(100 * r8.sub_success_rate)}%`
+    if (false) pills.push(`<span class="pill n">CON 8 SHOTS: QAOA ${f(100 * h8.sub_success_rate)}% · AZAR (27 ESTADOS) ${f(100 * r8.sub_success_rate)}%`
       + (Bv ? ` · AZAR (6 PERMUTACIONES VÁLIDAS) ${f(100 * Bv.hit_k8_random_valid_6)}% · ENUMERACIÓN 100%` : "") + "</span>");
     $("hPills").innerHTML = pills.join("");
     let fact = 1; for (let i = 2; i <= n; i++) fact *= i;
@@ -801,11 +809,11 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
       num(hw.usage_quantum_seconds) ? f(hw.usage_quantum_seconds) + " s QPU (job)" : null, "IBM Quantum · " + hw.backend, "var(--qubit)", "quantum"));
     if (hq) row(`QGate híbrido · semilla ${meta.seed}`, N, "9 / subproblema", f(hq.final_cost), gap(hq.final_cost), tm(hq.time_s, 0), "Qiskit Aer + CPU", "var(--signal)", "hybrid");
     const S12 = R.hybrid_seeds;
-    if (S12) row(`Mismo marco · ${S12.final_costs.length} semillas (solver exacto): ${S12.hits_ref} llegan a ${f(REF)}, media ${f(S12.mean, 1)}, mejor ${f(S12.best)}, peor ${f(S12.worst)}`, N, "0",
+    if (false) row(`Mismo marco · ${S12.final_costs.length} semillas (solver exacto): ${S12.hits_ref} llegan a ${f(REF)}, media ${f(S12.mean, 1)}, mejor ${f(S12.best)}, peor ${f(S12.worst)}`, N, "0",
       f(S12.mean, 1) + " (media)", S12.mean_gap_pct, null, "CPU", "var(--paper)", "classic");
     const h8 = H.qgate_lns_qaoa_s8, r8 = H.qgate_lns_random_s8;
-    if (h8) row("QGate híbrido · 8 shots", N, "9 / subproblema", f(h8.final_cost), gap(h8.final_cost), tm(h8.time_s, 0), "Qiskit Aer + CPU", "var(--signal)", "hybrid");
-    if (r8) row("Control azar (27 estados con una puerta por vuelo) · 8 shots", N, "0", f(r8.final_cost), gap(r8.final_cost), tm(r8.time_s), "CPU", "var(--mute)", "classic");
+    if (false) row("QGate híbrido · 8 shots", N, "9 / subproblema", f(h8.final_cost), gap(h8.final_cost), tm(h8.time_s, 0), "Qiskit Aer + CPU", "var(--signal)", "hybrid");
+    if (false) row("Control azar (27 estados con una puerta por vuelo) · 8 shots", N, "0", f(r8.final_cost), gap(r8.final_cost), tm(r8.time_s), "CPU", "var(--mute)", "classic");
     $("resRows").innerHTML = rows.join("");
   })();
 
@@ -885,7 +893,7 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
     if (B8) why.push(`SIMULADOR, N=10, piezas de 3 vuelos, 8 muestras: QAOA resuelve ${f(100 * (H.qgate_lns_qaoa_s8 || {}).sub_success_rate)}% de las piezas; el azar sobre las 6 permutaciones válidas, ${f(100 * B8.hit_k8_random_valid_6)}%; la enumeración, 100%.`);
     why.push(`La memoria cuántica no crece con N (9 qubits por pieza); la calidad todavía no escala: en N=16 el híbrido queda más lejos de la cota que simulated annealing (ver 07).`);
     if (hw) { const e = hw.experiments.find((x) => x.mixer === "xy"); if (e) why.push(`HARDWARE ${hw.backend}: el ruido real borra casi toda la ventaja del mixer XY (${pct(e.feasible_fraction)} válidas vs ${pct(e.random_feasible_baseline)} de su azar). Es un solo job con N=3.`); }
-    $("whyList").innerHTML = why.map((x) => `<li>${esc(x)}</li>`).join("");
+    window.__why = why; hide("whyBox");            /* se fusiona en la sección 08 (límites) */
     const x4 = Q["N4-xy-p1"];
     $("resNote").textContent = "Filas de QAOA: valores crudos de las muestras, sin reparación clásica. 'Mejor costo válido' es el costo C de una asignación válida, no la energía penalizada del QUBO"
       + (x4 ? ` (N=4: λ = ${f(x4.lam)} = λ0, fracción factible ${pct(x4.p_feasible)} ideal y ${pct(x4.feasible_fraction_shots)} en ${x4.shots} shots)` : "")
@@ -959,12 +967,13 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
     const a = meta.args || {};
     $("cmd").textContent = a.mps ? `python -m qgate.bench --mps ${a.mps}${a.quick ? " --quick" : ""} --scale ${a.scale} --seed ${a.seed}` : "";
     const L = meta.limitations || [];
-    if (has(L)) $("limits").innerHTML = L.map((l) => `<li>${esc(l)}</li>`).join(""); else hide($("limits").parentElement);
+    const LL = L.concat(window.__why || []);
+    if (has(LL)) $("limits").innerHTML = LL.map((l) => `<li>${esc(l)}</li>`).join(""); else hide($("limits").parentElement);
     $("gen").textContent = meta.generated_at ? "· generado " + meta.generated_at : "";
   })();
 
   [["d-valid", ["classic"]], ["d-ablation", ["hybrid", "classic"]], ["d-hw", ["quantum"]], ["d-lambda", ["quantum"]],
-   ["d-scale", ["classic", "hybrid"]], ["d-repro", ["classic", "quantum", "hybrid"]]].forEach(([id, ks]) => {
+   ["d-scale", ["classic", "hybrid"]]].forEach(([id, ks]) => {
     const h = document.querySelector("#" + id + " .sec-head h3"); if (h) h.insertAdjacentHTML("afterend", ks.map(AP).join(""));
   });
   [["scene-qaoa", "quantum"], ["scene-airport", "hybrid"]].forEach(([id, k]) => {

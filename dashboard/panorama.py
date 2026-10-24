@@ -68,6 +68,7 @@ def _get(R):
 
 
 def render(R: dict) -> str:
+    """Versión compacta: entra en una pantalla 1440x900. Solo cifras que ya muestra el reporte."""
     meta, C, Q, H, V, hw, HW, sc = _get(R)
     ref, N = meta.get("reference_optimum"), meta.get("N")
     bf, sa, gl = C.get("brute_force"), C.get("simulated_annealing"), C.get("gilmore_lawler_bound")
@@ -80,146 +81,63 @@ def render(R: dict) -> str:
     row = lambda n, m: next((r for r in sc if r["N"] == n and r["method"] == m), None)  # noqa: E731
     sa_big, hq_big = (row(big, "simulated_annealing"), row(big, "qgate_lns_qaoa")) if big else (None, None)
     gap = lambda c: None if c is None or not ref else 100 * (c - ref) / ref  # noqa: E731
-    mem_n = {m["N"]: m for m in meta.get("statevector_memory", [])}
     out = []
-
-    # ---------------------------------------------------------------- flujo
     val = " · ".join(num(V[n]["optimum"]) for n in sorted(V) if V[n].get("ok"))
     out.append(f"""<div class="flow">
-  <div class="fbox"><div class="kick">Datos</div><b>MPS qap10</b><span>{e(num(R.get('data', {}).get('mps_report', {}).get('n_cols')) or '')} variables</span></div>
-  <div class="farr" aria-hidden="true">→</div>
-  <div class="fbox"><div class="kick">Modelo verificado</div><b>F y D</b><span>{e(val)}</span></div>
-  <div class="farr" aria-hidden="true">→</div>
-  <div class="flanes">{chip('classic')}{chip('quantum')}{chip('hybrid')}</div>
-  <div class="farr" aria-hidden="true">→</div>
-  <div class="fbox"><div class="kick">Resultado</div><b>Comparación</b><span>gap vs {e(num(ref))}</span></div>
+  <div class="fbox"><b>MPS qap10</b></div><div class="farr" aria-hidden="true">→</div>
+  <div class="fbox"><b>F y D</b><span>{e(val)}</span></div><div class="farr" aria-hidden="true">→</div>
+  <div class="flanes">{chip('classic')}{chip('quantum')}{chip('hybrid')}</div><div class="farr" aria-hidden="true">→</div>
+  <div class="fbox"><b>Comparación</b></div>
 </div>""")
 
-    # --------------------------------------------------------- tres columnas
-    def col(kind, what, steps, rows, star, star_sub, extra, goto):
-        rws = "".join(f'<div class="kv"><span>{e(k)}</span><b>{e(v)}</b></div>' for k, v in rows if v is not None)
-        stp = "".join(f"<li>{e(s)}</li>" for s in steps)
-        ex = "".join(f'<div class="pline">{x}</div>' for x in extra if x)
-        st = f'<div class="star">{e(star)}</div><div class="star-s">{e(star_sub)}</div>' if star else ""
-        return (f'<article class="lane lane-{kind}"><div class="lane-h">{chip(kind, True)}</div>'
-                f'<p class="what">{e(what)}</p>{st}{ex}<ol class="steps">{stp}</ol><div class="kvs">{rws}</div>'
+    def col(kind, what, star, star_s, lines, goto, title=""):
+        ln = "".join(f'<div class="pline">{x}</div>' for x in lines if x)
+        return (f'<article class="lane lane-{kind}"{title}><div class="lane-h">{chip(kind)}</div><p class="what">{e(what)}</p>'
+                f'<div class="star">{e(star)}</div><div class="star-s">{e(star_s)}</div>{ln}'
                 f'<button class="goto" type="button" data-goto="{goto}">Ver detalle →</button></article>')
 
     cols = []
     if bf:
-        cols.append(col(
-            "classic", f"Busca la mejor asignación de {N} vuelos con métodos clásicos, sin qubits.",
-            [f"Fuerza bruta: evalúa las {N}! permutaciones en bloques", "Simulated annealing: intercambios de 2 vuelos",
-             "Cota de Gilmore-Lawler: piso para medir el gap"],
-            [("Dónde corre", WHERE["classic"]), ("Qubits", "0"), ("Tiempo", f"{sec(bf['time_s'])} fuerza bruta"
-              + (f" · {sec(sa['time_s'])} SA" if sa else "")),
-             ("Mejor costo válido", num(bf["cost"])), (f"Gap vs {num(ref)}", pct((gap(bf['cost']) or 0) / 100))],
-            num(bf["cost"]), f"óptimo exacto en {sec(bf['time_s'])}",
-            [f"SA llega a <b>{e(num(sa['cost']))}</b> en {e(sec(sa['time_s']))}" if sa else None,
-             f"Cota Gilmore-Lawler <b>{e(num(gl['bound']))}</b>" if gl else None], "result"))
-    if x4 or xy4:
-        q_extra = []
-        if xy4:
-            q_extra.append(f"N=4 mixer XY: <b>{e(pct(xy4['p_feasible']))}</b> válidas vs {e(pct(xy4['random_feasible_baseline']))} al azar")
-        if hxy:
-            q_extra.append(f"<span class='hw'>{e(hw.get('backend'))} · N=3 real</span> XY <b>{e(pct(hxy['feasible_fraction']))}</b> "
-                           f"(ideal {e(pct(hxy['sim_ideal_p_feasible']))}, azar {e(pct(hxy['random_feasible_baseline']))}, "
-                           f"ruido simulado {e(pct(hxy['sim_noise_feasible_fraction']))})")
-        if hx:
-            q_extra.append(f"<span class='hw'>{e(hw.get('backend'))} · N=3 real</span> X <b>{e(pct(hx['feasible_fraction']))}</b> "
-                           f"(azar {e(pct(hx['random_feasible_baseline']))})")
-        ratio = x4["p_feasible"] / x4["random_feasible_baseline"] if x4 and x4.get("random_feasible_baseline") else None
-        t_q = (f"{sec(xy4['time_s'])} N=4 en Aer" if xy4 else "") + (
-            f" · {num(hw.get('usage_quantum_seconds'))} s QPU N=3" if hw.get("usage_quantum_seconds") else "")
-        best_q = (f"{num(xy4['best_feasible_cost'])} en N=4 (óptimo {num(xy4['optimum'])})" if xy4 else None)
-        cols.append(col(
-            "quantum", "QAOA en Qiskit sobre instancias completas pequeñas (N=3 y N=4).",
-            ["QUBO con penalidad λ y paso a Ising", "Circuito QAOA: mixer X, o estado W + mixer XY",
-             "COBYLA ajusta γ y β con el statevector de Aer", "Muestreo de 4096 shots (Aer e IBM Quantum)"],
-            [("Dónde corre", WHERE["quantum"]),
-             ("Qubits", f"{xy4['qubits'] if xy4 else ''} en N=4" + (f" · {hxy['qubits']} en hardware" if hxy else "")),
-             ("Tiempo", t_q or None), ("Mejor costo válido", best_q),
-             (f"Gap vs {num(ref)}", f"no aplica: N={N} serían {N * N} qubits" if N else None)],
-            f"×{ratio:.0f}" if ratio else None, "más válidas que el azar · N=4 mixer X" if ratio else "", q_extra, "qaoa"))
+        cols.append(col("classic", "Busca la mejor asignación sin qubits", num(bf["cost"]), f"óptimo exacto en {sec(bf['time_s'])}",
+                        [f"SA <b>{e(num(sa['cost']))}</b> en {e(sec(sa['time_s']))}" if sa else None,
+                         f"cota <b>{e(num(gl['bound']))}</b>" if gl else None], "result"))
+    if x4 and xy4:
+        ratio = x4["p_feasible"] / x4["random_feasible_baseline"]
+        cols.append(col("quantum", "QAOA en Qiskit sobre instancias pequeñas", f"×{ratio:.0f}", "más válidas que el azar (N=4)",
+                        [f"XY <b>{e(pct(xy4['p_feasible']))}</b> vs {e(pct(xy4['random_feasible_baseline']))} azar",
+                         f"{e(hw.get('backend'))} N=3: X <b>{e(pct(hx['feasible_fraction']))}</b> vs {e(pct(hx['random_feasible_baseline']))} azar" if hx else None],
+                        "qaoa"))
     if hq:
-        h_extra = []
-        bv = (R.get("extra") or {}).get("baselines_qaoa_s8")
-        if hq8 and hr8:
-            h_extra.append(f"Con 8 muestras QAOA acierta <b>{e(pct(hq8['sub_success_rate'], 0))}</b> de las piezas; azar (27 estados) "
-                           f"{e(pct(hr8['sub_success_rate'], 0))}" + (f"; azar (6 permutaciones válidas) <b>{e(pct(bv['hit_k8_random_valid_6'], 0))}</b>; enumeración 100%" if bv else "")
-                           + f" (costo QAOA {e(num(hq8['final_cost']))} vs azar 27 estados {e(num(hr8['final_cost']))})")
-        if seeds.get("seeds"):
-            h_extra.append(f"Llega a {e(num(ref))} en <b>{e(seeds['hits_ref'])} de {e(len(seeds['seeds']))}</b> semillas")
-        if ns:
-            h_extra.append(f"De N={e(ns[0])} a N={e(big)}: siempre <b>{e(hq.get('qubits_per_subproblem'))} qubits</b>")
-        cols.append(col(
-            "hybrid", "QAOA de 9 qubits resuelve piezas de 3 vuelos dentro de una búsqueda clásica.",
-            ["Elegir 3 vuelos; el resto queda fijo", f"Pieza de {hq.get('qubits_per_subproblem')} qubits: QAOA p={hq.get('p')} en Aer",
-             "Aceptar si baja el costo", "Si se estanca, perturbar desde la mejor"],
-            [("Dónde corre", WHERE["hybrid"]), ("Qubits", f"{hq.get('qubits_per_subproblem')} por pieza"),
-             ("Tiempo", f"{sec(hq['time_s'])} en Aer"), ("Mejor costo válido", f"{num(hq['final_cost'])} (semilla {meta.get('seed')})"),
-             (f"Gap vs {num(ref)}", pct(gap(hq['final_cost']) / 100))],
-            str(hq.get("qubits_per_subproblem")), "qubits por pieza, en cualquier N", h_extra, "airport"))
+        cols.append(col("hybrid", "QAOA de 9 qubits dentro de búsqueda clásica", str(hq.get("qubits_per_subproblem")),
+                        "qubits por pieza, en cualquier N",
+                        [f"8 muestras: QAOA <b>{e(pct(hq8['sub_success_rate'], 0))}</b> vs azar {e(pct(hr8['sub_success_rate'], 0))}" if hq8 and hr8 else None,
+                         f"{e(num(ref))} en <b>{e(seeds.get('hits_ref'))} de {e(len(seeds.get('seeds', [])))}</b> semillas" if seeds.get("seeds") else None],
+                        "airport", ' title="azar sobre los 27 estados con una puerta por vuelo; detalle y otras líneas base en la sección 05"'))
     out.append('<div class="lanes">' + "".join(cols) + "</div>")
 
-    # ------------------------------------------------------ cuadro comparativo
     def cell(mark, text):
         if text is None:
             return '<td class="na"></td>'
         sym, word = MARK[mark]
         return f'<td class="m-{mark}"><span class="mk" title="{word}">{sym}</span> <span class="sr">{word}:</span> {text}</td>'
 
-    fact = lambda n: math.factorial(n) if n else None  # noqa: E731
-    rows = []
-    rows.append(("Calidad en N=10",
-                 cell("ok", f"{num(bf['cost'])} exacto (gap {pct(gap(bf['cost']) / 100)})") if bf else cell("ok", None),
-                 cell("no", f"no resuelve N={N} directo ({N * N} qubits); N=4 llega a {num(xy4['best_feasible_cost'])} = óptimo") if xy4 else cell("no", None),
-                 cell("mid", f"{num(hq['final_cost'])} con semilla {meta.get('seed')}; "
-                             f"{seeds.get('hits_ref')} de {len(seeds.get('seeds', []))} semillas llegan a {num(ref)}") if hq and seeds else cell("mid", None)))
-    rows.append(("Tiempo",
-                 cell("ok", f"{sec(bf['time_s'])} fuerza bruta · {sec(sa['time_s'])} SA") if bf and sa else cell("ok", None),
-                 cell("mid", f"{sec(xy4['time_s'])} N=4 en Aer" + (f" · {num(hw.get('usage_quantum_seconds'))} s QPU N=3" if hw.get('usage_quantum_seconds') else "")) if xy4 else cell("mid", None),
-                 cell("no", f"{sec(hq['time_s'])} N=10 en Aer (vs {sec(sa['time_s'])} SA)") if hq and sa else cell("no", None)))
-    m10 = mem_n.get(N)
-    rows.append(("Qubits / memoria",
-                 cell("ok", "0 qubits"),
-                 cell("no", f"N²: N={N} son {N * N} qubits, statevector {sci(m10['bytes'])} B") if m10 else cell("no", None),
-                 cell("ok", f"{hq.get('qubits_per_subproblem')} qubits; memoria pico {max(r['peak_mem_mb'] for r in sc if r['method'] == 'qgate_lns_qaoa'):.1f} MB")
-                 if hq and sc else cell("ok", None)))
-    rows.append((f"Escala a N={ns[-2] if len(ns) > 1 else big}-{big}" if big else "Escala",
-                 cell("ok", f"SA a {num(sa_big['gap_vs_bound_pct'], 1)}% de la cota en N={big}, {sec(sa_big['time_s'])}; fuerza bruta inviable ({big}! = {sci(fact(big))})") if sa_big else cell("ok", None),
-                 cell("no", f"N={big} serían {big * big} qubits") if big else cell("no", None),
-                 cell("mid", f"siempre {hq.get('qubits_per_subproblem')} qubits; {num(hq_big['gap_vs_bound_pct'], 1)}% de la cota en N={big}, {sec(hq_big['time_s'])}") if hq_big and hq else cell("mid", None)))
-    rows.append(("Garantiza el óptimo",
-                 cell("ok", f"sí con fuerza bruta ({N}! = {fact(N):,} permutaciones)".replace(",", " ")) if bf else cell("ok", None),
-                 cell("no", f"no: P(óptimo) {pct(xy4['p_optimal'])} en N=4") if xy4 else cell("no", None),
-                 cell("no", f"no: {seeds.get('hits_ref')} de {len(seeds.get('seeds', []))} semillas") if seeds.get("seeds") else cell("no", None)))
-    rows.append(("Sensibilidad al ruido",
-                 cell("ok", "ninguna: cómputo exacto en CPU"),
-                 cell("no", f"XY {pct(hxy['sim_ideal_p_feasible'])} ideal → {pct(hxy['feasible_fraction'])} en {hw.get('backend')} (azar {pct(hxy['random_feasible_baseline'])})") if hxy else cell("no", None),
-                 cell("mid", f"no medido en hardware; piezas de {hq.get('qubits_per_subproblem')} qubits como la corrida N=3") if hq else cell("mid", None)))
-    rows.append(("Soluciones válidas",
-                 cell("ok", "100%: siempre una permutación"),
-                 cell("mid", f"N=4: X {pct(x4['p_feasible'])}, XY {pct(xy4['p_feasible'])}" + (f"; hardware XY {pct(hxy['feasible_fraction'])}" if hxy else "")) if x4 and xy4 else cell("mid", None),
-                 cell("ok", "100%: solo acepta piezas válidas")))
-    rows.append(("Corre en hardware actual",
-                 cell("ok", "sí, cualquier CPU"),
-                 cell("mid", f"sí N=3 en {hw.get('backend')} ({hxy['two_qubit_gates']} compuertas 2q), XY {pct(hxy['feasible_fraction'])} vs azar {pct(hxy['random_feasible_baseline'])}") if hxy else cell("mid", None),
-                 cell("mid", f"las piezas de {hq.get('qubits_per_subproblem')} qubits caben; el híbrido corrió en simulador") if hq else cell("mid", None)))
-    ratio = x4["p_feasible"] / x4["random_feasible_baseline"] if x4 else None
-    rows.append(("Ventaja principal",
-                 cell("ok", f"exacto y rápido en N={N}: {num(bf['cost'])} en {sec(bf['time_s'])}") if bf else cell("ok", None),
-                 cell("ok", f"concentra probabilidad: ×{ratio:.0f} el azar de su espacio (N=4, mixer X)") if ratio else cell("ok", None),
-                 cell("ok", f"qubits constantes: {hq.get('qubits_per_subproblem')} de N={ns[0]} a N={big}") if hq and ns else cell("ok", None)))
-    rows.append(("Desventaja principal",
-                 cell("no", f"fuerza bruta explota: {big}! = {sci(fact(big))} en N={big}") if big else cell("no", None),
-                 cell("no", f"qubits N² y ruido: XY cae a {pct(hxy['feasible_fraction'])} en hardware") if hxy else cell("no", None),
-                 cell("no", f"más lento y peor que SA: {sec(hq['time_s'])} vs {sec(sa['time_s'])}; N={big} {num(hq_big['gap_vs_bound_pct'], 1)}% vs {num(sa_big['gap_vs_bound_pct'], 1)}%") if hq and sa and hq_big and sa_big else cell("no", None)))
+    rows = [
+        ("Calidad N=10", cell("ok", f"{num(bf['cost'])}, gap {pct(gap(bf['cost']) / 100)}") if bf else cell("ok", None),
+         cell("no", f"N={N}: {N * N} qubits"), cell("mid", f"{num(hq['final_cost'])} en {seeds.get('hits_ref')}/{len(seeds.get('seeds', []))} semillas") if hq and seeds else cell("mid", None)),
+        ("Tiempo", cell("ok", sec(bf["time_s"])) if bf else cell("ok", None),
+         cell("mid", f"{sec(xy4['time_s'])} (N=4)") if xy4 else cell("mid", None), cell("no", sec(hq["time_s"])) if hq else cell("no", None)),
+        ("Qubits", cell("ok", "0"), cell("no", f"{N * N} (N={N})"), cell("ok", f"{hq.get('qubits_per_subproblem')}") if hq else cell("ok", None)),
+        (f"Escala N={big}", cell("ok", f"SA {num(sa_big['gap_vs_bound_pct'], 1)}% sobre la cota") if sa_big else cell("ok", None),
+         cell("no", f"{big * big} qubits") if big else cell("no", None),
+         cell("mid", f"{num(hq_big['gap_vs_bound_pct'], 1)}% sobre la cota") if hq_big else cell("mid", None)),
+        ("Ruido", cell("ok", "no aplica"),
+         cell("no", f"XY {pct(hxy['feasible_fraction'])} vs {pct(hxy['random_feasible_baseline'])} azar ({hw.get('backend')})") if hxy else cell("no", None),
+         cell("mid", "no medido")),
+        ("Garantiza óptimo", cell("ok", "sí (fuerza bruta)"), cell("no", f"P(óptimo) {pct(xy4['p_optimal'])}") if xy4 else cell("no", None),
+         cell("no", f"{seeds.get('hits_ref')}/{len(seeds.get('seeds', []))} semillas") if seeds.get("seeds") else cell("no", None)),
+    ]
     body = "".join(f"<tr><th scope='row'>{e(r[0])}</th>{r[1]}{r[2]}{r[3]}</tr>" for r in rows)
-    out.append(f"""<div class="cmp-wrap"><table class="cmp"><thead><tr><th></th>
-  <th>{chip('classic')}<div class="th-s">Clásico</div></th><th>{chip('quantum')}<div class="th-s">Cuántico (QAOA directo)</div></th>
-  <th>{chip('hybrid')}<div class="th-s">Híbrido (QGate)</div></th></tr></thead><tbody>{body}</tbody></table>
-  <div class="legend cmp-leg"><span><b class="m-ok">✓</b> ventaja</span><span><b class="m-no">✗</b> desventaja</span><span><b class="m-mid">~</b> parcial</span></div></div>
-<p class="verdict">Hoy gana el clásico en N={ns[0] if ns else N} a {big or N}. QAOA concentra la probabilidad muy por encima del azar, incluso en hardware real con el circuito corto. El híbrido escala en memoria, todavía no en calidad.</p>
-<p class="verdict" style="border-left-color:var(--mute)">QAOA concentra probabilidad respecto a su espacio de partida; en piezas de 3 vuelos aún no supera a muestrear permutaciones válidas ni a enumerar las 6 opciones.</p>""")
+    out.append(f"""<div class="cmp-wrap"><table class="cmp"><thead><tr><th></th><th>{chip('classic')}</th><th>{chip('quantum')}</th>
+  <th>{chip('hybrid')}</th></tr></thead><tbody>{body}</tbody></table></div>
+<p class="verdict">Hoy gana el clásico en N={ns[0] if ns else N} a {big or N}; QAOA concentra probabilidad sobre el azar; el híbrido escala en memoria, no en calidad.</p>""")
     return "<!--PANO:START-->" + "\n".join(out) + "<!--PANO:END-->"
