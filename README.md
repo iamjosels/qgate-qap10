@@ -89,7 +89,8 @@ generadas con `python entrega/make_tables.py`.
 
 ### Lectura de los resultados
 
-__HALLAZGOS__
+<!-- FINDINGS:START -->
+<!-- FINDINGS:END -->
 
 ## 6. Limitaciones y cómo las manejamos
 

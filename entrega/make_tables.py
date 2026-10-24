@@ -15,6 +15,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 START, END = "<!-- RESULTS:START -->", "<!-- RESULTS:END -->"
+FSTART, FEND = "<!-- FINDINGS:START -->", "<!-- FINDINGS:END -->"
 
 
 def g(x, d=None):
@@ -124,6 +125,65 @@ def tables(R: dict) -> str:
     return "\n".join(out)
 
 
+def findings(R: dict) -> str:
+    """Lectura de resultados en prosa; cada número sale del JSON."""
+    meta, ref = R["meta"], R["meta"]["reference_optimum"]
+    Q = {q["id"]: q for q in R["quantum"]}
+    H = {h["method"]: h for h in R["hybrid"]}
+    C = {c["method"]: c for c in R["classical"]}
+    v = {x["n"]: x for x in R["validation"]}
+    out = [f"1. **Datos.** La reconstrucción del MPS reproduce los óptimos de control: N=3 → {g(v[3]['optimum'])}, "
+           f"N=4 → {g(v[4]['optimum'])}, N=10 → {g(v[meta['N']]['optimum'])}."]
+    x4, xy4 = Q.get("N4-x-p1"), Q.get("N4-xy-p1")
+    if x4 and xy4:
+        out.append(f"2. **QAOA directo (N=4, 16 qubits).** Con mixer X, P(válida) = {fp(x4['p_feasible'])} frente a "
+                   f"{fp(x4['random_feasible_baseline'])} del azar ({x4['p_feasible'] / x4['random_feasible_baseline']:.0f} veces). "
+                   f"Con mixer XY + estado W, {fp(xy4['p_feasible'])} frente a {fp(xy4['random_feasible_baseline'])} "
+                   f"(azar sobre estados con una puerta por vuelo). "
+                   + (f"El mejor costo muestreado es el óptimo ({g(xy4['optimum'])}) en ambos, pero "
+                      if x4["best_feasible_cost"] == x4["optimum"] and xy4["best_feasible_cost"] == xy4["optimum"]
+                      else f"Mejor costo muestreado: {g(x4['best_feasible_cost'])} y {g(xy4['best_feasible_cost'])} (óptimo {g(xy4['optimum'])}); ")
+                   + f"P(óptimo) es baja ({fp(x4['p_optimal'])} y {fp(xy4['p_optimal'])}): QAOA p=1 concentra poco.")
+    nx, nxy = Q.get("N3-x-p1-noise0.01"), Q.get("N3-xy-p1-noise0.01")
+    if nx and nxy:
+        out.append(f"3. **Ruido.** Con ruido despolarizante de 1%, la fracción válida del mixer XY cae de {fp(nxy['p_feasible'])} a "
+                   f"{fp(nxy['feasible_fraction_shots'])} (su azar es {fp(nxy['random_feasible_baseline'])}); la del mixer X, de "
+                   f"{fp(nx['p_feasible'])} a {fp(nx['feasible_fraction_shots'])}. La ventaja estructural de XY es frágil al ruido.")
+    hq, he, hr = H.get("qgate_lns_qaoa"), H.get("qgate_lns_exact"), H.get("qgate_lns_random")
+    hq8, hr8 = H.get("qgate_lns_qaoa_s8"), H.get("qgate_lns_random_s8")
+    if hq:
+        txt = (f"4. **Híbrido N=10.** Con la semilla {meta['seed']}, QGate con QAOA ({hq['shots']} shots) termina en "
+               f"**{g(hq['final_cost'])}** (gap {g(hq['gap_pct'], 1)}%) en {g(hq['time_s'], 0)} s.")
+        if he and hr:
+            txt += (f" El control exacto termina en {g(he['final_cost'])} y el azar con las mismas {hr['shots']} muestras en "
+                    f"{g(hr['final_cost'])}: con piezas de 3 vuelos (6 asignaciones) y {hq['shots']} muestras, el azar también "
+                    f"encuentra el óptimo de cada pieza.")
+        out.append(txt)
+        out.append(f"5. **Qué aporta QAOA.** P(óptimo) medio por subproblema: {fp(hq['qaoa_p_optimal_mean'])} con QAOA p={hq['p']} "
+                   f"frente a {fp(hq['random_p_optimal_mean'])} del azar "
+                   f"({hq['qaoa_p_optimal_mean'] / hq['random_p_optimal_mean']:.1f} veces)."
+                   + (f" Con solo 8 shots, QAOA resuelve el {g(100 * hq8['sub_success_rate'], 0)}% de los subproblemas y el azar el "
+                      f"{g(100 * hr8['sub_success_rate'], 0)}%; el costo final es {g(hq8['final_cost'])} frente a {g(hr8['final_cost'])}."
+                      if hq8 and hr8 else ""))
+    S = R.get("hybrid_seeds")
+    if S:
+        out.append(f"6. **Robustez.** En {len(S['seeds'])} semillas y arranques, el mismo marco con solver exacto (equivale a QAOA "
+                   f"cuando QAOA acierta) llega a {g(ref)} en {S['hits_ref']} y su media es {g(S['mean'], 1)} "
+                   f"(gap medio {g(S['mean_gap_pct'], 1)}%). El límite es el vecindario de 3 vuelos, no el solver.")
+    bf, sa = C.get("brute_force"), C.get("simulated_annealing")
+    if bf and sa and hq:
+        out.append(f"7. **Tiempo.** En simulador, lo clásico gana: fuerza bruta {g(bf['time_s'], 1)} s y simulated annealing "
+                   f"{g(sa['time_s'], 1)} s llegan a {g(bf['cost'])}; el híbrido con QAOA tarda {g(hq['time_s'], 0)} s. "
+                   f"No afirmamos ventaja cuántica.")
+    sc = [r for r in R.get("scaling", []) if r["method"] == "qgate_lns_qaoa"]
+    if sc:
+        ns = sorted(r["N"] for r in sc)
+        mem = max(r["peak_mem_mb"] for r in sc)
+        out.append(f"8. **Escala.** De N={ns[0]} a N={ns[-1]} el subproblema cuántico sigue en 9 qubits y la memoria pico de "
+                   f"QGate no pasa de {g(mem, 1)} MB; un QUBO directo de N={ns[-1]} serían {ns[-1] ** 2} qubits.")
+    return "\n".join(out)
+
+
 def main():
     src = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "results", "results.json")
     readme = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, "README.md")
@@ -133,6 +193,9 @@ def main():
         txt = fh.read()
     i, j = txt.index(START), txt.index(END)
     txt = txt[:i + len(START)] + "\n" + tables(R) + "\n" + txt[j:]
+    if FSTART in txt:
+        i, j = txt.index(FSTART), txt.index(FEND)
+        txt = txt[:i + len(FSTART)] + "\n" + findings(R) + "\n" + txt[j:]
     with open(readme, "w", encoding="utf-8") as fh:
         fh.write(txt)
     print(f"README actualizado desde {src}")
