@@ -1,5 +1,12 @@
 # Qué muestra el dashboard de QGate
 
+> **Actualización (24/10, 15:30).** Este documento describe la primera versión. Cambios posteriores:
+> nueva pestaña **00 Panorama** (los tres enfoques en columnas y un cuadro comparativo de 6 filas), y las
+> secciones de detalle ya no se repiten bajo todas las pestañas: 01 QAOA muestra IBM Quantum real y el
+> barrido de λ; 02 Aeropuerto, "¿Cuánto aporta QAOA?" y el escalamiento; 03 Resultado, los datos validados
+> y la reproducibilidad. La sección 05 suma la línea base sobre las 6 permutaciones válidas
+> (`results/extra.json`) y 05b, el azar de P(óptimo) del hardware.
+
 Demo: https://iamjosels.github.io/qgate-qap10/ (archivo `docs/index.html`, generado por
 `dashboard/build_report.py`).
 

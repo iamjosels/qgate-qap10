@@ -2,7 +2,11 @@
 
 **IBM Quantum Hackathon 2026 · Categoría 5.1 Industria · Reto NTT DATA QAP10 · Track A Aeropuerto**
 
-**Demo:** https://iamjosels.github.io/qgate-qap10/ · **PPT:** [`entrega/QGate.pptx`](entrega/QGate.pptx) · **Descripción breve:** [`docs/descripcion_breve.md`](docs/descripcion_breve.md)
+**Demo:** https://iamjosels.github.io/qgate-qap10/ · **PPT (plantilla oficial):** [`entrega/QGate_oficial_v2.pptx`](entrega/QGate_oficial_v2.pptx) ([PDF](entrega/QGate_oficial_v2.pdf)) · **Descripción breve:** [`entrega/descripcion.md`](entrega/descripcion.md)
+
+**Dashboard.** Pestañas 00 Panorama (los tres enfoques y el cuadro comparativo), 01 QAOA (con IBM Quantum real y el
+barrido de λ), 02 Aeropuerto (con la ablación del solver y el escalamiento) y 03 Resultado (con los datos validados y la
+reproducibilidad). Cada número sale de `results/results.json`, `results/hardware.json` o `results/extra.json`.
 
 > QAOA solo no llega a 100 qubits. Usado como subrutina de tamaño fijo (9 qubits) dentro de una búsqueda
 > clásica, sí escala, y medimos con números cuánto aporta cada parte. No buscamos demostrar ventaja
@@ -50,7 +54,7 @@ una asignación**: todos los costos reportados son C sobre asignaciones válidas
    (`orden_columnas`, `orden_filas`) y se elige la que reproduce los óptimos de control.
 
 Resultado: **N = 3 → 24, N = 4 → 32, N = 10 → 340**, idénticos a los del enunciado (ver tabla abajo). Si
-se duplicaran pares saldría 48, 64 y 680. El 340 solo se usa para medir el gap; ningún método lo recibe.
+se duplicaran pares saldría 48, 64 y 680 (el 680 se comprueba en código con `analysis/scale_check.py`). El 340 solo se usa para medir el gap; ningún método lo recibe.
 Detalle en [`docs/DECISIONES.md`](docs/DECISIONES.md).
 
 ## 4. Métodos
@@ -94,6 +98,8 @@ generadas con `python entrega/make_tables.py`.
 | 4 | 32 | 32 | sí | 0.000 |
 | 10 | 340 | 340 | sí | 6.948 |
 
+Control de escala (`analysis/scale_check.py`): la asignación óptima cuesta 340 contando cada par una vez (convención del archivo) y 680 contando cada par dos veces.
+
 ### Instancia completa N = 10 (gap solo sobre asignaciones válidas)
 
 | Método | Costo | Gap vs 340 (%) | Tiempo (s) | Notas |
@@ -115,8 +121,10 @@ generadas con `python entrega/make_tables.py`.
 | Control · azar (512 shots) | 512 | 340 | 0.0 | 100% | 0.039 | 0.039 | 0.6 |
 | QGate · QAOA (8 shots) | 8 | 372 | 9.4 | 59% | 0.096 | 0.04 | 208.3 |
 | Control · azar (8 shots) | 8 | 390 | 14.7 | 29% | 0.039 | 0.039 | 0.7 |
+| Azar sobre las 6 permutaciones válidas (sobre las 300 piezas de la corrida QAOA de 512 shots) | 512 | - | - | 100% | 0.176 | 0.039 | - |
+| Azar sobre las 6 permutaciones válidas (sobre las 300 piezas de la corrida QAOA de 8 shots) | 8 | - | - | 78% | 0.180 | 0.04 | - |
 
-*Éxito = el solver devolvió el óptimo del subproblema (sin muestra válida cuenta como fallo). Azar = muestras uniformes sobre los estados con una puerta por vuelo (el mismo espacio que el estado W).*
+*Éxito = el solver devolvió el óptimo del subproblema (sin muestra válida cuenta como fallo). Azar P(óptimo) = muestras uniformes sobre los 27 estados con una puerta por vuelo (el espacio del estado W). Las filas de azar sobre las 6 permutaciones válidas salen de `analysis/baselines.py` (`results/extra.json`): P(acierto con k muestras) = 1 - (1 - n_óptimos/6)^k, promediado sobre las piezas. Control · subproblema exacto = enumeración de las 6 opciones.*
 
 Robustez (solver exacto, 300 iteraciones, semillas 7 a 18): media 354.5 (gap medio 4.3%), mejor 340, peor 374, llega a 340 en 4 de 12.
 
@@ -162,10 +170,12 @@ Robustez (solver exacto, 300 iteraciones, semillas 7 a 18): media 354.5 (gap med
 
 ### IBM Quantum real · ibm_kingston (job `dbefhdom94ac738rnc00`)
 
-| Experimento | Qubits | Válidas en hardware | Ideal (Aer) | Aer con ruido 1% | Azar | P(óptimo) | Mejor costo | Profundidad | Compuertas 2q |
-|---|---|---|---|---|---|---|---|---|---|
-| N3-x-p1 | 9 | **0.063** | 0.137 | 0.085 | 0.012 | 0.021 | 24 (ópt 24) | 246 | 132 |
-| N3-xy-p1 | 9 | **0.254** | 0.789 | 0.250 | 0.222 | 0.087 | 24 (ópt 24) | 302 | 161 |
+| Experimento | Qubits | Válidas en hardware | Ideal (Aer) | Aer con ruido 1% | Azar P(válida) | P(óptimo) | Azar P(óptimo) · razón | Mejor costo | Profundidad | Compuertas 2q |
+|---|---|---|---|---|---|---|---|---|---|---|
+| N3-x-p1 | 9 | **0.063** | 0.137 | 0.085 | 0.012 | 0.021 | 0.0039 · 5.50× | 24 (ópt 24) | 246 | 132 |
+| N3-xy-p1 | 9 | **0.254** | 0.789 | 0.250 | 0.222 | 0.087 | 0.074 · 1.18× | 24 (ópt 24) | 302 | 161 |
+
+Un solo job, un solo backend. La simulación con 1% de ruido coincidió con el mixer XY (0.250 vs 0.254) y sobreestimó el mixer X (0.085 vs 0.063). XY queda casi en su línea base de P(válida) (0.254 vs 0.222); X queda 5.35 veces sobre la suya.
 
 *4096 shots por circuito, ángulos optimizados en el simulador, circuito transpilado para ibm_kingston; 5 s de QPU. Resultado de hardware, separado del resto (simulador).*
 
@@ -222,8 +232,12 @@ curl -L -o data/qap10.mps.gz https://miplib.zib.de/WebData/instances/qap10.mps.g
 python tests/test_core.py && python tests/test_quantum.py && python tests/test_hybrid.py
 python -m qgate.bench --mps data/qap10.mps.gz --scale 10,12,14,16      # ~15 min, escribe results/
 python -m qgate.bench --mps data/qap10.mps.gz --quick                  # versión rápida
+python analysis/baselines.py --mps data/qap10.mps.gz    # líneas base de piezas y hardware -> results/extra.json
+python analysis/scale_check.py --mps data/qap10.mps.gz   # control de escala 340 / 680 -> results/extra.json
 pip install python-pptx
 python entrega/publicar.py           # dashboard (docs/index.html), tablas del README y PPT
+python dashboard/check_panorama.py   # verifica cada número del Panorama contra los JSON
+python entrega/make_ppt_oficial.py "<plantilla oficial .pptx>" entrega/QGate_oficial_v2.pptx
 ```
 
 **Hardware real de IBM Quantum (opcional).** Con la cuenta guardada una vez en la máquina
@@ -249,11 +263,12 @@ Semilla por defecto 7 (`--seed`). Versiones, argumentos, fecha y tiempos quedan 
 ```
 qgate/        instance.py  mps.py  classical.py  qubo.py  quantum.py  hybrid.py  bench.py  plots.py
 tests/        pruebas de costo, MPS, QUBO/Ising, QAOA e híbrido
-dashboard/    build_report.py (reporte HTML autocontenido)
-results/      results.json, PNG y report.html de la corrida completa
+dashboard/    build_report.py (reporte HTML), panorama.py (pestaña 00), check_panorama.py (verificación de números)
+analysis/     baselines.py (líneas base honestas), scale_check.py (control de escala)
+results/      results.json, hardware.json, extra.json, PNG y report.html
 docs/         DECISIONES.md, ESTADO.md, descripción breve, index.html (GitHub Pages)
 scripts/      hardware.py (QAOA N = 3 en IBM Quantum real o en backend fake)
-entrega/      QGate.pptx, guiones, checklist, generadores de PPT y tablas
+entrega/      QGate_oficial_v2.pptx/.pdf, QGate.pptx, guiones, checklist, generadores de PPT y tablas
 examples/     corrida sobre un MPS sintético (no es qap10)
 ```
 

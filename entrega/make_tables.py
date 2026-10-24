@@ -38,6 +38,10 @@ def tables(R: dict) -> str:
     for v in R["validation"]:
         out.append(f"| {v['n']} | {g(v['optimum'])} | {g(v['expected'])} | {'sí' if v['ok'] else 'no'} | {g(v['time_s'], 3)} |")
 
+    scx = (R.get("extra") or {}).get("scale_check")
+    if scx:
+        out.append(f"\nControl de escala (`analysis/scale_check.py`): la asignación óptima cuesta {g(scx['cost_pair_once'])} "
+                   f"contando cada par una vez (convención del archivo) y {g(scx['cost_pair_twice'])} contando cada par dos veces.")
     out.append("\n### Instancia completa N = 10 (gap solo sobre asignaciones válidas)\n")
     out.append("| Método | Costo | Gap vs 340 (%) | Tiempo (s) | Notas |\n|---|---|---|---|---|")
     for c in R["classical"]:
@@ -68,8 +72,17 @@ def tables(R: dict) -> str:
                 h.get("random_p_optimal_mean") if h.get("solver") == "random" else 1.0)
             out.append(f"| {h['label']} | {h.get('shots') or '-'} | {g(h['final_cost'])} | {g(h['gap_pct'], 1)} | "
                        f"{g(100 * h['sub_success_rate'], 0)}% | {fp(pm)} | {fp(h.get('random_p_optimal_mean'))} | {g(h['time_s'], 1)} |")
+        X = R.get("extra") or {}
+        for key, k in (("baselines_qaoa", 512), ("baselines_qaoa_s8", 8)):
+            b = X.get(key)
+            if b:
+                out.append(f"| Azar sobre las 6 permutaciones válidas (sobre las {b['pieces']} piezas de la corrida QAOA de {k} shots) | {k} | - | - | "
+                           f"{g(100 * b[f'hit_k{k}_random_valid_6'], 0)}% | {fp(b['p_opt_random_valid_6'])} | {fp(b['p_opt_random_states_27'])} | - |")
         out.append("\n*Éxito = el solver devolvió el óptimo del subproblema (sin muestra válida cuenta como fallo). "
-                   "Azar = muestras uniformes sobre los estados con una puerta por vuelo (el mismo espacio que el estado W).*")
+                   "Azar P(óptimo) = muestras uniformes sobre los 27 estados con una puerta por vuelo (el espacio del estado W). "
+                   "Las filas de azar sobre las 6 permutaciones válidas salen de `analysis/baselines.py` (`results/extra.json`): "
+                   "P(acierto con k muestras) = 1 - (1 - n_óptimos/6)^k, promediado sobre las piezas. "
+                   "Control · subproblema exacto = enumeración de las 6 opciones.*")
     S = R.get("hybrid_seeds")
     if S:
         out.append(f"\nRobustez (solver exacto, {S['iters']} iteraciones, semillas {S['seeds'][0]} a {S['seeds'][-1]}): "
@@ -112,12 +125,23 @@ def tables(R: dict) -> str:
     hw = R.get("hardware")
     if hw and hw.get("experiments"):
         out.append(f"\n### IBM Quantum real · {hw['backend']} (job `{hw['job_id']}`)\n")
-        out.append("| Experimento | Qubits | Válidas en hardware | Ideal (Aer) | Aer con ruido 1% | Azar | P(óptimo) | Mejor costo | Profundidad | Compuertas 2q |")
-        out.append("|---|---|---|---|---|---|---|---|---|---|")
+        hro = {r["id"]: r for r in ((R.get("extra") or {}).get("hardware_random_p_optimal") or {}).get("rows", [])}
+        out.append("| Experimento | Qubits | Válidas en hardware | Ideal (Aer) | Aer con ruido 1% | Azar P(válida) | P(óptimo) | Azar P(óptimo) · razón | Mejor costo | Profundidad | Compuertas 2q |")
+        out.append("|---|---|---|---|---|---|---|---|---|---|---|")
         for e in hw["experiments"]:
+            r = hro.get(e["id"])
             out.append(f"| {e['id']} | {e['qubits']} | **{fp(e['feasible_fraction'])}** | {fp(e['sim_ideal_p_feasible'])} | "
                        f"{fp(e.get('sim_noise_feasible_fraction'))} | {fp(e['random_feasible_baseline'])} | {fp(e['p_optimal'])} | "
-                       f"{g(e['best_feasible_cost'])} (ópt {g(e['optimum'])}) | {e.get('depth', '-')} | {e.get('two_qubit_gates', '-')} |")
+                       + (f"{fp(r['random_p_optimal'])} · {r['ratio_hw_vs_random']:.2f}×" if r else "-")
+                       + f" | {g(e['best_feasible_cost'])} (ópt {g(e['optimum'])}) | {e.get('depth', '-')} | {e.get('two_qubit_gates', '-')} |")
+        exy = next((e for e in hw["experiments"] if e["mixer"] == "xy"), None)
+        exx = next((e for e in hw["experiments"] if e["mixer"] == "x"), None)
+        if exy and exx:
+            out.append(f"\nUn solo job, un solo backend. La simulación con 1% de ruido coincidió con el mixer XY "
+                       f"({fp(exy['sim_noise_feasible_fraction'])} vs {fp(exy['feasible_fraction'])}) y sobreestimó el mixer X "
+                       f"({fp(exx['sim_noise_feasible_fraction'])} vs {fp(exx['feasible_fraction'])}). XY queda casi en su línea base de "
+                       f"P(válida) ({fp(exy['feasible_fraction'])} vs {fp(exy['random_feasible_baseline'])}); X queda "
+                       f"{exx['feasible_fraction'] / exx['random_feasible_baseline']:.2f} veces sobre la suya.")
         out.append(f"\n*{hw['experiments'][0]['shots']} shots por circuito, ángulos optimizados en el simulador, circuito transpilado "
                    f"para {hw['backend']}" + (f"; {g(hw['usage_quantum_seconds'])} s de QPU" if hw.get("usage_quantum_seconds") else "")
                    + ". Resultado de hardware, separado del resto (simulador).*")
