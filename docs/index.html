@@ -26,6 +26,7 @@ a { color: var(--signal); } a:hover { color: #FFD866; }
 .mono { font-family: var(--mono); }
 .kick { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; color: var(--mute); text-transform: uppercase; }
 .hidden { display: none !important; }
+.off-tab { display: none !important; }   /* sección de detalle de otra pestaña */
 button { font: inherit; }
 button:focus-visible, a:focus-visible { outline: 2px solid var(--qubit); outline-offset: 2px; }
 
@@ -500,6 +501,9 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
     scene = s; clearTimeout(timer);
     document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.scene === s));
     ["pano", "qaoa", "airport", "result"].forEach((k) => $("scene-" + k).classList.toggle("hidden", k !== s));
+    /* cada sección de detalle vive bajo la pestaña de su enfoque: así cada dato aparece una sola vez */
+    const TAB = { "d-hw": "qaoa", "d-lambda": "qaoa", "d-ablation": "airport", "d-scale": "airport", "d-valid": "result", "d-repro": "result" };
+    Object.entries(TAB).forEach(([id, tab]) => { const el = $(id); if (el) el.classList.toggle("off-tab", tab !== s); });
     $("mixerSeg").classList.toggle("hidden", s !== "qaoa");
     $("kicker").textContent = { pano: "PANORAMA · CLÁSICO · CUÁNTICO · HÍBRIDO", qaoa: "MODO DEMO · COMPUERTAS CUÁNTICAS", airport: "MODO DEMO · TRACK A AEROPUERTO", result: "RESULTADOS · QAP10" }[s];
     setPlaying(!RM && !!players[s]);
