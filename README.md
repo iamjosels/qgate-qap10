@@ -280,8 +280,7 @@ Reto: NTT DATA. Organizan Quantum Hub Perú, IEEE Computer Society PUCP y NTT DA
 
 ## Uso de IA y herramientas
 
-Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equipo; parte del motor se preparó antes de
-la jornada; los cuatro integrantes pueden explicar su funcionamiento. Las decisiones técnicas y sus pruebas quedan en
+Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equipo; los cuatro integrantes pueden explicar su funcionamiento. Las decisiones técnicas y sus pruebas quedan en
 `docs/DECISIONES.md`.
 
 Créditos: Qiskit, Qiskit Aer, qiskit-ibm-runtime, NumPy, SciPy, MIPLIB 2017 (qap10), Claude Code.
