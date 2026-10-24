@@ -2,7 +2,7 @@
 
 **IBM Quantum Hackathon 2026 · Categoría 5.1 Industria · Reto NTT DATA QAP10 · Track A Aeropuerto**
 
-**Demo:** https://iamjosels.github.io/qgate-qap10/ · **PPT (plantilla oficial):** [`entrega/QGate_oficial_v2.pptx`](entrega/QGate_oficial_v2.pptx) ([PDF](entrega/QGate_oficial_v2.pdf)) · **Descripción breve:** [`entrega/descripcion.md`](entrega/descripcion.md)
+**Demo:** https://iamjosels.github.io/qgate-qap10/ · **PPT (plantilla oficial, con fotos):** [`entrega/QGate_final.pptx`](entrega/QGate_final.pptx) ([PDF](entrega/QGate_final.pdf)) · **Descripción breve:** [`entrega/descripcion.md`](entrega/descripcion.md)
 
 **Dashboard.** Pestañas 00 Panorama (los tres enfoques y el cuadro comparativo), 01 QAOA (con IBM Quantum real y el
 barrido de λ), 02 Aeropuerto (con la ablación del solver y el escalamiento) y 03 Resultado (con los datos validados y la
