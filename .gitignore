@@ -6,3 +6,6 @@ data/*.mps*
 .venv/
 *.log
 results_smoke/
+docs/*.pdf
+CLAUDE.md
+results/hardware_fake.json

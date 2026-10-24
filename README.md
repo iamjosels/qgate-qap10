@@ -213,6 +213,22 @@ pip install python-pptx
 python entrega/publicar.py           # dashboard (docs/index.html), tablas del README y PPT
 ```
 
+**Hardware real de IBM Quantum (opcional).** Con la cuenta guardada una vez en la máquina
+(`QiskitRuntimeService.save_account`, la API key nunca va al repo), `scripts/hardware.py` reconstruye los circuitos
+QAOA de N = 3 con los ángulos ya optimizados en el simulador, comprueba que su distribución ideal coincide con
+`results.json` y los envía en un solo job a la QPU menos ocupada:
+
+```bash
+pip install qiskit-ibm-runtime
+python scripts/hardware.py check            # credenciales y QPUs disponibles
+python scripts/hardware.py submit           # un job, 2 circuitos x 4096 shots (segundos de QPU)
+python scripts/hardware.py fetch            # cuando termina: results/hardware.json
+python entrega/publicar.py                  # agrega la fila de hardware al dashboard y al PPT
+python scripts/hardware.py submit --fake    # misma prueba en local con el modelo de ruido de una QPU IBM
+```
+
+Un resultado de `--fake` se guarda aparte (`results/hardware_fake.json`) y nunca se presenta como hardware real.
+
 Semilla por defecto 7 (`--seed`). Versiones, argumentos, fecha y tiempos quedan en `results.json → meta`.
 
 ## 8. Estructura
@@ -222,7 +238,8 @@ qgate/        instance.py  mps.py  classical.py  qubo.py  quantum.py  hybrid.py 
 tests/        pruebas de costo, MPS, QUBO/Ising, QAOA e híbrido
 dashboard/    build_report.py (reporte HTML autocontenido)
 results/      results.json, PNG y report.html de la corrida completa
-docs/         DECISIONES.md, ESTADO.md, descripción breve, bases y reto (PDF), index.html (GitHub Pages)
+docs/         DECISIONES.md, ESTADO.md, descripción breve, index.html (GitHub Pages)
+scripts/      hardware.py (QAOA N = 3 en IBM Quantum real o en backend fake)
 entrega/      QGate.pptx, guiones, checklist, generadores de PPT y tablas
 examples/     corrida sobre un MPS sintético (no es qap10)
 ```
@@ -232,3 +249,7 @@ examples/     corrida sobre un MPS sintético (no es qap10)
 [Qiskit](https://github.com/Qiskit/qiskit) y [Qiskit Aer](https://github.com/Qiskit/qiskit-aer) (IBM),
 NumPy, SciPy, Matplotlib, python-pptx; slides renderizadas con Chrome headless. Identidad visual en `design/` (BRAND.md). Datos: [MIPLIB 2017, instancia qap10](https://miplib.zib.de/instance_details_qap10.html).
 Reto: NTT DATA. Organizan Quantum Hub Perú, IEEE Computer Society PUCP y NTT DATA.
+
+**Uso de IA.** El código, el dashboard y el material se desarrollaron con asistencia de Claude Code (Anthropic),
+siguiendo un plan escrito por el equipo. El equipo revisó el código y los resultados, y puede explicar cada decisión
+técnica; las decisiones y sus pruebas quedan en `docs/DECISIONES.md`.
