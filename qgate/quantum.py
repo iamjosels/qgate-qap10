@@ -253,6 +253,8 @@ def run_qaoa(inst: QAPInstance, p: int = 1, mixer: str = "xy", lam: float | None
         "best_feasible_perm": best_feas_perm,
         "approx_ratio": None if best_feas_perm is None else float(opt / best_feas) if best_feas > 0 else 1.0,
         "mean_feasible_cost": None if feas_shots == 0 else mean_acc / feas_shots,
+        # óptimo / costo medio de las muestras válidas (más informativo que el mejor de los shots)
+        "mean_approx_ratio": None if feas_shots == 0 or mean_acc <= 0 else float(opt) / (mean_acc / feas_shots),
         "top_bitstring": top,
         "top_raw_feasible": top_perm is not None,
         "top_raw_energy_penalized": float(qubo.energy(x_top.ravel())),

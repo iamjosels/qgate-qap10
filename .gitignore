@@ -4,3 +4,4 @@ results_*/
 !examples/**
 data/*.mps*
 .venv/
+*.log

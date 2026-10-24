@@ -55,7 +55,7 @@ def qgate_lns(inst: QAPInstance, k: int = 3, iters: int = 120, solver: str = "qa
               p: int = 1, seed: int = 0, start_perm=None, select: str = "mixed",
               time_limit: float | None = None, shots: int = 512, maxiter: int = 40,
               polish: bool = True, label: str | None = None, stall_limit: int = 10,
-              kick_swaps: int = 2) -> dict:
+              kick_swaps: int = 3, adaptive_kick: bool = True) -> dict:
     from .quantum import solve_subproblem_qaoa   # import diferido (Qiskit)
 
     rng = np.random.default_rng(seed)
@@ -71,12 +71,16 @@ def qgate_lns(inst: QAPInstance, k: int = 3, iters: int = 120, solver: str = "qa
     warm = None
     best_cost, best_perm = cur, perm.copy()
     stall = 0
+    failed_kicks = 0                         # kicks seguidos sin mejorar el mejor conocido
     stats["kicks"] = 0
     for it in range(1, iters + 1):
         # perturbación (iterated local search) si nos estancamos en un óptimo local
         if stall >= stall_limit:
             perm = best_perm.copy()          # reiniciar desde el mejor conocido
-            for _ in range(kick_swaps):
+            # perturbación adaptativa (tipo VNS): más swaps tras cada kick que no mejoró
+            n_swaps = kick_swaps + (min(failed_kicks, n // 2) if adaptive_kick else 0)
+            failed_kicks += 1
+            for _ in range(n_swaps):
                 a, b = rng.choice(n, 2, replace=False)
                 perm[a], perm[b] = perm[b], perm[a]
             cur = inst.cost(perm)
@@ -120,6 +124,7 @@ def qgate_lns(inst: QAPInstance, k: int = 3, iters: int = 120, solver: str = "qa
         if cur < best_cost - 1e-9:
             best_cost, best_perm = cur, perm.copy()
             stall = 0
+            failed_kicks = 0
         else:
             stall += 1
         history.append({"iter": it, "t": time.perf_counter() - t0, "current": cur,

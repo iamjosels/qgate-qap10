@@ -21,7 +21,7 @@ import tracemalloc
 
 import numpy as np
 
-from .instance import QAPInstance
+from .instance import QAPInstance, mds_2d
 from .classical import (brute_force, simulated_annealing, gilmore_lawler_bound,
                         random_assignment)
 from .hybrid import qgate_lns
@@ -93,6 +93,11 @@ def load_instance(args):
 
 # -------------------------------------------------------------------- bench
 def main(argv=None):
+    for stream in (sys.stdout, sys.stderr):   # consola de Windows (cp1252) no imprime λ
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
     ap = argparse.ArgumentParser(description="QGate benchmark")
     src = ap.add_mutually_exclusive_group()
     src.add_argument("--mps", help="ruta a qap10.mps.gz")
@@ -116,7 +121,7 @@ def main(argv=None):
     args.expect = [float(t) if t.strip() else None for t in args.expect.split(",")]
     os.makedirs(args.out, exist_ok=True)
     q = args.quick
-    H = args.hybrid_iters or (120 if q else 300)
+    H = args.hybrid_iters or (120 if q else 300)   # mismo H para QAOA y exacto
 
     R = {"meta": {}, "data": {}, "validation": [], "classical": [], "quantum": [],
          "lambda_sweep": [], "hybrid": [], "scaling": [], "assignments": []}
@@ -177,7 +182,8 @@ def main(argv=None):
             r = run_qaoa(s, p=p, mixer=mixer, restarts=rs, maxiter=mi, shots=4096,
                          seed=args.seed, noise=noise, optimum=sub_opt.get(n))
             R["quantum"].append(r)
-            log(f"QAOA {r['id']}: P(fact)={r['p_feasible']:.4f} vs azar {r['random_feasible_baseline']:.4f} | "
+            log(f"QAOA {r['id']}: P(fact)={r['p_feasible']:.4f} ideal, {r['feasible_fraction_shots']:.4f} shots "
+                f"vs azar {r['random_feasible_baseline']:.4f} | "
                 f"P(ópt)={r['p_optimal']:.4f} | mejor factible {r['best_feasible_cost']} "
                 f"(ópt {r['optimum']}) | {r['time_s']:.1f}s | CX={r.get('cx_count')}")
         # barrido de lambda
@@ -196,7 +202,7 @@ def main(argv=None):
 
     # -------------------------------------------------------------- híbrido
     start = np.random.default_rng(args.seed + 100).permutation(N)
-    runs = [("exact", H * 3)]
+    runs = [("exact", H)]          # mismo presupuesto, semilla y arranque que la variante QAOA
     if not args.no_quantum:
         runs.insert(0, ("qaoa", H))
     best_h = None
@@ -215,6 +221,22 @@ def main(argv=None):
                                 "cost": best_h["final_cost"]}
         R["assignments"].append({"label": "QGate híbrido", "perm": best_h["final_perm"],
                                  "cost": best_h["final_cost"]})
+        if best_h.get("polished_cost") is not None and best_h["polished_cost"] < best_h["final_cost"] - 1e-9:
+            R["assignments"].append({"label": "QGate + pulido 2-swap", "perm": best_h["polished_perm"],
+                                     "cost": best_h["polished_cost"]})
+    # robustez: el mismo marco con solver exacto (barato) en varias semillas y arranques
+    seeds = list(range(args.seed, args.seed + (6 if q else 12)))
+    ms = []
+    for sd in seeds:
+        st = np.random.default_rng(sd + 100).permutation(N)
+        ms.append(qgate_lns(inst, k=3, iters=H, solver="exact", seed=sd, start_perm=st,
+                            polish=False)["final_cost"])
+    R["hybrid_seeds"] = {"solver": "exact", "iters": H, "seeds": seeds, "final_costs": ms,
+                         "mean": float(np.mean(ms)), "best": float(min(ms)), "worst": float(max(ms)),
+                         "hits_ref": int(sum(abs(c - ref) < 1e-6 for c in ms)) if ref else None,
+                         "mean_gap_pct": gap(float(np.mean(ms)), ref)}
+    log(f"Híbrido exacto en {len(seeds)} semillas: media {np.mean(ms):.1f}, mejor {min(ms)}, "
+        f"llega a la referencia {R['hybrid_seeds']['hits_ref']}/{len(seeds)}")
     R["hybrid"].append({"method": "simulated_annealing", "label": "Simulated annealing",
                         "N": N, "final_cost": sa["cost"], "time_s": sa["time_s"],
                         "gap_pct": gap(sa["cost"], ref),
@@ -242,10 +264,11 @@ def main(argv=None):
         tracemalloc.stop()
         rows = [("simulated_annealing", s_sa["cost"], s_sa["time_s"], peak, 0)]
         st = np.random.default_rng(args.seed).permutation(ns)
-        h_e = qgate_lns(si, iters=(H * 3), solver="exact", seed=args.seed, start_perm=st, polish=False)
+        hs = max(H // 2, 40)        # mismo presupuesto para ambos solvers del subproblema
+        h_e = qgate_lns(si, iters=hs, solver="exact", seed=args.seed, start_perm=st, polish=False)
         rows.append(("qgate_lns_exact", h_e["final_cost"], h_e["time_s"], h_e["peak_mem_mb"], 0))
         if not args.no_quantum:
-            h_q = qgate_lns(si, iters=max(H // 2, 40), solver="qaoa", seed=args.seed,
+            h_q = qgate_lns(si, iters=hs, solver="qaoa", seed=args.seed,
                             start_perm=st, polish=False)
             rows.append(("qgate_lns_qaoa", h_q["final_cost"], h_q["time_s"], h_q["peak_mem_mb"], 9))
         for meth, c, t, mem, qb in rows:
@@ -262,6 +285,10 @@ def main(argv=None):
         "instance": inst.name, "N": N, "source": inst.meta.get("source", "synthetic"),
         "generated_at": dt.datetime.now().isoformat(timespec="seconds"), "seed": args.seed,
         "reference_optimum": ref, "track": "A", "versions": _versions(),
+        # memoria de un statevector genérico: 2^(N^2) amplitudes complejas de 16 bytes
+        "statevector_memory": [{"N": n_, "qubits": n_ * n_, "bytes": 16.0 * 2.0 ** (n_ * n_)}
+                               for n_ in (3, 4, 5, 10, 14)],
+        "qubits_per_subproblem": 9,
         "args": vars(args), "total_time_s": time.perf_counter() - t_all,
         "limitations": [
             "Statevector exacto solo hasta ~20 qubits: QAOA directo llega a N=4 (16 qubits)",
@@ -277,10 +304,10 @@ def main(argv=None):
         "factorization_residual": inst.meta.get("factorization_residual"),
         "index_strategy": inst.meta.get("index_strategy", "synthetic"),
         "mps_report": mps_report, "index_candidates": cand_table,
-        "gate_xy": inst.meta.get("gate_xy"),
+        "gate_xy": inst.meta.get("gate_xy") or (mds_2d(inst.D).tolist() if inst.D is not None else None),
     }
     path = os.path.join(args.out, "results.json")
-    with open(path, "w") as fh:
+    with open(path, "w", encoding="utf-8") as fh:
         json.dump(R, fh, default=_jsonable, indent=1, ensure_ascii=False)
     log(f"Guardado {path} ({time.perf_counter() - t_all:.0f}s en total)")
 

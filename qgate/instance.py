@@ -140,3 +140,18 @@ class QAPInstance:
         if self.F is None or self.D is None:
             raise ValueError("La instancia no tiene F y D factorizadas")
         np.savez(path, F=self.F, D=self.D)
+
+
+def mds_2d(D: np.ndarray) -> np.ndarray:
+    """Coordenadas 2D de las ubicaciones a partir de D por MDS clásico (para el mapa).
+
+    B = -1/2 J D^2 J con J = I - 11^T/n; se toman los dos mayores autovalores de B.
+    Solo es una proyección visual: D no tiene por qué ser euclidiana.
+    """
+    D = np.asarray(D, dtype=float)
+    n = D.shape[0]
+    J = np.eye(n) - np.ones((n, n)) / n
+    B = -0.5 * J @ (D ** 2) @ J
+    w, V = np.linalg.eigh(B)
+    idx = np.argsort(w)[::-1][:2]
+    return V[:, idx] * np.sqrt(np.clip(w[idx], 0.0, None))
