@@ -286,7 +286,8 @@ def slides(R, team, img):
                 + (f"Lo medimos en el simulador Qiskit Aer y en una corrida en {R['hardware']['backend']} de IBM Quantum. "
                    "El siguiente paso es más tiempo de hardware, piezas más grandes y mitigación de errores. Gracias."
                    if R.get("hardware") else
-                   "El siguiente paso es hardware IBM real, piezas más grandes y mitigación de errores. Gracias.")))
+                   "El siguiente paso es hardware IBM real, piezas más grandes y mitigación de errores. Gracias.")
+                + " Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equipo; parte del motor se preparó antes de la jornada; los cuatro integrantes pueden explicar su funcionamiento."))
     return out
 
 

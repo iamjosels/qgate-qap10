@@ -94,6 +94,8 @@ def main():
         s.shapes.add_picture(png, 0, 0, width=prs.slide_width, height=prs.slide_height)
         if i - 1 < len(notes):
             s.notes_slide.notes_text_frame.text = notes[i - 1]
+    last.notes_slide.notes_text_frame.text = ("Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equipo; parte del motor se preparó antes de la jornada; los cuatro integrantes pueden explicar su funcionamiento. Créditos: Qiskit, Qiskit Aer, qiskit-ibm-runtime, "
+                                              "NumPy, SciPy, MIPLIB 2017 (qap10), Claude Code.")
     last_el = list(sld)[1]
     sld.remove(last_el)
     sld.append(last_el)

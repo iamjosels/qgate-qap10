@@ -501,7 +501,8 @@ footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40
 
 <footer><div class="wrap">AMARILLO = SEÑALÉTICA Y LO ÓPTIMO · CIAN = TODO LO QUE SALE DE QISKIT · NARANJA = INVÁLIDO<br>
 QGate · IBM Quantum Hackathon 2026 · Reto NTT DATA QAP10 · Track A Aeropuerto · Qiskit, Qiskit Aer, NumPy, SciPy · datos MIPLIB 2017 qap10 ·
-<a href="https://github.com/iamjosels/qgate-qap10">código</a> <span id="gen"></span></div></footer>
+<a href="https://github.com/iamjosels/qgate-qap10">código</a> <span id="gen"></span><br>
+Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equipo; parte del motor se preparó antes de la jornada; los cuatro integrantes pueden explicar su funcionamiento. Créditos: Qiskit, Qiskit Aer, qiskit-ibm-runtime, NumPy, SciPy, MIPLIB 2017 (qap10), Claude Code.</div></footer>
 
 <script>
 (function () {

@@ -260,6 +260,13 @@ examples/     corrida sobre un MPS sintético (no es qap10)
 NumPy, SciPy, Matplotlib, python-pptx; slides renderizadas con Chrome headless. Identidad visual en `design/` (BRAND.md). Datos: [MIPLIB 2017, instancia qap10](https://miplib.zib.de/instance_details_qap10.html).
 Reto: NTT DATA. Organizan Quantum Hub Perú, IEEE Computer Society PUCP y NTT DATA.
 
-**Uso de IA.** El código, el dashboard y el material se desarrollaron con asistencia de Claude Code (Anthropic),
-siguiendo un plan escrito por el equipo. El equipo revisó el código y los resultados, y puede explicar cada decisión
-técnica; las decisiones y sus pruebas quedan en `docs/DECISIONES.md`.
+## Uso de IA y herramientas
+
+Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equipo; parte del motor se preparó antes de
+la jornada; los cuatro integrantes pueden explicar su funcionamiento. Las decisiones técnicas y sus pruebas quedan en
+`docs/DECISIONES.md`.
+
+Créditos: Qiskit, Qiskit Aer, qiskit-ibm-runtime, NumPy, SciPy, MIPLIB 2017 (qap10), Claude Code.
+
+Documentos del reto: ver los documentos oficiales (bases y especificación del reto) en el portal del hackathon; no se
+redistribuyen en este repositorio.
