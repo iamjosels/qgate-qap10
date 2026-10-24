@@ -92,6 +92,10 @@ def build(json_path: str, out_path: str) -> str:
             R["meta"]["limitations"] = [
                 (f"Simulador Qiskit Aer y una corrida N={H.get('N')} en {H.get('backend')} de IBM Quantum "
                  f"(job {H.get('job_id')}); el resto es simulación") if "hardware real" in l else l for l in lim]
+    ex = os.path.join(os.path.dirname(os.path.abspath(json_path)), "extra.json")
+    if os.path.exists(ex):                         # cifras nuevas de analysis/baselines.py
+        with open(ex, encoding="utf-8") as fh:
+            R["extra"] = json.load(fh)
     data = R.setdefault("data", {})
     data["gate_grid"] = _grid_layout(data.get("D"))
     payload = json.dumps(_clean(_slim(R)), ensure_ascii=False, allow_nan=False)
@@ -387,6 +391,7 @@ footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
         <h2 class="mid">Terminal Q · Muelle A</h2>
         <span class="kick">Grosor = pasajeros en conexión</span>
+        <span class="kick" style="flex-basis:100%;color:var(--signal)" id="replayNote"></span>
       </div>
       <div class="terminal" id="terminal"></div>
       <div class="prog" id="hProg"><span class="lbl" id="hIterLbl"></span><div class="track y" id="hTrack"><div class="fill"></div><div class="knob"></div></div></div>
@@ -458,15 +463,16 @@ footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40
   <section class="detail" id="d-ablation">
     <div class="sec-head"><span class="num-sign">05</span><h3>¿Cuánto aporta QAOA?</h3>
       <p>El mismo híbrido con distintos solvers del subproblema, mismas iteraciones, semilla y arranque. Con muchas muestras el azar también resuelve piezas de 3 vuelos; con pocas se ve la concentración de QAOA.</p></div>
-    <div class="tbl"><table><thead><tr><th>SOLVER</th><th class="r">SHOTS</th><th class="r">COSTO FINAL</th><th class="r">GAP</th><th class="r">PIEZAS RESUELTAS</th><th class="r">P(ÓPTIMO) POR PIEZA</th><th class="r">AZAR</th><th class="r">TIEMPO</th></tr></thead>
+    <div class="tbl"><table><thead><tr><th>SOLVER</th><th class="r">SHOTS</th><th class="r">COSTO FINAL</th><th class="r">GAP</th><th class="r">PIEZAS RESUELTAS</th><th class="r">P(ÓPTIMO) POR PIEZA</th><th class="r">AZAR (27 ESTADOS)</th><th class="r">TIEMPO</th></tr></thead>
       <tbody id="ablRows"></tbody></table></div>
+    <p class="verdict" id="ablRead" style="margin-top:14px"></p>
     <div class="chips" id="seedChips" style="margin-top:14px"></div>
   </section>
 
   <section class="detail hidden" id="d-hw">
     <div class="sec-head"><span class="num-sign">05b</span><h3>IBM Quantum real</h3>
       <p id="hwLede"></p></div>
-    <div class="tbl"><table><thead><tr><th>EXPERIMENTO</th><th class="r">QUBITS</th><th class="r">VÁLIDAS EN HARDWARE</th><th class="r">IDEAL (AER)</th><th class="r">AER CON RUIDO 1%</th><th class="r">AZAR</th><th class="r">P(ÓPTIMO)</th><th class="r">MEJOR COSTO</th><th class="r">PROFUNDIDAD</th><th class="r">COMPUERTAS 2Q</th></tr></thead>
+    <div class="tbl"><table><thead><tr><th>EXPERIMENTO</th><th class="r">QUBITS</th><th class="r">VÁLIDAS EN HARDWARE</th><th class="r">IDEAL (AER)</th><th class="r">AER CON RUIDO 1%</th><th class="r">AZAR P(VÁLIDA)</th><th class="r">P(ÓPTIMO)</th><th class="r">AZAR P(ÓPTIMO) · RAZÓN</th><th class="r">MEJOR COSTO</th><th class="r">PROFUNDIDAD</th><th class="r">COMPUERTAS 2Q</th></tr></thead>
       <tbody id="hwRows"></tbody></table></div>
   </section>
 
@@ -703,10 +709,14 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
     if (hq && num(hq.sub_success_rate) && num(hq.shots)) pills.push(`<span class="pill">QAOA ÓPTIMO EN ${f(100 * hq.sub_success_rate)}% DE SUBPROBLEMAS (${hq.shots} SHOTS)</span>`);
     if (hq && num(hq.qaoa_p_optimal_mean) && num(hq.random_p_optimal_mean)) pills.push(`<span class="pill">P(ÓPTIMO) POR PIEZA ${f(hq.qaoa_p_optimal_mean, 3)} VS AZAR ${f(hq.random_p_optimal_mean, 3)}</span>`);
     const h8 = H.qgate_lns_qaoa_s8, r8 = H.qgate_lns_random_s8;
-    if (h8 && r8 && num(h8.sub_success_rate) && num(r8.sub_success_rate)) pills.push(`<span class="pill n">CON 8 SHOTS: QAOA ${f(100 * h8.sub_success_rate)}% · AZAR ${f(100 * r8.sub_success_rate)}%</span>`);
+    const Bv = ((R.extra || {}).baselines_qaoa_s8) || null;
+    if (h8 && r8 && num(h8.sub_success_rate) && num(r8.sub_success_rate)) pills.push(`<span class="pill n">CON 8 SHOTS: QAOA ${f(100 * h8.sub_success_rate)}% · AZAR (27 ESTADOS) ${f(100 * r8.sub_success_rate)}%`
+      + (Bv ? ` · AZAR (6 PERMUTACIONES VÁLIDAS) ${f(100 * Bv.hit_k8_random_valid_6)}% · ENUMERACIÓN 100%` : "") + "</span>");
     $("hPills").innerHTML = pills.join("");
     let fact = 1; for (let i = 2; i <= n; i++) fact *= i;
     $("strip").textContent = `${n} VUELOS · ${n} PUERTAS · ${n}! = ${sp(fact)} ASIGNACIONES · SUBPROBLEMAS DE 3 VUELOS = 9 QUBITS · CADA PAR SE CUENTA UNA VEZ · DATOS QAP10 (MIPLIB) · UNIDADES SUPUESTAS`;
+    const S0 = R.hybrid_seeds;
+    put("replayNote", hq ? `Repetición grabada, semilla ${meta.seed}; no es el caso típico (ver 05: ${S0 ? S0.hits_ref + " de " + S0.final_costs.length + " semillas llegan a " + f(REF) : "robustez"})` : null);
     let ei = 0, prev = null;
     function draw() {
       const ev = evs ? evs[ei] : { perm: final, cost: hq ? hq.final_cost : best.cost, iter: hq ? hq.iters : null, type: "end" };
@@ -769,8 +779,10 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
       fields: [["P(VÁLIDA)", pct(q4.p_feasible)], ["AL AZAR", pct(q4.random_feasible_baseline)], ["P(ÓPTIMO)", pct(q4.p_optimal)], ["CX", num(q4.cx_count) ? String(q4.cx_count) : null]] }));
     const hq = H.qgate_lns_qaoa;
     if (hq) out.push(pass({ kicker: `HÍBRIDO · N = ${N}`, tag: "QGATE", tagBg: "#FFC629", from: "AZAR", to: "QGATE", stubK: "QUBITS", stubV: String(hq.qubits_per_subproblem || 9),
-      fields: [["COSTO", f(hq.final_cost)], [`GAP VS ${f(REF)}`, num(hq.gap_pct) ? hq.gap_pct.toFixed(1) + "%" : null],
-               [num(hq.shots) ? `QAOA ÓPTIMO · ${hq.shots} SHOTS` : "QAOA ÓPTIMO", num(hq.sub_success_rate) ? f(100 * hq.sub_success_rate) + "%" : null], ["TIEMPO", num(hq.time_s) ? f(hq.time_s) + " s" : null]] }));
+      fields: (() => { const S = R.hybrid_seeds; return [[`SEMILLA ${meta.seed} · COSTO`, f(hq.final_cost)],
+               [S ? `${S.final_costs.length} SEMILLAS · LLEGAN A ${f(REF)}` : "SEMILLAS", S ? String(S.hits_ref) : null],
+               ["MEDIA · MEJOR · PEOR", S ? `${f(S.mean, 1)} · ${f(S.best)} · ${f(S.worst)}` : null],
+               ["GAP MEDIO", S && num(S.mean_gap_pct) ? S.mean_gap_pct.toFixed(1) + "%" : null]]; })() }));
     $("passes").innerHTML = out.join("");
     const rows = [];
     const row = (m, n, q, c, g, t, w, color, k) => rows.push(`<tr><td style="color:${color};font-weight:600">${AP(k)}${esc(m)}</td><td>${n}</td><td>${esc(q)}</td><td>${c ?? "-"}</td><td>${g === null ? "-" : g.toFixed(1) + "%"}</td><td>${t ?? "-"}</td><td style="color:var(--mute)">${esc(w)}</td></tr>`);
@@ -783,10 +795,13 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
     if (hw && has(hw.experiments)) hw.experiments.forEach((e) => row(`QAOA mixer ${String(e.mixer).toUpperCase()} · hardware`, e.N, String(e.qubits),
       e.best_feasible_cost === null || e.best_feasible_cost === undefined ? null : f(e.best_feasible_cost), num(e.best_feasible_cost) ? gap(e.best_feasible_cost, e.optimum) : null,
       num(hw.usage_quantum_seconds) ? f(hw.usage_quantum_seconds) + " s QPU (job)" : null, "IBM Quantum · " + hw.backend, "var(--qubit)", "quantum"));
-    if (hq) row("QGate híbrido", N, "9 / subproblema", f(hq.final_cost), gap(hq.final_cost), tm(hq.time_s, 0), "Qiskit Aer + CPU", "var(--signal)", "hybrid");
+    if (hq) row(`QGate híbrido · semilla ${meta.seed}`, N, "9 / subproblema", f(hq.final_cost), gap(hq.final_cost), tm(hq.time_s, 0), "Qiskit Aer + CPU", "var(--signal)", "hybrid");
+    const S12 = R.hybrid_seeds;
+    if (S12) row(`Mismo marco · ${S12.final_costs.length} semillas (solver exacto): ${S12.hits_ref} llegan a ${f(REF)}, media ${f(S12.mean, 1)}, mejor ${f(S12.best)}, peor ${f(S12.worst)}`, N, "0",
+      f(S12.mean, 1) + " (media)", S12.mean_gap_pct, null, "CPU", "var(--paper)", "classic");
     const h8 = H.qgate_lns_qaoa_s8, r8 = H.qgate_lns_random_s8;
     if (h8) row("QGate híbrido · 8 shots", N, "9 / subproblema", f(h8.final_cost), gap(h8.final_cost), tm(h8.time_s, 0), "Qiskit Aer + CPU", "var(--signal)", "hybrid");
-    if (r8) row("Control azar · 8 shots", N, "0", f(r8.final_cost), gap(r8.final_cost), tm(r8.time_s), "CPU", "var(--mute)", "classic");
+    if (r8) row("Control azar (27 estados con una puerta por vuelo) · 8 shots", N, "0", f(r8.final_cost), gap(r8.final_cost), tm(r8.time_s), "CPU", "var(--mute)", "classic");
     $("resRows").innerHTML = rows.join("");
   })();
 
@@ -815,12 +830,17 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
   (function ablation() {
     const L = (R.hybrid || []).filter((h) => h.method && h.method.startsWith("qgate_lns"));
     if (!has(L)) { hide("d-ablation"); return; }
+    const lab = (h) => h.solver === "random" ? `Azar (27 estados con una puerta por vuelo) · ${h.shots} shots` : h.solver === "exact" ? "Enumeración exacta (6 opciones)" : h.label;
+    const B8 = ((R.extra || {}).baselines_qaoa_s8) || null, B512 = ((R.extra || {}).baselines_qaoa) || null;
+    const extraRows = [];
+    [[B512, 512], [B8, 8]].forEach(([B, k]) => { if (B && num(B[`hit_k${k}_random_valid_6`])) extraRows.push(`<tr><td style="font-weight:600">${AP("classic")}Azar (6 permutaciones válidas) · ${k} muestras <span class="kick" style="letter-spacing:.04em">calculado sobre las ${B.pieces} piezas de la corrida QAOA de ${k} shots</span></td><td class="r">${k}</td><td class="r">-</td><td class="r">-</td><td class="r">${f(100 * B[`hit_k${k}_random_valid_6`])}%</td><td class="r">${B.p_opt_random_valid_6.toFixed(3)}</td><td class="r">${B.p_opt_random_states_27.toFixed(3)}</td><td class="r">-</td></tr>`); });
+    $("ablRead").textContent = "QAOA concentra probabilidad respecto a su espacio de partida; en piezas de 3 vuelos aún no supera a muestrear permutaciones válidas ni a enumerar las 6 opciones.";
     $("ablRows").innerHTML = L.map((h) => {
       const pm = h.solver === "qaoa" ? h.qaoa_p_optimal_mean : h.solver === "random" ? h.random_p_optimal_mean : 1;
-      return `<tr><td style="color:${h.solver === "qaoa" ? "var(--signal)" : "var(--paper)"};font-weight:600">${AP(h.solver === "qaoa" ? "hybrid" : "classic")}${esc(h.label)}</td><td class="r">${h.shots ?? "-"}</td>
+      return `<tr><td style="color:${h.solver === "qaoa" ? "var(--signal)" : "var(--paper)"};font-weight:600">${AP(h.solver === "qaoa" ? "hybrid" : "classic")}${esc(lab(h))}</td><td class="r">${h.shots ?? "-"}</td>
       <td class="r">${f(h.final_cost)}</td><td class="r">${num(h.gap_pct) ? h.gap_pct.toFixed(1) + "%" : "-"}</td><td class="r">${num(h.sub_success_rate) ? f(100 * h.sub_success_rate) + "%" : "-"}</td>
       <td class="r">${num(pm) ? pm.toFixed(3) : "-"}</td><td class="r">${num(h.random_p_optimal_mean) ? h.random_p_optimal_mean.toFixed(3) : "-"}</td><td class="r">${f(h.time_s, 1)} s</td></tr>`;
-    }).join("");
+    }).join("") + extraRows.join("");
     const S = R.hybrid_seeds;
     if (S && has(S.final_costs)) $("seedChips").innerHTML = `<span>robustez · ${S.final_costs.length} semillas (exacto): media <b>${f(S.mean, 1)}</b></span><span>llega a ${f(REF)} en <b>${S.hits_ref}/${S.final_costs.length}</b></span>`
       + S.final_costs.map((c, i) => `<span style="${Math.abs(c - REF) < 1e-6 ? "border-color:var(--signal);color:var(--signal)" : ""}">s${S.seeds[i]} · ${f(c)}</span>`).join("");
@@ -830,10 +850,17 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
     const hw = R.hardware;
     if (!hw || !has(hw.experiments)) return;
     $("d-hw").classList.remove("hidden");
-    $("hwLede").textContent = `Un job en ${hw.backend} (job ${hw.job_id}${num(hw.usage_quantum_seconds) ? `, ${f(hw.usage_quantum_seconds)} s de QPU` : ""}) con los ángulos ya optimizados en el simulador. Resultado de hardware, separado de todo lo demás.`;
+    const ex = hw.experiments, exy = ex.find((e) => e.mixer === "xy"), exx = ex.find((e) => e.mixer === "x");
+    let lede = `HARDWARE ${hw.backend}: un solo job, un solo backend (job ${hw.job_id}${num(hw.usage_quantum_seconds) ? `, ${f(hw.usage_quantum_seconds)} s de QPU` : ""}), N=3, con los ángulos ya optimizados en el simulador.`;
+    if (exy && exx && num(exy.sim_noise_feasible_fraction) && num(exx.sim_noise_feasible_fraction))
+      lede += ` La simulación con 1% de ruido coincidió con el mixer XY (${pct(exy.sim_noise_feasible_fraction)} vs ${pct(exy.feasible_fraction)}) y sobreestimó el mixer X (${pct(exx.sim_noise_feasible_fraction)} vs ${pct(exx.feasible_fraction)}).`;
+    if (exy && exx) lede += ` XY queda casi en su línea base de P(válida) (${pct(exy.feasible_fraction)} vs ${pct(exy.random_feasible_baseline)}); X queda ${(exx.feasible_fraction / exx.random_feasible_baseline).toFixed(2)} veces sobre la suya (${pct(exx.feasible_fraction)} vs ${pct(exx.random_feasible_baseline)}).`;
+    $("hwLede").textContent = lede;
+    const hro = ((R.extra || {}).hardware_random_p_optimal || {}).rows || [];
     $("hwRows").innerHTML = hw.experiments.map((e) => `<tr><td style="color:var(--qubit);font-weight:600">${AP("quantum")}${esc(e.id)}</td><td class="r">${e.qubits}</td>
       <td class="r" style="color:var(--qubit)">${pct(e.feasible_fraction) ?? "-"}</td><td class="r">${pct(e.sim_ideal_p_feasible) ?? "-"}</td><td class="r">${pct(e.sim_noise_feasible_fraction) ?? "-"}</td>
-      <td class="r">${pct(e.random_feasible_baseline) ?? "-"}</td><td class="r">${pct(e.p_optimal) ?? "-"}</td><td class="r">${f(e.best_feasible_cost) ?? "-"}${num(e.optimum) ? " (ópt " + f(e.optimum) + ")" : ""}</td>
+      <td class="r">${pct(e.random_feasible_baseline) ?? "-"}</td><td class="r">${pct(e.p_optimal) ?? "-"}</td>
+      <td class="r">${(() => { const r = hro.find((x) => x.id === e.id); return r ? `${pct(r.random_p_optimal, 2)} (${r.ratio_hw_vs_random.toFixed(2)}×)` : "-"; })()}</td><td class="r">${f(e.best_feasible_cost) ?? "-"}${num(e.optimum) ? " (ópt " + f(e.optimum) + ")" : ""}</td>
       <td class="r">${e.depth ?? "-"}</td><td class="r">${e.two_qubit_gates ?? "-"}</td></tr>`).join("");
   })();
 
