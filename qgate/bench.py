@@ -292,11 +292,14 @@ def main(argv=None):
         "args": vars(args), "total_time_s": time.perf_counter() - t_all,
         "limitations": [
             "Statevector exacto solo hasta ~20 qubits: QAOA directo llega a N=4 (16 qubits)",
-            "N=10 completo serían 100 qubits: se resuelve por vecindarios de 9 qubits",
+            "N=10 completo serían 100 qubits: se resuelve por vecindarios de 3 vuelos (9 qubits)",
             "Penalidades: λ grande aplana el paisaje, λ chico deja ganar soluciones inválidas",
-            "Resultados en simulador; el ruido se estima con un modelo despolarizante",
+            "Con ruido despolarizante el mixer XY pierde buena parte de su ventaja de factibilidad",
+            "Todo corre en simulador (Qiskit Aer); no se usó hardware real",
+            "La calidad final del híbrido la limita el vecindario de 3 vuelos, no el solver QAOA",
+            "N>10 son instancias sintéticas sin óptimo conocido: se comparan contra la cota Gilmore-Lawler",
             "Las unidades del aeropuerto son supuestos: qap10 es un benchmark matemático",
-            "Reparación clásica se reporta aparte del resultado crudo",
+            "El pulido 2-swap y la reparación clásica se reportan aparte del resultado crudo",
         ],
     }
     R["data"] = {

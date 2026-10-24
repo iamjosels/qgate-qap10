@@ -57,6 +57,14 @@ Se corrigió: ambos usan **el mismo número de iteraciones, la misma semilla y e
 tanto en N = 10 como en la prueba de escalamiento. Así la diferencia entre ambos mide solo cuánto
 pierde (o no) QAOA al resolver cada subproblema.
 
+**Empates.** En la primera corrida completa, con la misma semilla, el híbrido QAOA terminó en 378 y el
+exacto en 340 aunque QAOA resolvió el 100% de los subproblemas al óptimo. La causa: el solver exacto
+devuelve la identidad cuando la asignación actual ya es óptima (no se mueve), mientras que QAOA puede
+devolver otra permutación del mismo costo, que se aceptaba como movimiento lateral. Eso cambiaba la
+trayectoria por azar, no por calidad. Se corrigió: ambos aceptan solo mejoras estrictas
+(`sideways=False`). Con eso las trayectorias QAOA y exacta coinciden paso a paso mientras QAOA
+encuentre el óptimo del subproblema, y cualquier diferencia final se atribuye a fallos de QAOA.
+
 ## 4. Parámetros del híbrido (perturbación)
 
 Se probó con solver exacto (rápido) sobre qap10 real, 8 y luego 12 semillas:

@@ -55,7 +55,7 @@ def qgate_lns(inst: QAPInstance, k: int = 3, iters: int = 120, solver: str = "qa
               p: int = 1, seed: int = 0, start_perm=None, select: str = "mixed",
               time_limit: float | None = None, shots: int = 512, maxiter: int = 40,
               polish: bool = True, label: str | None = None, stall_limit: int = 10,
-              kick_swaps: int = 3, adaptive_kick: bool = True) -> dict:
+              kick_swaps: int = 3, adaptive_kick: bool = True, sideways: bool = False) -> dict:
     from .quantum import solve_subproblem_qaoa   # import diferido (Qiskit)
 
     rng = np.random.default_rng(seed)
@@ -114,7 +114,11 @@ def qgate_lns(inst: QAPInstance, k: int = 3, iters: int = 120, solver: str = "qa
             if abs(sub.cost(new_sub) - sub_opt_cost) < 1e-9:
                 stats["qaoa_found_sub_opt"] += 1
         new_sub_cost = sub.cost(new_sub)
-        if new_sub_cost <= cur_sub + 1e-9 and list(new_sub) != list(range(k)):
+        # solo mejoras estrictas: el solver exacto devuelve la identidad ante empates y QAOA
+        # puede devolver otra permutación del mismo costo; aceptar empates haría que ambas
+        # trayectorias diverjan por azar y no por la calidad del solver del subproblema
+        accept = new_sub_cost < cur_sub - 1e-9 or (sideways and new_sub_cost <= cur_sub + 1e-9)
+        if accept and list(new_sub) != list(range(k)):
             locs = sub.meta["locs"]
             for a, e in enumerate(elems):
                 perm[e] = locs[new_sub[a]]
