@@ -163,12 +163,12 @@ def slides(R, team, img):
     out.append((f"""<div class="c" style="height:100%">{head("03", "Qiskit: QAOA en 16 qubits")}
   <div class="g2">
     <div class="card" style="border-top:6px solid #4FE3E0">
-      <div class="k q">Mixer X · N = 4 · P(válida)</div>
-      <div style="display:flex;align-items:baseline;gap:16px"><div class="big q">×{x4['p_feasible'] / x4['random_feasible_baseline']:.0f}</div><div class="unit">vs azar</div></div>
-      <div class="sub">{pct(x4['p_feasible'])} frente a {pct(x4['random_feasible_baseline'], 2)}</div>
+      <div class="k q">Mixer X · N = 4 · P(válida) · SIMULADOR</div>
+      <div style="display:flex;align-items:baseline;gap:16px"><div class="big q">×{x4['p_feasible'] / x4['random_feasible_baseline']:.0f}</div><div class="unit">el azar de su espacio</div></div>
+      <div class="sub">{pct(x4['p_feasible'])} vs {pct(x4['random_feasible_baseline'], 3)} (2<sup>16</sup> estados)</div>
     </div>
     <div class="card" style="border-top:6px solid #4FE3E0">
-      <div class="k q">Mixer XY + estado W · P(válida)</div>
+      <div class="k q">Mixer XY + estado W · P(válida) · SIMULADOR</div>
       <div class="big q">{pct(xy4['p_feasible'], 0)}</div>
       <div class="sub">azar con una puerta por vuelo: {pct(xy4['random_feasible_baseline'])}</div>
     </div>
@@ -189,8 +189,12 @@ def slides(R, team, img):
     hxy = None
     if hw and hw.get("backend"):
         hxy = next((e for e in hw.get("experiments", []) if e["mixer"] == "xy"), None)
-        lim_chips.append((f"IBM Quantum real · {hw['backend']}" + (
-            f" · N=3 XY {pct(hxy['feasible_fraction'], 0)} válidas" if hxy else ""), True))
+        hx_ = next((e for e in hw.get("experiments", []) if e["mixer"] == "x"), None)
+        if hxy and hx_:
+            lim_chips = [lim_chips[0], (f"HARDWARE {hw['backend']} N=3: XY {pct(hxy['feasible_fraction'])} vs azar {pct(hxy['random_feasible_baseline'])} (casi sin ventaja) · "
+                                        f"X {pct(hx_['feasible_fraction'])} vs {pct(hx_['random_feasible_baseline'])}", True),
+                         (f"SIMULADOR ruido 1%: coincidió con XY ({pct(hxy['sim_noise_feasible_fraction'])}) y sobreestimó X ({pct(hx_['sim_noise_feasible_fraction'])})", False),
+                         ("un solo job, un solo backend", False)]
     out.append((f"""<div class="c" style="height:100%">{head("04", "Límites")}
   <div class="g2">
     <div class="card" style="border-top:6px solid #FF6B3D">
@@ -224,14 +228,14 @@ def slides(R, team, img):
   <div style="display:grid;grid-template-columns:400px minmax(0,1fr);gap:28px;flex-grow:1;min-height:0">
     <div style="display:flex;flex-direction:column;gap:20px;min-height:0">
       <div class="card" style="border-top:6px solid #FFC629;flex:1">
-        <div class="k y">QGate · N = {N} · {hq['shots']} shots</div>
+        <div class="k y">QGate · N = {N} · semilla {meta['seed']} · SIMULADOR</div>
         <div class="mid y" style="font-size:130px">{g(hq['final_cost'])}</div>
         <div class="sub">gap {g(hq['gap_pct'], 1)}% · {hq['iters']} iteraciones</div>
       </div>
       <div class="card" style="border-top:6px solid #4FE3E0;flex:1">
         <div class="k q">P(óptimo) por pieza</div>
         <div class="mid q" style="font-size:90px">{g(hq['qaoa_p_optimal_mean'], 3)}</div>
-        <div class="sub">azar: {g(hq['random_p_optimal_mean'], 3)}</div>
+        <div class="sub">azar 27 estados: {g(hq['random_p_optimal_mean'], 3)}{(" · 6 válidas: " + g(R["extra"]["baselines_qaoa"]["p_opt_random_valid_6"], 3)) if (R.get("extra") or {}).get("baselines_qaoa") else ""}</div>
       </div>
     </div>
     <div class="card" style="padding:18px;justify-content:center"><img class="fig" src="{img('hibrido_convergencia.png')}"></div>
@@ -283,6 +287,7 @@ def slides(R, team, img):
                    for t, c, items in cols)
     out.append((f"""<div class="c" style="height:100%">{head("07", "Qué aporta lo cuántico hoy")}
   <div class="g3">{colh}</div>
+  <div style="font:600 24px 'IBM Plex Sans';color:#F4F1E8">El híbrido escala en memoria, todavía no en calidad.</div>
   <div class="mono" style="font-size:22px;color:#C9C6BC">Exacto <b class="y">{g(bf['cost'])}</b> · SA <b class="y">{g(sa['cost'])}</b> · QGate <b class="q">{g(hq['final_cost'])}</b> · azar <b>{g(rnd['cost'])}</b></div>
   <div class="mono" style="font-size:12px;letter-spacing:.12em;color:#6E6C66">QISKIT · QISKIT AER · NUMPY · SCIPY · MIPLIB 2017 (QAP10) · {html.escape(team['repo'].replace('https://', '').upper())}</div>
 </div>""",
