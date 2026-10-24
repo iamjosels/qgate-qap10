@@ -62,8 +62,9 @@ Detalle en [`docs/DECISIONES.md`](docs/DECISIONES.md).
 | Cota Gilmore-Lawler | Cota inferior (para N sin óptimo conocido) | `classical.py` |
 | QAOA mixer X | QAOA estándar: estado `|+⟩`, todas las restricciones como penalidad | `quantum.py` |
 | QAOA mixer XY | Quantum Alternating Operator Ansatz: estado W por fila y mixer XY en anillo; cada vuelo queda en una sola puerta por construcción, solo las columnas se penalizan | `quantum.py` |
-| **QGate híbrido** | Búsqueda en vecindarios grandes: elige 3 vuelos, arma el subproblema de 9 qubits con el resto fijo (las interacciones fijas pasan a términos lineales), lo resuelve con QAOA y acepta solo si mejora; perturba desde la mejor asignación si se estanca | `hybrid.py` |
+| **QGate híbrido** | Búsqueda en vecindarios grandes: elige 3 vuelos, arma el subproblema de 9 qubits con el resto fijo (las interacciones fijas pasan a términos lineales), lo resuelve con QAOA (mixer XY, p=2) y acepta solo si mejora estrictamente; perturba desde la mejor asignación si se estanca | `hybrid.py` |
 | Control exacto | El mismo marco híbrido con el subproblema resuelto por enumeración (3! = 6), mismas iteraciones, semilla y arranque | `hybrid.py` |
+| Control azar | El mismo marco con muestras uniformes sobre los estados con una puerta por vuelo, con el mismo número de shots que QAOA (512 y 8). Separa el aporte de QAOA del aporte del muestreo | `hybrid.py` |
 
 ### Qué hace Qiskit y qué es clásico
 

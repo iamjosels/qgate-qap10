@@ -242,6 +242,7 @@ footer { padding: 34px 0 50px; color: var(--muted); font-size: 12.5px; border-to
   <nav class="nav">
     <a href="#datos">Datos</a><a href="#mapa">Mapa</a><a href="#qaoa">QAOA</a><a href="#lambda">λ</a>
     <a href="#hibrido">Híbrido</a><a href="#escala">Escala</a><a href="#repro">Reproducir</a>
+    <a href="https://github.com/iamjosels/qgate-qap10">GitHub</a>
   </nav>
 </div></div>
 
@@ -307,7 +308,8 @@ footer { padding: 34px 0 50px; color: var(--muted); font-size: 12.5px; border-to
         <li>Estado W por fila y mixer XY que conserva filas válidas</li>
         <li>Simulación statevector y muestreo con shots (Aer)</li>
         <li>Modelo de ruido despolarizante</li>
-        <li>Transpilación: profundidad y número de CX</li></ul></div>
+        <li>Transpilación: profundidad y número de CX</li>
+        <li>Cada subproblema de 9 qubits del híbrido (QAOA p=2)</li></ul></div>
       <div class="card c"><h3>Clásico hace</h3><ul>
         <li>Leer el MPS y reconstruir F y D</li>
         <li>QUBO, λ y paso a Ising</li>
@@ -377,7 +379,7 @@ footer { padding: 34px 0 50px; color: var(--muted); font-size: 12.5px; border-to
 </main>
 
 <footer><div class="wrap">
-  QGate · IBM Quantum Hackathon 2026 · Reto NTT DATA QAP10.
+  QGate · IBM Quantum Hackathon 2026 · Reto NTT DATA QAP10 · <a href="https://github.com/iamjosels/qgate-qap10">código en GitHub</a>.
   Librerías: Qiskit, Qiskit Aer, NumPy, SciPy, Matplotlib, Chart.js. Datos: MIPLIB 2017, instancia qap10.
   <span id="gen"></span>
 </div></footer>
