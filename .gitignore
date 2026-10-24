@@ -5,3 +5,4 @@ results_*/
 data/*.mps*
 .venv/
 *.log
+results_smoke/

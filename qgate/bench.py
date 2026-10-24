@@ -202,20 +202,27 @@ def main(argv=None):
 
     # -------------------------------------------------------------- híbrido
     start = np.random.default_rng(args.seed + 100).permutation(N)
-    runs = [("exact", H)]          # mismo presupuesto, semilla y arranque que la variante QAOA
+    # mismo presupuesto, semilla y arranque para todos los solvers del subproblema.
+    # Ablación: azar uniforme con las mismas muestras; con 8 shots se ve cuánto concentra QAOA.
+    runs = [("exact", H, 512, "qgate_lns_exact", "Control · subproblema exacto"),
+            ("random", H, 512, "qgate_lns_random", "Control · azar (512 shots)"),
+            ("random", H, 8, "qgate_lns_random_s8", "Control · azar (8 shots)")]
     if not args.no_quantum:
-        runs.insert(0, ("qaoa", H))
+        runs = [("qaoa", H, 512, "qgate_lns_qaoa", "QGate · QAOA (512 shots)")] + runs[:2] +                [("qaoa", H, 8, "qgate_lns_qaoa_s8", "QGate · QAOA (8 shots)")] + runs[2:]
     best_h = None
-    for solver, iters in runs:
-        log(f"Híbrido QGate ({solver}, {iters} iteraciones)...")
-        h = qgate_lns(inst, k=3, iters=iters, solver=solver, seed=args.seed, start_perm=start)
+    for solver, iters, shots, method, label in runs:
+        log(f"Híbrido QGate ({label}, {iters} iteraciones)...")
+        h = qgate_lns(inst, k=3, iters=iters, solver=solver, seed=args.seed, start_perm=start,
+                      shots=shots, label=label)
+        h["method"] = method
         h["gap_pct"] = gap(h["final_cost"], ref)
         h["polished_gap_pct"] = gap(h.get("polished_cost"), ref)
         R["hybrid"].append(h)
         log(f"  {h['label']}: {h['start_cost']} -> {h['final_cost']} (pulido {h.get('polished_cost')}) "
-            f"gap {h['gap_pct']}% | éxito QAOA {h['qaoa_sub_success_rate']} | {h['time_s']:.1f}s")
-        if solver == "qaoa" or best_h is None:
-            best_h = best_h or h
+            f"gap {h['gap_pct']}% | éxito subproblema {h['sub_success_rate']:.2f} | "
+            f"P(ópt) QAOA {h['qaoa_p_optimal_mean']} vs azar {h['random_p_optimal_mean']:.3f} | {h['time_s']:.1f}s")
+        if method in ("qgate_lns_qaoa", "qgate_lns_exact") and best_h is None:
+            best_h = h
     if best_h:
         R["best_assignment"] = {"method": best_h["method"], "perm": best_h["final_perm"],
                                 "cost": best_h["final_cost"]}
@@ -297,6 +304,7 @@ def main(argv=None):
             "Con ruido despolarizante el mixer XY pierde buena parte de su ventaja de factibilidad",
             "Todo corre en simulador (Qiskit Aer); no se usó hardware real",
             "La calidad final del híbrido la limita el vecindario de 3 vuelos, no el solver QAOA",
+            "Con 512 shots el azar también resuelve los subproblemas de 3 vuelos: el aporte medible de QAOA es concentrar probabilidad en el óptimo (se ve con pocos shots)",
             "N>10 son instancias sintéticas sin óptimo conocido: se comparan contra la cota Gilmore-Lawler",
             "Las unidades del aeropuerto son supuestos: qap10 es un benchmark matemático",
             "El pulido 2-swap y la reparación clásica se reportan aparte del resultado crudo",
@@ -323,7 +331,8 @@ def main(argv=None):
     builder = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "dashboard", "build_report.py")
     if os.path.exists(builder):
-        os.system(f'"{sys.executable}" "{builder}" "{path}" "{os.path.join(args.out, "report.html")}"')
+        import subprocess
+        subprocess.run([sys.executable, builder, path, os.path.join(args.out, "report.html")], check=False)
         log(f"Reporte: {os.path.join(args.out, 'report.html')}")
     _summary(R)
 

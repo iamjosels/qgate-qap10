@@ -43,19 +43,38 @@ def build_subproblem(inst: QAPInstance, perm: np.ndarray, elems: list[int]) -> Q
 
 
 def _exact_sub(sub: QAPInstance):
+    """Óptimo del subproblema por enumeración (k! permutaciones) y cuántas permutaciones lo alcanzan."""
     best = (math.inf, None)
+    costs = []
     for pm in itertools.permutations(range(sub.N)):
         c = sub.cost(pm)
+        costs.append(c)
         if c < best[0]:
             best = (c, list(pm))
-    return best
+    n_opt = sum(abs(c - best[0]) < 1e-9 for c in costs)
+    return best[0], best[1], n_opt
+
+
+def _random_sub(sub: QAPInstance, shots: int, seed: int):
+    """Control de ablación: `shots` muestras uniformes del mismo espacio que el estado W por fila
+    (cada elemento en una ubicación al azar, k^k estados); devuelve la mejor permutación válida."""
+    k = sub.N
+    draws = np.random.default_rng(seed).integers(0, k, size=(shots, k))
+    best = (math.inf, None)
+    for row in np.unique(draws, axis=0):
+        if len(set(row.tolist())) == k:
+            c = sub.cost(row)
+            if c < best[0]:
+                best = (c, row.tolist())
+    return best[1]
 
 
 def qgate_lns(inst: QAPInstance, k: int = 3, iters: int = 120, solver: str = "qaoa",
-              p: int = 1, seed: int = 0, start_perm=None, select: str = "mixed",
+              p: int = 2, seed: int = 0, start_perm=None, select: str = "mixed",
               time_limit: float | None = None, shots: int = 512, maxiter: int = 40,
               polish: bool = True, label: str | None = None, stall_limit: int = 10,
-              kick_swaps: int = 3, adaptive_kick: bool = True, sideways: bool = False) -> dict:
+              kick_swaps: int = 3, adaptive_kick: bool = True, sideways: bool = False,
+              warm_start: bool = False) -> dict:
     from .quantum import solve_subproblem_qaoa   # import diferido (Qiskit)
 
     rng = np.random.default_rng(seed)
@@ -67,7 +86,8 @@ def qgate_lns(inst: QAPInstance, k: int = 3, iters: int = 120, solver: str = "qa
     start_cost = cur
     history = [{"iter": 0, "t": 0.0, "current": cur, "best": cur}]
     stats = {"subproblems": 0, "improvements": 0, "qaoa_found_sub_opt": 0,
-             "no_feasible_sample": 0}
+             "no_feasible_sample": 0, "sampler_found_sub_opt": 0}
+    p_opt_acc, p_rand_opt_acc, p_feas_acc = 0.0, 0.0, 0.0   # P(óptimo) del subproblema: QAOA vs azar
     warm = None
     best_cost, best_perm = cur, perm.copy()
     stall = 0
@@ -97,14 +117,21 @@ def qgate_lns(inst: QAPInstance, k: int = 3, iters: int = 120, solver: str = "qa
             w = contrib - contrib.min() + 1e-9
             elems = sorted(rng.choice(n, k, replace=False, p=w / w.sum()).tolist())
         sub = build_subproblem(inst, perm, elems)
-        sub_opt_cost, sub_opt_perm = _exact_sub(sub)          # k! = 6: solo para medir
+        sub_opt_cost, sub_opt_perm, n_opt = _exact_sub(sub)   # k! = 6: solo para medir
         cur_sub = sub.cost(list(range(k)))                    # asignación actual = identidad
         stats["subproblems"] += 1
+        p_rand_opt_acc += n_opt / k ** k                      # azar sobre el espacio del estado W
         if solver == "exact":
             new_sub = sub_opt_perm
         else:
-            new_sub, warm, info = solve_subproblem_qaoa(sub, p=p, shots=shots, seed=seed + it,
-                                                        init_params=warm, maxiter=maxiter)
+            if solver == "random":
+                new_sub = _random_sub(sub, shots, seed + it)
+            else:
+                new_sub, warm, info = solve_subproblem_qaoa(sub, p=p, shots=shots, seed=seed + it,
+                                                            init_params=warm if warm_start else None,
+                                                            maxiter=maxiter)
+                p_opt_acc += info["p_optimal"]
+                p_feas_acc += info["p_feasible"]
             if new_sub is None:
                 stats["no_feasible_sample"] += 1
                 stall += 1
@@ -112,7 +139,9 @@ def qgate_lns(inst: QAPInstance, k: int = 3, iters: int = 120, solver: str = "qa
                                 "current": cur, "best": best_cost})
                 continue
             if abs(sub.cost(new_sub) - sub_opt_cost) < 1e-9:
-                stats["qaoa_found_sub_opt"] += 1
+                stats["sampler_found_sub_opt"] += 1
+                if solver == "qaoa":
+                    stats["qaoa_found_sub_opt"] += 1
         new_sub_cost = sub.cost(new_sub)
         # solo mejoras estrictas: el solver exacto devuelve la identidad ante empates y QAOA
         # puede devolver otra permutación del mismo costo; aceptar empates haría que ambas
@@ -135,15 +164,23 @@ def qgate_lns(inst: QAPInstance, k: int = 3, iters: int = 120, solver: str = "qa
                         "best": best_cost})
     raw_cost = inst.cost(best_perm)
     raw_perm = best_perm.tolist()
+    nsub = max(stats["subproblems"], 1)
     out = {
-        "method": f"qgate_lns_{solver}", "label": label or (
-            "QGate · QAOA" if solver == "qaoa" else "QGate · subproblema exacto (control)"),
+        "method": f"qgate_lns_{solver}", "label": label or {
+            "qaoa": "QGate · QAOA", "random": "Muestreo aleatorio (control)"}.get(
+            solver, "QGate · subproblema exacto (control)"),
+        "solver": solver, "shots": shots if solver in ("qaoa", "random") else None,
         "N": n, "k": k, "qubits_per_subproblem": k * k if solver == "qaoa" else 0,
         "p": p if solver == "qaoa" else None, "iters": len(history) - 1,
         "start_cost": float(start_cost), "final_cost": float(raw_cost), "final_perm": raw_perm,
         "time_s": time.perf_counter() - t0, "history": history, **stats,
         "qaoa_sub_success_rate": (stats["qaoa_found_sub_opt"] / max(stats["subproblems"]
                                   - stats["no_feasible_sample"], 1)) if solver == "qaoa" else None,
+        # éxito sobre todos los subproblemas (sin muestra válida cuenta como fallo)
+        "sub_success_rate": stats["sampler_found_sub_opt"] / nsub if solver != "exact" else 1.0,
+        "random_p_optimal_mean": p_rand_opt_acc / nsub,
+        "qaoa_p_optimal_mean": p_opt_acc / nsub if solver == "qaoa" else None,
+        "qaoa_p_feasible_mean": p_feas_acc / nsub if solver == "qaoa" else None,
     }
     if polish:
         ls = local_search(inst, raw_perm)

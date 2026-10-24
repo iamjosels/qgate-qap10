@@ -331,13 +331,17 @@ footer { padding: 34px 0 50px; color: var(--muted); font-size: 12.5px; border-to
 
   <section id="hibrido">
     <div class="sec-head"><span class="idx">05</span><h2>Híbrido QGate</h2>
-      <p>Subproblemas de 3 vuelos (9 qubits) resueltos con QAOA dentro de una búsqueda clásica por vecindarios. Mismo presupuesto, semilla y arranque que el control exacto.</p></div>
+      <p>Subproblemas de 3 vuelos (9 qubits) resueltos con QAOA dentro de una búsqueda clásica por vecindarios. Controles con el mismo presupuesto, semilla y arranque: solver exacto y muestreo al azar.</p></div>
     <div class="grid3" id="hybStats" style="margin-bottom:14px"></div>
     <div class="card">
       <div class="seg" id="hybAxis"><button class="on" data-ax="iter">Iteración</button><button data-ax="t">Tiempo (s)</button></div>
       <div class="legend" id="hybLegend"></div>
       <div class="chart-box tall"><canvas id="cHyb" aria-label="Convergencia del híbrido"></canvas></div>
     </div>
+    <div class="tbl-wrap" id="ablWrap" style="margin-top:14px"><table><thead><tr><th>Solver del subproblema</th><th class="num">Shots</th>
+      <th class="num">Costo final</th><th class="num">Gap %</th><th class="num">Éxito subproblema</th><th class="num">P(óptimo) medio</th>
+      <th class="num">Azar P(óptimo)</th><th class="num">Tiempo s</th></tr></thead><tbody id="ablBody"></tbody></table></div>
+    <p class="map-note">Ablación con mismas iteraciones, semilla y arranque. Con 512 shots el azar también encuentra el óptimo de 3 vuelos (6 asignaciones); con 8 shots se ve cuánto concentra QAOA.</p>
     <div class="card" id="seedsCard" style="margin-top:14px"><h3>Robustez · solver exacto en varias semillas</h3>
       <div class="stats" id="seedStats"></div><div class="chips" id="seedChips"></div></div>
   </section>
@@ -578,14 +582,16 @@ footer { padding: 34px 0 50px; color: var(--muted); font-size: 12.5px; border-to
 
   // --------------------------------------------------------------- híbrido
   (function hybrid() {
-    const Hs = (R.hybrid || []).filter((h) => has(h.history));
+    const Hs = (R.hybrid || []).filter((h) => has(h.history) && h.method.startsWith("qgate_lns"));
     if (!has(Hs)) { hide("hibrido"); return; }
-    const colOf = (h) => h.method === "qgate_lns_qaoa" ? C.q : h.method === "qgate_lns_exact" ? C.c : C.sa;
+    const STY = { qgate_lns_qaoa: [C.q, 4, []], qgate_lns_exact: [C.c, 2, [6, 4]], qgate_lns_random: [C.ref, 2, [2, 3]],
+                  qgate_lns_qaoa_s8: [C.q2, 2, []], qgate_lns_random_s8: [C.alt, 2, []] };
+    const colOf = (h) => (STY[h.method] || [C.sa])[0];
     const st = [];
     if (hq) st.push(`<div class="card"><h3>QGate · QAOA</h3><div class="stat"><div class="v num" style="color:var(--cyan-text)">${f(hq.final_cost)}</div>
       <div class="l">${hq.start_cost !== undefined ? "desde " + f(hq.start_cost) + " · " : ""}${hq.iters} iter · ${f(hq.time_s, 1)} s</div></div>
-      <div class="facts"><span class="fact">QAOA óptimo en subproblema <b>${hq.qaoa_sub_success_rate === null ? "-" : f(100 * hq.qaoa_sub_success_rate, 0) + " %"}</b></span>
-      <span class="fact">sin muestra válida <b>${hq.no_feasible_sample}</b></span>${hq.polished_cost !== undefined ? `<span class="fact">pulido 2-swap <b>${f(hq.polished_cost)}</b></span>` : ""}</div></div>`);
+      <div class="facts"><span class="fact">P(óptimo) por subproblema <b>${fp(hq.qaoa_p_optimal_mean)}</b> vs azar ${fp(hq.random_p_optimal_mean)}</span>
+      <span class="fact">éxito con ${hq.shots} shots <b>${f(100 * hq.sub_success_rate, 0)} %</b></span>${hq.polished_cost !== undefined ? `<span class="fact">pulido 2-swap <b>${f(hq.polished_cost)}</b></span>` : ""}</div></div>`);
     if (he) st.push(`<div class="card"><h3>Control · subproblema exacto</h3><div class="stat"><div class="v num" style="color:var(--amber)">${f(he.final_cost)}</div>
       <div class="l">${he.iters} iter · ${f(he.time_s, 2)} s</div></div>
       <div class="facts"><span class="fact">mismo marco, k! = 6 permutaciones</span>${he.polished_cost !== undefined ? `<span class="fact">pulido 2-swap <b>${f(he.polished_cost)}</b></span>` : ""}</div></div>`);
@@ -594,14 +600,14 @@ footer { padding: 34px 0 50px; color: var(--muted); font-size: 12.5px; border-to
       <div class="l">${f(sa.time_s, 1)} s · clásico puro</div></div>
       <div class="facts"><span class="fact">gap <b>${f(sa.gap_pct, 1)} %</b></span></div></div>`);
     $("hybStats").innerHTML = st.join("");
-    $("hybLegend").innerHTML = Hs.map((h) => `<span data-m="${h.method}"><i class="line" style="background:${colOf(h)}"></i>${esc(h.label)}</span>`).join("")
+    $("hybLegend").innerHTML = Hs.map((h) => `<span data-m="${h.method}"><i class="${(STY[h.method] || [0, 0, []])[2].length ? "dash" : "line"}" style="background:${colOf(h)};border-color:${colOf(h)}"></i>${esc(h.label)}</span>`).join("")
       + (REF ? `<span><i class="dash" style="border-color:${C.text2}"></i>óptimo ${f(REF)}</span>` : "");
     let chart = null;
     function draw(ax) {
-      const use = ax === "iter" ? Hs.filter((h) => h.method !== "simulated_annealing") : Hs;
-      document.querySelectorAll("#hybLegend span[data-m]").forEach((s) => s.classList.toggle("hidden", !use.some((h) => h.method === s.dataset.m)));
+      const use = Hs;
       const ds = use.map((h) => ({ label: h.label, data: h.history.map((p, i) => ({ x: ax === "iter" ? (p.iter ?? i) : Math.max(p.t, 1e-3), y: p.best })),
-        borderColor: colOf(h), backgroundColor: colOf(h), borderWidth: 2, pointRadius: 0, stepped: true }));
+        borderColor: colOf(h), backgroundColor: colOf(h), borderWidth: (STY[h.method] || [0, 2])[1], borderDash: (STY[h.method] || [0, 0, []])[2],
+        pointRadius: 0, stepped: true }));
       if (REF) {
         const xmax = Math.max(...ds.flatMap((d) => d.data.map((p) => p.x)));
         ds.push({ label: "Óptimo (solo referencia)", data: [{ x: ax === "iter" ? 0 : 1e-3, y: REF }, { x: xmax, y: REF }], borderColor: C.text2, borderDash: [6, 5], borderWidth: 1.5, pointRadius: 0 });
@@ -617,6 +623,11 @@ footer { padding: 34px 0 50px; color: var(--muted); font-size: 12.5px; border-to
     document.querySelectorAll("#hybAxis button").forEach((b) => b.addEventListener("click", () => {
       document.querySelectorAll("#hybAxis button").forEach((x) => x.classList.toggle("on", x === b)); draw(b.dataset.ax);
     }));
+    $("ablBody").innerHTML = Hs.map((h) => `<tr><td><span class="tag ${h.solver === "qaoa" ? "q" : "c"}">${esc(h.label)}</span></td>
+      <td class="num">${h.shots ?? "-"}</td><td class="num">${f(h.final_cost)}</td><td class="num">${f(h.gap_pct, 1)}</td>
+      <td class="num">${h.sub_success_rate === undefined ? "-" : f(100 * h.sub_success_rate, 0) + " %"}</td>
+      <td class="num">${h.solver === "qaoa" ? fp(h.qaoa_p_optimal_mean) : h.solver === "random" ? fp(h.random_p_optimal_mean) : "1"}</td>
+      <td class="num">${fp(h.random_p_optimal_mean)}</td><td class="num">${f(h.time_s, 1)}</td></tr>`).join("");
     const S = R.hybrid_seeds;
     if (!S || !has(S.final_costs)) { hide("seedsCard"); return; }
     $("seedStats").innerHTML = [["media", f(S.mean, 1)], ["mejor", f(S.best)], ["peor", f(S.worst)],
