@@ -96,7 +96,9 @@ def build(json_path: str, out_path: str) -> str:
     data["gate_grid"] = _grid_layout(data.get("D"))
     payload = json.dumps(_clean(_slim(R)), ensure_ascii=False, allow_nan=False)
     payload = payload.replace("</", "<\\/")
-    html = TEMPLATE.replace("__DATA__", payload)
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import panorama
+    html = TEMPLATE.replace("__DATA__", payload).replace("__PANORAMA__", panorama.render(R))
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as fh:
         fh.write(html)
@@ -140,7 +142,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--qubit); outline
 .brand b { font: 800 32px/1 var(--head); letter-spacing: .02em; }
 .brand .kick { margin-left: 6px; }
 @media (max-width: 760px) { .brand .kick { display: none; } .top { position: static; } }
-.tabs { display: flex; gap: 4px; overflow-x: auto; max-width: 100%; }
+.tabs { display: flex; gap: 4px; overflow-x: auto; max-width: 100%; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
 .tabs button { background: none; border: 0; border-bottom: 3px solid transparent; padding: 10px 14px; color: var(--mute);
   font: 13px var(--mono); letter-spacing: .08em; cursor: pointer; white-space: nowrap; }
 @media (max-width: 640px) { .tabs button { padding: 8px 8px; font-size: 12px; } }
@@ -156,7 +159,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--qubit); outline
 .seg button { height: 44px; padding: 0 14px; border: 0; background: var(--board); color: var(--mute); font: 13px var(--mono); cursor: pointer; }
 .seg button[aria-pressed="true"] { background: var(--qubit); color: var(--ink); font-weight: 600; }
 
-.stage { padding: 20px 0 28px; }
+.stage.wrap { padding: 20px 32px 28px; }
+@media (max-width: 640px) { .stage.wrap { padding: 16px 16px 24px; } .flanes { flex-direction: row; flex-wrap: wrap; } }
 .stage:fullscreen { background: var(--ink); overflow: auto; padding: 24px; max-width: none; }
 .scene { display: flex; flex-wrap: wrap; gap: 20px; }
 .panel { background: var(--board); border-radius: 12px; padding: 20px 22px; min-width: 0; }
@@ -267,6 +271,50 @@ ul.lim { margin: 0; padding-left: 18px; color: var(--soft); } ul.lim li { margin
 .twocol ul { margin: 8px 0 0; padding-left: 18px; color: var(--soft); font-size: 15px; }
 .qside { border-top: 4px solid var(--qubit); } .cside { border-top: 4px solid var(--signal); }
 .waves { display: block; width: 100%; height: 48px; margin-top: 6px; }
+/* 00 Panorama: código de enfoques (ícono + palabra, nunca solo color) */
+.ap { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; border: 1.5px solid currentColor;
+  font: 600 12px var(--mono); letter-spacing: .08em; white-space: nowrap; vertical-align: middle; }
+.ap b { font-weight: 600; }
+.ap-w { font-weight: 400; letter-spacing: .02em; opacity: .85; margin-left: 4px; white-space: normal; }
+.ap-classic { color: var(--paper); } .ap-quantum { color: var(--qubit); } .ap-hybrid { color: var(--signal); }
+.sec-head .ap { margin-left: 4px; }
+td .ap { font-size: 10px; padding: 2px 7px; margin-right: 6px; }
+#scene-pano { flex-direction: column; flex-wrap: nowrap; gap: 22px; }
+.flow { display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap; }
+.fbox { background: var(--board); border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fbox b { font: 800 30px/1 var(--head); text-transform: uppercase; }
+.fbox span { font: 13px var(--mono); color: var(--soft); }
+.farr { align-self: center; font: 800 30px var(--head); color: var(--signal); }
+.flanes { display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+.lanes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 1000px) { .lanes { grid-template-columns: minmax(0, 1fr); } .farr { display: none; } }
+.lane { background: var(--board); border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; border-top: 5px solid; min-width: 0; }
+.lane-classic { border-top-color: var(--paper); } .lane-quantum { border-top-color: var(--qubit); } .lane-hybrid { border-top-color: var(--signal); }
+.lane .ap { font-size: 13px; padding: 6px 12px; white-space: normal; }
+.what { margin: 0; color: var(--soft); font-size: 16px; }
+.star { font: 800 clamp(64px, 7vw, 92px)/.9 var(--head); }
+.lane-classic .star { color: var(--paper); } .lane-quantum .star { color: var(--qubit); } .lane-hybrid .star { color: var(--signal); }
+.star-s { font: 13px var(--mono); color: var(--soft); margin-top: -4px; }
+.pline { font-size: 15px; color: var(--soft); } .pline b { color: var(--paper); }
+.pline .hw { font: 600 11px var(--mono); color: var(--ink); background: var(--qubit); padding: 1px 6px; border-radius: 4px; margin-right: 4px; }
+.steps { margin: 4px 0 0; padding-left: 20px; color: var(--paper); font-size: 15px; } .steps li { margin: 3px 0; }
+.kvs { display: grid; gap: 4px; margin-top: auto; border-top: 1px solid var(--line); padding-top: 10px; }
+.kv { display: flex; justify-content: space-between; gap: 10px; font: 13px var(--mono); }
+.kv span { color: var(--mute); } .kv b { font-weight: 600; text-align: right; }
+.goto { align-self: flex-start; height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--flap); color: var(--paper); font: 13px var(--mono); cursor: pointer; }
+.goto:hover { border-color: var(--signal); color: var(--signal); }
+.cmp-wrap { position: relative; background: var(--board); border-radius: 12px; padding: 14px 16px; overflow-x: auto; }
+table.cmp td { position: relative; }
+table.cmp { min-width: 860px; font: 16px var(--sans); }
+table.cmp th { vertical-align: bottom; padding: 10px 12px; } table.cmp thead th { white-space: normal; }
+.th-s { font: 600 14px var(--sans); color: var(--paper); letter-spacing: 0; margin-top: 6px; text-transform: none; }
+table.cmp tbody th { color: var(--paper); font: 600 15px var(--sans); letter-spacing: 0; text-align: left; white-space: normal; width: 170px; border-top: 1px solid var(--line); vertical-align: top; padding-top: 11px; }
+table.cmp td { white-space: normal; vertical-align: top; line-height: 1.35; }
+.mk { font: 700 18px var(--mono); }
+.m-ok .mk, b.m-ok { color: var(--paper); } .m-no .mk, b.m-no { color: var(--invalid); } .m-mid .mk, b.m-mid { color: var(--mute); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.cmp-leg { margin-top: 10px; }
+.verdict { margin: 0; font: 600 clamp(18px, 2vw, 22px)/1.35 var(--sans); border-left: 4px solid var(--signal); padding: 4px 0 4px 14px; }
 footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40px; font: 12px var(--mono); letter-spacing: .08em; color: var(--mute); }
 @media (prefers-reduced-motion: reduce) { .hist .bar, .gchip { transition: none; } }
 </style>
@@ -280,7 +328,8 @@ footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40
     <b>QGATE</b><span class="kick" id="kicker">MODO DEMO · COMPUERTAS CUÁNTICAS</span>
   </div>
   <nav class="tabs" role="tablist" aria-label="Escenas">
-    <button role="tab" data-scene="qaoa" aria-selected="true">01 QAOA</button>
+    <button role="tab" data-scene="pano" aria-selected="true">00 PANORAMA</button>
+    <button role="tab" data-scene="qaoa" aria-selected="false">01 QAOA</button>
     <button role="tab" data-scene="airport" aria-selected="false">02 AEROPUERTO</button>
     <button role="tab" data-scene="result" aria-selected="false">03 RESULTADO</button>
   </nav>
@@ -298,7 +347,12 @@ footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40
 <main>
 <div class="stage wrap" id="stage">
 
-  <div class="scene" id="scene-qaoa">
+  <div class="scene" id="scene-pano">
+    <h2 class="big">Tres enfoques, un problema</h2>
+    __PANORAMA__
+  </div>
+
+  <div class="scene hidden" id="scene-qaoa">
     <section class="panel main-col">
       <div style="display:flex;flex-direction:column;gap:6px">
         <h2 class="big">QAOA aprende a respetar las reglas</h2>
@@ -474,6 +528,8 @@ QGate · IBM Quantum Hackathon 2026 · Reto NTT DATA QAP10 · Track A Aeropuerto
   const H = {}; (R.hybrid || []).forEach((h) => { H[h.method] = h; });
   const C = {}; (R.classical || []).forEach((c) => { C[c.method] = c; });
   const valid = {}; (R.validation || []).forEach((v) => { valid[v.n] = v; });
+  /* chip de enfoque (ícono + palabra): se copia del que genera panorama.py */
+  const AP = (k) => { const el = document.querySelector(".flanes .ap-" + k); return el ? el.outerHTML : ""; };
 
   /* split-flap: la mitad superior del carácter anterior gira hacia abajo, escalonado por ficha */
   function flapSet(el, text) {
@@ -526,9 +582,9 @@ QGate · IBM Quantum Hackathon 2026 · Reto NTT DATA QAP10 · Track A Aeropuerto
   function showScene(s) {
     scene = s; clearTimeout(timer);
     document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.scene === s));
-    ["qaoa", "airport", "result"].forEach((k) => $("scene-" + k).classList.toggle("hidden", k !== s));
+    ["pano", "qaoa", "airport", "result"].forEach((k) => $("scene-" + k).classList.toggle("hidden", k !== s));
     $("mixerSeg").classList.toggle("hidden", s !== "qaoa");
-    $("kicker").textContent = { qaoa: "MODO DEMO · COMPUERTAS CUÁNTICAS", airport: "MODO DEMO · TRACK A AEROPUERTO", result: "RESULTADOS · QAP10" }[s];
+    $("kicker").textContent = { pano: "PANORAMA · CLÁSICO · CUÁNTICO · HÍBRIDO", qaoa: "MODO DEMO · COMPUERTAS CUÁNTICAS", airport: "MODO DEMO · TRACK A AEROPUERTO", result: "RESULTADOS · QAP10" }[s];
     setPlaying(!RM && !!players[s]);
   }
   document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => showScene(b.dataset.scene)));
@@ -716,25 +772,25 @@ QGate · IBM Quantum Hackathon 2026 · Reto NTT DATA QAP10 · Track A Aeropuerto
                [num(hq.shots) ? `QAOA ÓPTIMO · ${hq.shots} SHOTS` : "QAOA ÓPTIMO", num(hq.sub_success_rate) ? f(100 * hq.sub_success_rate) + "%" : null], ["TIEMPO", num(hq.time_s) ? f(hq.time_s) + " s" : null]] }));
     $("passes").innerHTML = out.join("");
     const rows = [];
-    const row = (m, n, q, c, g, t, w, color) => rows.push(`<tr><td style="color:${color};font-weight:600">${esc(m)}</td><td>${n}</td><td>${esc(q)}</td><td>${c ?? "-"}</td><td>${g === null ? "-" : g.toFixed(1) + "%"}</td><td>${t ?? "-"}</td><td style="color:var(--mute)">${esc(w)}</td></tr>`);
+    const row = (m, n, q, c, g, t, w, color, k) => rows.push(`<tr><td style="color:${color};font-weight:600">${AP(k)}${esc(m)}</td><td>${n}</td><td>${esc(q)}</td><td>${c ?? "-"}</td><td>${g === null ? "-" : g.toFixed(1) + "%"}</td><td>${t ?? "-"}</td><td style="color:var(--mute)">${esc(w)}</td></tr>`);
     const tm = (t, d = 1) => num(t) ? f(t, d) + " s" : null;
     const bf = C.brute_force, sa = C.simulated_annealing;
-    if (bf) row("Fuerza bruta (exacto)", N, "0", f(bf.cost), gap(bf.cost), tm(bf.time_s), "CPU", "var(--paper)");
-    if (sa) row("Simulated annealing", N, "0", f(sa.cost), gap(sa.cost), tm(sa.time_s), "CPU", "var(--paper)");
-    ["N4-x-p1", "N4-xy-p1"].forEach((id) => { const q = Q[id]; if (q) row(`QAOA mixer ${q.mixer.toUpperCase()}`, q.N, String(q.qubits), f(q.best_feasible_cost), gap(q.best_feasible_cost, q.optimum), tm(q.time_s), "Qiskit Aer", "var(--qubit)"); });
+    if (bf) row("Fuerza bruta (exacto)", N, "0", f(bf.cost), gap(bf.cost), tm(bf.time_s), "CPU", "var(--paper)", "classic");
+    if (sa) row("Simulated annealing", N, "0", f(sa.cost), gap(sa.cost), tm(sa.time_s), "CPU", "var(--paper)", "classic");
+    ["N4-x-p1", "N4-xy-p1"].forEach((id) => { const q = Q[id]; if (q) row(`QAOA mixer ${q.mixer.toUpperCase()}`, q.N, String(q.qubits), f(q.best_feasible_cost), gap(q.best_feasible_cost, q.optimum), tm(q.time_s), "Qiskit Aer", "var(--qubit)", "quantum"); });
     const hw = R.hardware;
     if (hw && has(hw.experiments)) hw.experiments.forEach((e) => row(`QAOA mixer ${String(e.mixer).toUpperCase()} · hardware`, e.N, String(e.qubits),
       e.best_feasible_cost === null || e.best_feasible_cost === undefined ? null : f(e.best_feasible_cost), num(e.best_feasible_cost) ? gap(e.best_feasible_cost, e.optimum) : null,
-      num(hw.usage_quantum_seconds) ? f(hw.usage_quantum_seconds) + " s QPU (job)" : null, "IBM Quantum · " + hw.backend, "var(--qubit)"));
-    if (hq) row("QGate híbrido", N, "9 / subproblema", f(hq.final_cost), gap(hq.final_cost), tm(hq.time_s, 0), "Qiskit Aer + CPU", "var(--signal)");
+      num(hw.usage_quantum_seconds) ? f(hw.usage_quantum_seconds) + " s QPU (job)" : null, "IBM Quantum · " + hw.backend, "var(--qubit)", "quantum"));
+    if (hq) row("QGate híbrido", N, "9 / subproblema", f(hq.final_cost), gap(hq.final_cost), tm(hq.time_s, 0), "Qiskit Aer + CPU", "var(--signal)", "hybrid");
     const h8 = H.qgate_lns_qaoa_s8, r8 = H.qgate_lns_random_s8;
-    if (h8) row("QGate híbrido · 8 shots", N, "9 / subproblema", f(h8.final_cost), gap(h8.final_cost), tm(h8.time_s, 0), "Qiskit Aer + CPU", "var(--signal)");
-    if (r8) row("Control azar · 8 shots", N, "0", f(r8.final_cost), gap(r8.final_cost), tm(r8.time_s), "CPU", "var(--mute)");
+    if (h8) row("QGate híbrido · 8 shots", N, "9 / subproblema", f(h8.final_cost), gap(h8.final_cost), tm(h8.time_s, 0), "Qiskit Aer + CPU", "var(--signal)", "hybrid");
+    if (r8) row("Control azar · 8 shots", N, "0", f(r8.final_cost), gap(r8.final_cost), tm(r8.time_s), "CPU", "var(--mute)", "classic");
     $("resRows").innerHTML = rows.join("");
   })();
 
   /* ---------------- detalle ---------------- */
-  if (has(R.validation)) $("valRows").innerHTML = R.validation.map((v) => `<tr><td>${v.n}</td><td class="r">${f(v.optimum)}</td><td class="r">${f(v.expected) ?? "-"}</td>
+  if (has(R.validation)) $("valRows").innerHTML = R.validation.map((v) => `<tr><td>${AP("classic")}${v.n}</td><td class="r">${f(v.optimum)}</td><td class="r">${f(v.expected) ?? "-"}</td>
     <td style="color:${v.ok ? "var(--signal)" : "var(--invalid)"}">${v.ok ? "✓" : "✗"}</td><td class="r">${f(v.time_s, v.time_s < 1 ? 3 : 1)} s</td></tr>`).join("");
   else hide("d-valid");
   (function facts() {
@@ -760,7 +816,7 @@ QGate · IBM Quantum Hackathon 2026 · Reto NTT DATA QAP10 · Track A Aeropuerto
     if (!has(L)) { hide("d-ablation"); return; }
     $("ablRows").innerHTML = L.map((h) => {
       const pm = h.solver === "qaoa" ? h.qaoa_p_optimal_mean : h.solver === "random" ? h.random_p_optimal_mean : 1;
-      return `<tr><td style="color:${h.solver === "qaoa" ? "var(--qubit)" : "var(--paper)"};font-weight:600">${esc(h.label)}</td><td class="r">${h.shots ?? "-"}</td>
+      return `<tr><td style="color:${h.solver === "qaoa" ? "var(--signal)" : "var(--paper)"};font-weight:600">${AP(h.solver === "qaoa" ? "hybrid" : "classic")}${esc(h.label)}</td><td class="r">${h.shots ?? "-"}</td>
       <td class="r">${f(h.final_cost)}</td><td class="r">${num(h.gap_pct) ? h.gap_pct.toFixed(1) + "%" : "-"}</td><td class="r">${num(h.sub_success_rate) ? f(100 * h.sub_success_rate) + "%" : "-"}</td>
       <td class="r">${num(pm) ? pm.toFixed(3) : "-"}</td><td class="r">${num(h.random_p_optimal_mean) ? h.random_p_optimal_mean.toFixed(3) : "-"}</td><td class="r">${f(h.time_s, 1)} s</td></tr>`;
     }).join("");
@@ -774,7 +830,7 @@ QGate · IBM Quantum Hackathon 2026 · Reto NTT DATA QAP10 · Track A Aeropuerto
     if (!hw || !has(hw.experiments)) return;
     $("d-hw").classList.remove("hidden");
     $("hwLede").textContent = `Un job en ${hw.backend} (job ${hw.job_id}${num(hw.usage_quantum_seconds) ? `, ${f(hw.usage_quantum_seconds)} s de QPU` : ""}) con los ángulos ya optimizados en el simulador. Resultado de hardware, separado de todo lo demás.`;
-    $("hwRows").innerHTML = hw.experiments.map((e) => `<tr><td style="color:var(--qubit);font-weight:600">${esc(e.id)}</td><td class="r">${e.qubits}</td>
+    $("hwRows").innerHTML = hw.experiments.map((e) => `<tr><td style="color:var(--qubit);font-weight:600">${AP("quantum")}${esc(e.id)}</td><td class="r">${e.qubits}</td>
       <td class="r" style="color:var(--qubit)">${pct(e.feasible_fraction) ?? "-"}</td><td class="r">${pct(e.sim_ideal_p_feasible) ?? "-"}</td><td class="r">${pct(e.sim_noise_feasible_fraction) ?? "-"}</td>
       <td class="r">${pct(e.random_feasible_baseline) ?? "-"}</td><td class="r">${pct(e.p_optimal) ?? "-"}</td><td class="r">${f(e.best_feasible_cost) ?? "-"}${num(e.optimum) ? " (ópt " + f(e.optimum) + ")" : ""}</td>
       <td class="r">${e.depth ?? "-"}</td><td class="r">${e.two_qubit_gates ?? "-"}</td></tr>`).join("");
@@ -829,7 +885,7 @@ QGate · IBM Quantum Hackathon 2026 · Reto NTT DATA QAP10 · Track A Aeropuerto
     lineChart($("scGap"), { label: "Gap contra cota", x: lab, series: ser("gap_vs_bound_pct"), ymin: 0, yfmt: (v) => v.toFixed(0) + "%", vfmt: (v) => v.toFixed(1) + "%" });
     lineChart($("scTime"), { label: "Tiempo", x: lab, series: ser("time_s"), ylog: true, yfmt: (v) => v >= 1 ? String(v) : String(+v.toPrecision(1)), vfmt: (v) => v.toFixed(2) + " s" });
     const nm = { simulated_annealing: "SA", qgate_lns_exact: "QGate exacto", qgate_lns_qaoa: "QGate QAOA" };
-    $("scRows").innerHTML = S.map((r) => `<tr><td>${r.N}</td><td>${esc(r.instance)}${r.instance !== meta.instance ? " *" : ""}</td><td style="color:${r.method.includes("qaoa") ? "var(--qubit)" : "var(--paper)"}">${nm[r.method] || esc(r.method)}</td>
+    $("scRows").innerHTML = S.map((r) => `<tr><td>${r.N}</td><td>${esc(r.instance)}${r.instance !== meta.instance ? " *" : ""}</td><td style="color:${r.method.includes("qaoa") ? "var(--signal)" : "var(--paper)"}">${AP(r.method.includes("qaoa") ? "hybrid" : "classic")}${nm[r.method] || esc(r.method)}</td>
       <td class="r">${f(r.best_cost)}</td><td class="r">${f(r.lower_bound)}</td><td class="r">${f(r.gap_vs_bound_pct, 1)}%</td><td class="r">${f(r.time_s, 1)} s</td><td class="r">${f(r.peak_mem_mb, 2)} MB</td><td class="r">${r.qubits}</td></tr>`).join("");
     const Mm = meta.statevector_memory || [];
     const hb = (b) => { const u = ["B", "KiB", "MiB", "GiB", "TiB"]; let i = 0; while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; } return (b % 1 ? b.toFixed(1) : b) + " " + u[i]; };
@@ -851,8 +907,16 @@ QGate · IBM Quantum Hackathon 2026 · Reto NTT DATA QAP10 · Track A Aeropuerto
     $("gen").textContent = meta.generated_at ? "· generado " + meta.generated_at : "";
   })();
 
+  [["d-valid", ["classic"]], ["d-ablation", ["hybrid", "classic"]], ["d-hw", ["quantum"]], ["d-lambda", ["quantum"]],
+   ["d-scale", ["classic", "hybrid"]], ["d-repro", ["classic", "quantum", "hybrid"]]].forEach(([id, ks]) => {
+    const h = document.querySelector("#" + id + " .sec-head h3"); if (h) h.insertAdjacentHTML("afterend", ks.map(AP).join(""));
+  });
+  [["scene-qaoa", "quantum"], ["scene-airport", "hybrid"]].forEach(([id, k]) => {
+    const h = document.querySelector("#" + id + " h2"); if (h) h.insertAdjacentHTML("beforebegin", `<div>${AP(k)}</div>`);
+  });
+  document.querySelectorAll(".goto").forEach((b) => b.addEventListener("click", () => { showScene(b.dataset.goto); window.scrollTo({ top: 0 }); }));
   syncPlay();
-  showScene("qaoa");
+  showScene("pano");
 })();
 </script>
 </body>

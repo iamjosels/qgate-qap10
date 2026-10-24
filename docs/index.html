@@ -35,7 +35,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--qubit); outline
 .brand b { font: 800 32px/1 var(--head); letter-spacing: .02em; }
 .brand .kick { margin-left: 6px; }
 @media (max-width: 760px) { .brand .kick { display: none; } .top { position: static; } }
-.tabs { display: flex; gap: 4px; overflow-x: auto; max-width: 100%; }
+.tabs { display: flex; gap: 4px; overflow-x: auto; max-width: 100%; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
 .tabs button { background: none; border: 0; border-bottom: 3px solid transparent; padding: 10px 14px; color: var(--mute);
   font: 13px var(--mono); letter-spacing: .08em; cursor: pointer; white-space: nowrap; }
 @media (max-width: 640px) { .tabs button { padding: 8px 8px; font-size: 12px; } }
@@ -51,7 +52,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--qubit); outline
 .seg button { height: 44px; padding: 0 14px; border: 0; background: var(--board); color: var(--mute); font: 13px var(--mono); cursor: pointer; }
 .seg button[aria-pressed="true"] { background: var(--qubit); color: var(--ink); font-weight: 600; }
 
-.stage { padding: 20px 0 28px; }
+.stage.wrap { padding: 20px 32px 28px; }
+@media (max-width: 640px) { .stage.wrap { padding: 16px 16px 24px; } .flanes { flex-direction: row; flex-wrap: wrap; } }
 .stage:fullscreen { background: var(--ink); overflow: auto; padding: 24px; max-width: none; }
 .scene { display: flex; flex-wrap: wrap; gap: 20px; }
 .panel { background: var(--board); border-radius: 12px; padding: 20px 22px; min-width: 0; }
@@ -162,6 +164,50 @@ ul.lim { margin: 0; padding-left: 18px; color: var(--soft); } ul.lim li { margin
 .twocol ul { margin: 8px 0 0; padding-left: 18px; color: var(--soft); font-size: 15px; }
 .qside { border-top: 4px solid var(--qubit); } .cside { border-top: 4px solid var(--signal); }
 .waves { display: block; width: 100%; height: 48px; margin-top: 6px; }
+/* 00 Panorama: código de enfoques (ícono + palabra, nunca solo color) */
+.ap { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; border: 1.5px solid currentColor;
+  font: 600 12px var(--mono); letter-spacing: .08em; white-space: nowrap; vertical-align: middle; }
+.ap b { font-weight: 600; }
+.ap-w { font-weight: 400; letter-spacing: .02em; opacity: .85; margin-left: 4px; white-space: normal; }
+.ap-classic { color: var(--paper); } .ap-quantum { color: var(--qubit); } .ap-hybrid { color: var(--signal); }
+.sec-head .ap { margin-left: 4px; }
+td .ap { font-size: 10px; padding: 2px 7px; margin-right: 6px; }
+#scene-pano { flex-direction: column; flex-wrap: nowrap; gap: 22px; }
+.flow { display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap; }
+.fbox { background: var(--board); border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fbox b { font: 800 30px/1 var(--head); text-transform: uppercase; }
+.fbox span { font: 13px var(--mono); color: var(--soft); }
+.farr { align-self: center; font: 800 30px var(--head); color: var(--signal); }
+.flanes { display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+.lanes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 1000px) { .lanes { grid-template-columns: minmax(0, 1fr); } .farr { display: none; } }
+.lane { background: var(--board); border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; border-top: 5px solid; min-width: 0; }
+.lane-classic { border-top-color: var(--paper); } .lane-quantum { border-top-color: var(--qubit); } .lane-hybrid { border-top-color: var(--signal); }
+.lane .ap { font-size: 13px; padding: 6px 12px; white-space: normal; }
+.what { margin: 0; color: var(--soft); font-size: 16px; }
+.star { font: 800 clamp(64px, 7vw, 92px)/.9 var(--head); }
+.lane-classic .star { color: var(--paper); } .lane-quantum .star { color: var(--qubit); } .lane-hybrid .star { color: var(--signal); }
+.star-s { font: 13px var(--mono); color: var(--soft); margin-top: -4px; }
+.pline { font-size: 15px; color: var(--soft); } .pline b { color: var(--paper); }
+.pline .hw { font: 600 11px var(--mono); color: var(--ink); background: var(--qubit); padding: 1px 6px; border-radius: 4px; margin-right: 4px; }
+.steps { margin: 4px 0 0; padding-left: 20px; color: var(--paper); font-size: 15px; } .steps li { margin: 3px 0; }
+.kvs { display: grid; gap: 4px; margin-top: auto; border-top: 1px solid var(--line); padding-top: 10px; }
+.kv { display: flex; justify-content: space-between; gap: 10px; font: 13px var(--mono); }
+.kv span { color: var(--mute); } .kv b { font-weight: 600; text-align: right; }
+.goto { align-self: flex-start; height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--flap); color: var(--paper); font: 13px var(--mono); cursor: pointer; }
+.goto:hover { border-color: var(--signal); color: var(--signal); }
+.cmp-wrap { position: relative; background: var(--board); border-radius: 12px; padding: 14px 16px; overflow-x: auto; }
+table.cmp td { position: relative; }
+table.cmp { min-width: 860px; font: 16px var(--sans); }
+table.cmp th { vertical-align: bottom; padding: 10px 12px; } table.cmp thead th { white-space: normal; }
+.th-s { font: 600 14px var(--sans); color: var(--paper); letter-spacing: 0; margin-top: 6px; text-transform: none; }
+table.cmp tbody th { color: var(--paper); font: 600 15px var(--sans); letter-spacing: 0; text-align: left; white-space: normal; width: 170px; border-top: 1px solid var(--line); vertical-align: top; padding-top: 11px; }
+table.cmp td { white-space: normal; vertical-align: top; line-height: 1.35; }
+.mk { font: 700 18px var(--mono); }
+.m-ok .mk, b.m-ok { color: var(--paper); } .m-no .mk, b.m-no { color: var(--invalid); } .m-mid .mk, b.m-mid { color: var(--mute); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.cmp-leg { margin-top: 10px; }
+.verdict { margin: 0; font: 600 clamp(18px, 2vw, 22px)/1.35 var(--sans); border-left: 4px solid var(--signal); padding: 4px 0 4px 14px; }
 footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40px; font: 12px var(--mono); letter-spacing: .08em; color: var(--mute); }
 @media (prefers-reduced-motion: reduce) { .hist .bar, .gchip { transition: none; } }
 </style>
@@ -175,7 +221,8 @@ footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40
     <b>QGATE</b><span class="kick" id="kicker">MODO DEMO · COMPUERTAS CUÁNTICAS</span>
   </div>
   <nav class="tabs" role="tablist" aria-label="Escenas">
-    <button role="tab" data-scene="qaoa" aria-selected="true">01 QAOA</button>
+    <button role="tab" data-scene="pano" aria-selected="true">00 PANORAMA</button>
+    <button role="tab" data-scene="qaoa" aria-selected="false">01 QAOA</button>
     <button role="tab" data-scene="airport" aria-selected="false">02 AEROPUERTO</button>
     <button role="tab" data-scene="result" aria-selected="false">03 RESULTADO</button>
   </nav>
@@ -193,7 +240,26 @@ footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40
 <main>
 <div class="stage wrap" id="stage">
 
-  <div class="scene" id="scene-qaoa">
+  <div class="scene" id="scene-pano">
+    <h2 class="big">Tres enfoques, un problema</h2>
+    <!--PANO:START--><div class="flow">
+  <div class="fbox"><div class="kick">Datos</div><b>MPS qap10</b><span>4150 variables</span></div>
+  <div class="farr" aria-hidden="true">→</div>
+  <div class="fbox"><div class="kick">Modelo verificado</div><b>F y D</b><span>24 · 32 · 340</span></div>
+  <div class="farr" aria-hidden="true">→</div>
+  <div class="flanes"><span class="ap ap-classic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5"/><rect x="9.5" y="9.5" width="5" height="5"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg><b>CLÁSICO</b></span><span class="ap ap-quantum"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="9" ry="3.5"/><path d="M12 12 16 6"/><circle cx="16" cy="6" r="1.3" fill="currentColor"/></svg><b>CUÁNTICO</b></span><span class="ap ap-hybrid"><svg width="18" height="18" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="10" fill="currentColor"/><circle cx="29" cy="29" r="15" fill="none" stroke="#0B0B0C" stroke-width="7"/><path d="M38 38 L48 48" stroke="#0B0B0C" stroke-width="7" stroke-linecap="square"/><polygon points="55,55 55,40 40,55" fill="#0B0B0C"/></svg><b>HÍBRIDO</b></span></div>
+  <div class="farr" aria-hidden="true">→</div>
+  <div class="fbox"><div class="kick">Resultado</div><b>Comparación</b><span>gap vs 340</span></div>
+</div>
+<div class="lanes"><article class="lane lane-classic"><div class="lane-h"><span class="ap ap-classic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5"/><rect x="9.5" y="9.5" width="5" height="5"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg><b>CLÁSICO</b><span class="ap-w">CPU (NumPy/SciPy)</span></span></div><p class="what">Busca la mejor asignación de 10 vuelos con métodos clásicos, sin qubits.</p><div class="star">340</div><div class="star-s">óptimo exacto en 6.9 s</div><div class="pline">SA llega a <b>340</b> en 13.7 s</div><div class="pline">Cota Gilmore-Lawler <b>301</b></div><ol class="steps"><li>Fuerza bruta: evalúa las 10! permutaciones en bloques</li><li>Simulated annealing: intercambios de 2 vuelos</li><li>Cota de Gilmore-Lawler: piso para medir el gap</li></ol><div class="kvs"><div class="kv"><span>Dónde corre</span><b>CPU (NumPy/SciPy)</b></div><div class="kv"><span>Qubits</span><b>0</b></div><div class="kv"><span>Tiempo</span><b>6.9 s fuerza bruta · 13.7 s SA</b></div><div class="kv"><span>Mejor costo válido</span><b>340</b></div><div class="kv"><span>Gap vs 340</span><b>0.0%</b></div></div><button class="goto" type="button" data-goto="result">Ver detalle →</button></article><article class="lane lane-quantum"><div class="lane-h"><span class="ap ap-quantum"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="9" ry="3.5"/><path d="M12 12 16 6"/><circle cx="16" cy="6" r="1.3" fill="currentColor"/></svg><b>CUÁNTICO</b><span class="ap-w">Qiskit Aer + IBM ibm_kingston</span></span></div><p class="what">QAOA en Qiskit sobre instancias completas pequeñas (N=3 y N=4).</p><div class="star">×112</div><div class="star-s">más válidas que el azar · N=4 mixer X</div><div class="pline">N=4 mixer XY: <b>47.7%</b> válidas vs 9.4% al azar</div><div class="pline"><span class='hw'>ibm_kingston · N=3 real</span> XY <b>25.4%</b> (ideal 78.9%, azar 22.2%, ruido simulado 25.0%)</div><div class="pline"><span class='hw'>ibm_kingston · N=3 real</span> X <b>6.3%</b> (azar 1.2%)</div><ol class="steps"><li>QUBO con penalidad λ y paso a Ising</li><li>Circuito QAOA: mixer X, o estado W + mixer XY</li><li>COBYLA ajusta γ y β con el statevector de Aer</li><li>Muestreo de 4096 shots (Aer e IBM Quantum)</li></ol><div class="kvs"><div class="kv"><span>Dónde corre</span><b>Qiskit Aer + IBM ibm_kingston</b></div><div class="kv"><span>Qubits</span><b>16 en N=4 · 9 en hardware</b></div><div class="kv"><span>Tiempo</span><b>19.3 s N=4 en Aer · 5 s QPU N=3</b></div><div class="kv"><span>Mejor costo válido</span><b>32 en N=4 (óptimo 32)</b></div><div class="kv"><span>Gap vs 340</span><b>no aplica: N=10 serían 100 qubits</b></div></div><button class="goto" type="button" data-goto="qaoa">Ver detalle →</button></article><article class="lane lane-hybrid"><div class="lane-h"><span class="ap ap-hybrid"><svg width="18" height="18" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="10" fill="currentColor"/><circle cx="29" cy="29" r="15" fill="none" stroke="#0B0B0C" stroke-width="7"/><path d="M38 38 L48 48" stroke="#0B0B0C" stroke-width="7" stroke-linecap="square"/><polygon points="55,55 55,40 40,55" fill="#0B0B0C"/></svg><b>HÍBRIDO</b><span class="ap-w">QAOA de 9 qubits + búsqueda clásica</span></span></div><p class="what">QAOA de 9 qubits resuelve piezas de 3 vuelos dentro de una búsqueda clásica.</p><div class="star">9</div><div class="star-s">qubits por pieza, en cualquier N</div><div class="pline">Con 8 muestras QAOA acierta <b>59%</b> de las piezas vs 29% al azar (costo 372 vs 390)</div><div class="pline">Llega a 340 en <b>4 de 12</b> semillas</div><div class="pline">De N=10 a N=16: siempre <b>9 qubits</b></div><ol class="steps"><li>Elegir 3 vuelos; el resto queda fijo</li><li>Pieza de 9 qubits: QAOA p=2 en Aer</li><li>Aceptar si baja el costo</li><li>Si se estanca, perturbar desde la mejor</li></ol><div class="kvs"><div class="kv"><span>Dónde corre</span><b>QAOA de 9 qubits + búsqueda clásica</b></div><div class="kv"><span>Qubits</span><b>9 por pieza</b></div><div class="kv"><span>Tiempo</span><b>186.0 s en Aer</b></div><div class="kv"><span>Mejor costo válido</span><b>340 (semilla 7)</b></div><div class="kv"><span>Gap vs 340</span><b>0.0%</b></div></div><button class="goto" type="button" data-goto="airport">Ver detalle →</button></article></div>
+<div class="cmp-wrap"><table class="cmp"><thead><tr><th></th>
+  <th><span class="ap ap-classic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5"/><rect x="9.5" y="9.5" width="5" height="5"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg><b>CLÁSICO</b></span><div class="th-s">Clásico</div></th><th><span class="ap ap-quantum"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="9" ry="3.5"/><path d="M12 12 16 6"/><circle cx="16" cy="6" r="1.3" fill="currentColor"/></svg><b>CUÁNTICO</b></span><div class="th-s">Cuántico (QAOA directo)</div></th>
+  <th><span class="ap ap-hybrid"><svg width="18" height="18" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="10" fill="currentColor"/><circle cx="29" cy="29" r="15" fill="none" stroke="#0B0B0C" stroke-width="7"/><path d="M38 38 L48 48" stroke="#0B0B0C" stroke-width="7" stroke-linecap="square"/><polygon points="55,55 55,40 40,55" fill="#0B0B0C"/></svg><b>HÍBRIDO</b></span><div class="th-s">Híbrido (QGate)</div></th></tr></thead><tbody><tr><th scope='row'>Calidad en N=10</th><td class="m-ok"><span class="mk" title="ventaja">✓</span> <span class="sr">ventaja:</span> 340 exacto (gap 0.0%)</td><td class="m-no"><span class="mk" title="desventaja">✗</span> <span class="sr">desventaja:</span> no resuelve N=10 directo (100 qubits); N=4 llega a 32 = óptimo</td><td class="m-mid"><span class="mk" title="parcial">~</span> <span class="sr">parcial:</span> 340 con semilla 7; 4 de 12 semillas llegan a 340</td></tr><tr><th scope='row'>Tiempo</th><td class="m-ok"><span class="mk" title="ventaja">✓</span> <span class="sr">ventaja:</span> 6.9 s fuerza bruta · 13.7 s SA</td><td class="m-mid"><span class="mk" title="parcial">~</span> <span class="sr">parcial:</span> 19.3 s N=4 en Aer · 5 s QPU N=3</td><td class="m-no"><span class="mk" title="desventaja">✗</span> <span class="sr">desventaja:</span> 186.0 s N=10 en Aer (vs 13.7 s SA)</td></tr><tr><th scope='row'>Qubits / memoria</th><td class="m-ok"><span class="mk" title="ventaja">✓</span> <span class="sr">ventaja:</span> 0 qubits</td><td class="m-no"><span class="mk" title="desventaja">✗</span> <span class="sr">desventaja:</span> N²: N=10 son 100 qubits, statevector 2.0×10³¹ B</td><td class="m-ok"><span class="mk" title="ventaja">✓</span> <span class="sr">ventaja:</span> 9 qubits; memoria pico 0.8 MB</td></tr><tr><th scope='row'>Escala a N=14-16</th><td class="m-ok"><span class="mk" title="ventaja">✓</span> <span class="sr">ventaja:</span> SA a 28.8% de la cota en N=16, 23.4 s; fuerza bruta inviable (16! = 2.1×10¹³)</td><td class="m-no"><span class="mk" title="desventaja">✗</span> <span class="sr">desventaja:</span> N=16 serían 256 qubits</td><td class="m-mid"><span class="mk" title="parcial">~</span> <span class="sr">parcial:</span> siempre 9 qubits; 39.3% de la cota en N=16, 124.8 s</td></tr><tr><th scope='row'>Garantiza el óptimo</th><td class="m-ok"><span class="mk" title="ventaja">✓</span> <span class="sr">ventaja:</span> sí con fuerza bruta (10! = 3 628 800 permutaciones)</td><td class="m-no"><span class="mk" title="desventaja">✗</span> <span class="sr">desventaja:</span> no: P(óptimo) 4.2% en N=4</td><td class="m-no"><span class="mk" title="desventaja">✗</span> <span class="sr">desventaja:</span> no: 4 de 12 semillas</td></tr><tr><th scope='row'>Sensibilidad al ruido</th><td class="m-ok"><span class="mk" title="ventaja">✓</span> <span class="sr">ventaja:</span> ninguna: cómputo exacto en CPU</td><td class="m-no"><span class="mk" title="desventaja">✗</span> <span class="sr">desventaja:</span> XY 78.9% ideal → 25.4% en ibm_kingston (azar 22.2%)</td><td class="m-mid"><span class="mk" title="parcial">~</span> <span class="sr">parcial:</span> no medido en hardware; piezas de 9 qubits como la corrida N=3</td></tr><tr><th scope='row'>Soluciones válidas</th><td class="m-ok"><span class="mk" title="ventaja">✓</span> <span class="sr">ventaja:</span> 100%: siempre una permutación</td><td class="m-mid"><span class="mk" title="parcial">~</span> <span class="sr">parcial:</span> N=4: X 4.1%, XY 47.7%; hardware XY 25.4%</td><td class="m-ok"><span class="mk" title="ventaja">✓</span> <span class="sr">ventaja:</span> 100%: solo acepta piezas válidas</td></tr><tr><th scope='row'>Corre en hardware actual</th><td class="m-ok"><span class="mk" title="ventaja">✓</span> <span class="sr">ventaja:</span> sí, cualquier CPU</td><td class="m-mid"><span class="mk" title="parcial">~</span> <span class="sr">parcial:</span> sí N=3 en ibm_kingston (161 compuertas 2q), XY 25.4% vs azar 22.2%</td><td class="m-mid"><span class="mk" title="parcial">~</span> <span class="sr">parcial:</span> las piezas de 9 qubits caben; el híbrido corrió en simulador</td></tr><tr><th scope='row'>Ventaja principal</th><td class="m-ok"><span class="mk" title="ventaja">✓</span> <span class="sr">ventaja:</span> exacto y rápido en N=10: 340 en 6.9 s</td><td class="m-ok"><span class="mk" title="ventaja">✓</span> <span class="sr">ventaja:</span> concentra probabilidad: ×112 el azar (N=4, mixer X)</td><td class="m-ok"><span class="mk" title="ventaja">✓</span> <span class="sr">ventaja:</span> qubits constantes: 9 de N=10 a N=16</td></tr><tr><th scope='row'>Desventaja principal</th><td class="m-no"><span class="mk" title="desventaja">✗</span> <span class="sr">desventaja:</span> fuerza bruta explota: 16! = 2.1×10¹³ en N=16</td><td class="m-no"><span class="mk" title="desventaja">✗</span> <span class="sr">desventaja:</span> qubits N² y ruido: XY cae a 25.4% en hardware</td><td class="m-no"><span class="mk" title="desventaja">✗</span> <span class="sr">desventaja:</span> más lento y peor que SA: 186.0 s vs 13.7 s; N=16 39.3% vs 28.8%</td></tr></tbody></table>
+  <div class="legend cmp-leg"><span><b class="m-ok">✓</b> ventaja</span><span><b class="m-no">✗</b> desventaja</span><span><b class="m-mid">~</b> parcial</span></div></div>
+<p class="verdict">Hoy gana el clásico en N=10 a 16. QAOA concentra la probabilidad muy por encima del azar, incluso en hardware real con el circuito corto. El híbrido escala en memoria, todavía no en calidad.</p><!--PANO:END-->
+  </div>
+
+  <div class="scene hidden" id="scene-qaoa">
     <section class="panel main-col">
       <div style="display:flex;flex-direction:column;gap:6px">
         <h2 class="big">QAOA aprende a respetar las reglas</h2>
@@ -369,6 +435,8 @@ QGate · IBM Quantum Hackathon 2026 · Reto NTT DATA QAP10 · Track A Aeropuerto
   const H = {}; (R.hybrid || []).forEach((h) => { H[h.method] = h; });
   const C = {}; (R.classical || []).forEach((c) => { C[c.method] = c; });
   const valid = {}; (R.validation || []).forEach((v) => { valid[v.n] = v; });
+  /* chip de enfoque (ícono + palabra): se copia del que genera panorama.py */
+  const AP = (k) => { const el = document.querySelector(".flanes .ap-" + k); return el ? el.outerHTML : ""; };
 
   /* split-flap: la mitad superior del carácter anterior gira hacia abajo, escalonado por ficha */
   function flapSet(el, text) {
@@ -421,9 +489,9 @@ QGate · IBM Quantum Hackathon 2026 · Reto NTT DATA QAP10 · Track A Aeropuerto
   function showScene(s) {
     scene = s; clearTimeout(timer);
     document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.scene === s));
-    ["qaoa", "airport", "result"].forEach((k) => $("scene-" + k).classList.toggle("hidden", k !== s));
+    ["pano", "qaoa", "airport", "result"].forEach((k) => $("scene-" + k).classList.toggle("hidden", k !== s));
     $("mixerSeg").classList.toggle("hidden", s !== "qaoa");
-    $("kicker").textContent = { qaoa: "MODO DEMO · COMPUERTAS CUÁNTICAS", airport: "MODO DEMO · TRACK A AEROPUERTO", result: "RESULTADOS · QAP10" }[s];
+    $("kicker").textContent = { pano: "PANORAMA · CLÁSICO · CUÁNTICO · HÍBRIDO", qaoa: "MODO DEMO · COMPUERTAS CUÁNTICAS", airport: "MODO DEMO · TRACK A AEROPUERTO", result: "RESULTADOS · QAP10" }[s];
     setPlaying(!RM && !!players[s]);
   }
   document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => showScene(b.dataset.scene)));
@@ -611,25 +679,25 @@ QGate · IBM Quantum Hackathon 2026 · Reto NTT DATA QAP10 · Track A Aeropuerto
                [num(hq.shots) ? `QAOA ÓPTIMO · ${hq.shots} SHOTS` : "QAOA ÓPTIMO", num(hq.sub_success_rate) ? f(100 * hq.sub_success_rate) + "%" : null], ["TIEMPO", num(hq.time_s) ? f(hq.time_s) + " s" : null]] }));
     $("passes").innerHTML = out.join("");
     const rows = [];
-    const row = (m, n, q, c, g, t, w, color) => rows.push(`<tr><td style="color:${color};font-weight:600">${esc(m)}</td><td>${n}</td><td>${esc(q)}</td><td>${c ?? "-"}</td><td>${g === null ? "-" : g.toFixed(1) + "%"}</td><td>${t ?? "-"}</td><td style="color:var(--mute)">${esc(w)}</td></tr>`);
+    const row = (m, n, q, c, g, t, w, color, k) => rows.push(`<tr><td style="color:${color};font-weight:600">${AP(k)}${esc(m)}</td><td>${n}</td><td>${esc(q)}</td><td>${c ?? "-"}</td><td>${g === null ? "-" : g.toFixed(1) + "%"}</td><td>${t ?? "-"}</td><td style="color:var(--mute)">${esc(w)}</td></tr>`);
     const tm = (t, d = 1) => num(t) ? f(t, d) + " s" : null;
     const bf = C.brute_force, sa = C.simulated_annealing;
-    if (bf) row("Fuerza bruta (exacto)", N, "0", f(bf.cost), gap(bf.cost), tm(bf.time_s), "CPU", "var(--paper)");
-    if (sa) row("Simulated annealing", N, "0", f(sa.cost), gap(sa.cost), tm(sa.time_s), "CPU", "var(--paper)");
-    ["N4-x-p1", "N4-xy-p1"].forEach((id) => { const q = Q[id]; if (q) row(`QAOA mixer ${q.mixer.toUpperCase()}`, q.N, String(q.qubits), f(q.best_feasible_cost), gap(q.best_feasible_cost, q.optimum), tm(q.time_s), "Qiskit Aer", "var(--qubit)"); });
+    if (bf) row("Fuerza bruta (exacto)", N, "0", f(bf.cost), gap(bf.cost), tm(bf.time_s), "CPU", "var(--paper)", "classic");
+    if (sa) row("Simulated annealing", N, "0", f(sa.cost), gap(sa.cost), tm(sa.time_s), "CPU", "var(--paper)", "classic");
+    ["N4-x-p1", "N4-xy-p1"].forEach((id) => { const q = Q[id]; if (q) row(`QAOA mixer ${q.mixer.toUpperCase()}`, q.N, String(q.qubits), f(q.best_feasible_cost), gap(q.best_feasible_cost, q.optimum), tm(q.time_s), "Qiskit Aer", "var(--qubit)", "quantum"); });
     const hw = R.hardware;
     if (hw && has(hw.experiments)) hw.experiments.forEach((e) => row(`QAOA mixer ${String(e.mixer).toUpperCase()} · hardware`, e.N, String(e.qubits),
       e.best_feasible_cost === null || e.best_feasible_cost === undefined ? null : f(e.best_feasible_cost), num(e.best_feasible_cost) ? gap(e.best_feasible_cost, e.optimum) : null,
-      num(hw.usage_quantum_seconds) ? f(hw.usage_quantum_seconds) + " s QPU (job)" : null, "IBM Quantum · " + hw.backend, "var(--qubit)"));
-    if (hq) row("QGate híbrido", N, "9 / subproblema", f(hq.final_cost), gap(hq.final_cost), tm(hq.time_s, 0), "Qiskit Aer + CPU", "var(--signal)");
+      num(hw.usage_quantum_seconds) ? f(hw.usage_quantum_seconds) + " s QPU (job)" : null, "IBM Quantum · " + hw.backend, "var(--qubit)", "quantum"));
+    if (hq) row("QGate híbrido", N, "9 / subproblema", f(hq.final_cost), gap(hq.final_cost), tm(hq.time_s, 0), "Qiskit Aer + CPU", "var(--signal)", "hybrid");
     const h8 = H.qgate_lns_qaoa_s8, r8 = H.qgate_lns_random_s8;
-    if (h8) row("QGate híbrido · 8 shots", N, "9 / subproblema", f(h8.final_cost), gap(h8.final_cost), tm(h8.time_s, 0), "Qiskit Aer + CPU", "var(--signal)");
-    if (r8) row("Control azar · 8 shots", N, "0", f(r8.final_cost), gap(r8.final_cost), tm(r8.time_s), "CPU", "var(--mute)");
+    if (h8) row("QGate híbrido · 8 shots", N, "9 / subproblema", f(h8.final_cost), gap(h8.final_cost), tm(h8.time_s, 0), "Qiskit Aer + CPU", "var(--signal)", "hybrid");
+    if (r8) row("Control azar · 8 shots", N, "0", f(r8.final_cost), gap(r8.final_cost), tm(r8.time_s), "CPU", "var(--mute)", "classic");
     $("resRows").innerHTML = rows.join("");
   })();
 
   /* ---------------- detalle ---------------- */
-  if (has(R.validation)) $("valRows").innerHTML = R.validation.map((v) => `<tr><td>${v.n}</td><td class="r">${f(v.optimum)}</td><td class="r">${f(v.expected) ?? "-"}</td>
+  if (has(R.validation)) $("valRows").innerHTML = R.validation.map((v) => `<tr><td>${AP("classic")}${v.n}</td><td class="r">${f(v.optimum)}</td><td class="r">${f(v.expected) ?? "-"}</td>
     <td style="color:${v.ok ? "var(--signal)" : "var(--invalid)"}">${v.ok ? "✓" : "✗"}</td><td class="r">${f(v.time_s, v.time_s < 1 ? 3 : 1)} s</td></tr>`).join("");
   else hide("d-valid");
   (function facts() {
@@ -655,7 +723,7 @@ QGate · IBM Quantum Hackathon 2026 · Reto NTT DATA QAP10 · Track A Aeropuerto
     if (!has(L)) { hide("d-ablation"); return; }
     $("ablRows").innerHTML = L.map((h) => {
       const pm = h.solver === "qaoa" ? h.qaoa_p_optimal_mean : h.solver === "random" ? h.random_p_optimal_mean : 1;
-      return `<tr><td style="color:${h.solver === "qaoa" ? "var(--qubit)" : "var(--paper)"};font-weight:600">${esc(h.label)}</td><td class="r">${h.shots ?? "-"}</td>
+      return `<tr><td style="color:${h.solver === "qaoa" ? "var(--signal)" : "var(--paper)"};font-weight:600">${AP(h.solver === "qaoa" ? "hybrid" : "classic")}${esc(h.label)}</td><td class="r">${h.shots ?? "-"}</td>
       <td class="r">${f(h.final_cost)}</td><td class="r">${num(h.gap_pct) ? h.gap_pct.toFixed(1) + "%" : "-"}</td><td class="r">${num(h.sub_success_rate) ? f(100 * h.sub_success_rate) + "%" : "-"}</td>
       <td class="r">${num(pm) ? pm.toFixed(3) : "-"}</td><td class="r">${num(h.random_p_optimal_mean) ? h.random_p_optimal_mean.toFixed(3) : "-"}</td><td class="r">${f(h.time_s, 1)} s</td></tr>`;
     }).join("");
@@ -669,7 +737,7 @@ QGate · IBM Quantum Hackathon 2026 · Reto NTT DATA QAP10 · Track A Aeropuerto
     if (!hw || !has(hw.experiments)) return;
     $("d-hw").classList.remove("hidden");
     $("hwLede").textContent = `Un job en ${hw.backend} (job ${hw.job_id}${num(hw.usage_quantum_seconds) ? `, ${f(hw.usage_quantum_seconds)} s de QPU` : ""}) con los ángulos ya optimizados en el simulador. Resultado de hardware, separado de todo lo demás.`;
-    $("hwRows").innerHTML = hw.experiments.map((e) => `<tr><td style="color:var(--qubit);font-weight:600">${esc(e.id)}</td><td class="r">${e.qubits}</td>
+    $("hwRows").innerHTML = hw.experiments.map((e) => `<tr><td style="color:var(--qubit);font-weight:600">${AP("quantum")}${esc(e.id)}</td><td class="r">${e.qubits}</td>
       <td class="r" style="color:var(--qubit)">${pct(e.feasible_fraction) ?? "-"}</td><td class="r">${pct(e.sim_ideal_p_feasible) ?? "-"}</td><td class="r">${pct(e.sim_noise_feasible_fraction) ?? "-"}</td>
       <td class="r">${pct(e.random_feasible_baseline) ?? "-"}</td><td class="r">${pct(e.p_optimal) ?? "-"}</td><td class="r">${f(e.best_feasible_cost) ?? "-"}${num(e.optimum) ? " (ópt " + f(e.optimum) + ")" : ""}</td>
       <td class="r">${e.depth ?? "-"}</td><td class="r">${e.two_qubit_gates ?? "-"}</td></tr>`).join("");
@@ -724,7 +792,7 @@ QGate · IBM Quantum Hackathon 2026 · Reto NTT DATA QAP10 · Track A Aeropuerto
     lineChart($("scGap"), { label: "Gap contra cota", x: lab, series: ser("gap_vs_bound_pct"), ymin: 0, yfmt: (v) => v.toFixed(0) + "%", vfmt: (v) => v.toFixed(1) + "%" });
     lineChart($("scTime"), { label: "Tiempo", x: lab, series: ser("time_s"), ylog: true, yfmt: (v) => v >= 1 ? String(v) : String(+v.toPrecision(1)), vfmt: (v) => v.toFixed(2) + " s" });
     const nm = { simulated_annealing: "SA", qgate_lns_exact: "QGate exacto", qgate_lns_qaoa: "QGate QAOA" };
-    $("scRows").innerHTML = S.map((r) => `<tr><td>${r.N}</td><td>${esc(r.instance)}${r.instance !== meta.instance ? " *" : ""}</td><td style="color:${r.method.includes("qaoa") ? "var(--qubit)" : "var(--paper)"}">${nm[r.method] || esc(r.method)}</td>
+    $("scRows").innerHTML = S.map((r) => `<tr><td>${r.N}</td><td>${esc(r.instance)}${r.instance !== meta.instance ? " *" : ""}</td><td style="color:${r.method.includes("qaoa") ? "var(--signal)" : "var(--paper)"}">${AP(r.method.includes("qaoa") ? "hybrid" : "classic")}${nm[r.method] || esc(r.method)}</td>
       <td class="r">${f(r.best_cost)}</td><td class="r">${f(r.lower_bound)}</td><td class="r">${f(r.gap_vs_bound_pct, 1)}%</td><td class="r">${f(r.time_s, 1)} s</td><td class="r">${f(r.peak_mem_mb, 2)} MB</td><td class="r">${r.qubits}</td></tr>`).join("");
     const Mm = meta.statevector_memory || [];
     const hb = (b) => { const u = ["B", "KiB", "MiB", "GiB", "TiB"]; let i = 0; while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; } return (b % 1 ? b.toFixed(1) : b) + " " + u[i]; };
@@ -746,8 +814,16 @@ QGate · IBM Quantum Hackathon 2026 · Reto NTT DATA QAP10 · Track A Aeropuerto
     $("gen").textContent = meta.generated_at ? "· generado " + meta.generated_at : "";
   })();
 
+  [["d-valid", ["classic"]], ["d-ablation", ["hybrid", "classic"]], ["d-hw", ["quantum"]], ["d-lambda", ["quantum"]],
+   ["d-scale", ["classic", "hybrid"]], ["d-repro", ["classic", "quantum", "hybrid"]]].forEach(([id, ks]) => {
+    const h = document.querySelector("#" + id + " .sec-head h3"); if (h) h.insertAdjacentHTML("afterend", ks.map(AP).join(""));
+  });
+  [["scene-qaoa", "quantum"], ["scene-airport", "hybrid"]].forEach(([id, k]) => {
+    const h = document.querySelector("#" + id + " h2"); if (h) h.insertAdjacentHTML("beforebegin", `<div>${AP(k)}</div>`);
+  });
+  document.querySelectorAll(".goto").forEach((b) => b.addEventListener("click", () => { showScene(b.dataset.goto); window.scrollTo({ top: 0 }); }));
   syncPlay();
-  showScene("qaoa");
+  showScene("pano");
 })();
 </script>
 </body>
