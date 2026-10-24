@@ -65,5 +65,32 @@
   "hit_k8_random_states_27": 0.2712247998922491,
   "hit_k512_random_valid_6": 1.0,
   "hit_k512_random_states_27": 0.9999999961602407
+ },
+ "scale_check": {
+  "perm": [
+   2,
+   6,
+   3,
+   0,
+   8,
+   4,
+   5,
+   1,
+   7,
+   9
+  ],
+  "cost_pair_once": 340.0,
+  "cost_pair_twice": 680.0,
+  "cost_inst_cost": 340.0,
+  "assignment_rows": 20,
+  "n_x": 100,
+  "n_y": 4050,
+  "n_rows": 1820,
+  "factorization_residual": 0.0,
+  "candidates": [
+   "orden_columnas",
+   "orden_filas"
+  ],
+  "command": "python analysis/scale_check.py --mps data/qap10.mps.gz"
  }
 }
