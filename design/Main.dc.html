@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>QGate · Sistema de marca</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#FFC629}a:hover{color:#FFD866}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; padding: 56px 64px; background: #0B0B0C; color: #F4F1E8; font-family: 'IBM Plex Sans', sans-serif; display: flex; flex-direction: column; gap: 36px; overflow: hidden">
+
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 32px">
+    <div style="display: flex; align-items: center; gap: 24px">
+      <svg width="96" height="96" viewBox="0 0 64 64" role="img" aria-label="Isotipo QGate">
+        <rect x="0" y="0" width="64" height="64" rx="10" fill="#FFC629"></rect>
+        <circle cx="29" cy="29" r="15" fill="none" stroke="#0B0B0C" stroke-width="7"></circle>
+        <path d="M38 38 L48 48" stroke="#0B0B0C" stroke-width="7" stroke-linecap="square"></path>
+        <polygon points="55,55 55,40 40,55" fill="#0B0B0C"></polygon>
+      </svg>
+      <div style="display: flex; align-items: center; gap: 8px">
+        <div style="position: relative; width: 64px; height: 84px; background: #1E2024; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 72px; color: #FFC629; line-height: 1">Q<div style="position: absolute; left: 0; right: 0; top: 41px; height: 2px; background: #0B0B0C"></div></div>
+        <div style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 96px; letter-spacing: 0.01em; line-height: 0.9">GATE</div>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px; max-width: 520px; text-align: right">
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.14em; color: #9A9890">SISTEMA VISUAL · V1 · IBM QUANTUM HACKATHON 2026</div>
+      <div style="font-size: 20px; line-height: 1.35">Gate = puerta de embarque + compuerta cuántica. Señalética de aeropuerto real, con lo cuántico marcado en cian.</div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; flex-grow: 1">
+
+    <div style="display: flex; flex-direction: column; gap: 16px">
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.14em; color: #9A9890">01 · COLOR</div>
+      <sc-for list="{{swatches}}" as="s" hint-placeholder-count="6">
+        <div style="display: flex; align-items: center; gap: 16px; padding: 10px; border-radius: 8px; background: #141518">
+          <div style="width: 64px; height: 44px; border-radius: 6px; background: {{s.hex}}; border: 1px solid #2C2F35"></div>
+          <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+            <div style="font-weight: 600; font-size: 15px">{{s.name}}</div>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9A9890">{{s.hex}} · {{s.role}}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 16px">
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.14em; color: #9A9890">02 · TIPOGRAFÍA</div>
+      <div style="background: #141518; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 6px">
+        <div style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 64px; line-height: 0.95; color: #FFC629">V03 → P07</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9A9890">Barlow Condensed 800 · titulares y letreros</div>
+      </div>
+      <div style="background: #141518; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 6px">
+        <div style="font-size: 22px; line-height: 1.3; font-weight: 500">Medimos qué funciona, qué no y por qué.</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9A9890">IBM Plex Sans · texto (la familia de IBM)</div>
+      </div>
+      <div style="background: #141518; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 6px">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 26px; font-weight: 600; color: #4FE3E0">P(válida) 9.4% → [00.0]%</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9A9890">IBM Plex Mono · datos, tablero y código</div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 16px">
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.14em; color: #9A9890">03 · PICTOGRAMAS Y MOTIVOS</div>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px">
+        <div style="aspect-ratio: 1; background: #FFC629; border-radius: 8px; display: flex; align-items: center; justify-content: center">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#0B0B0C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Vuelo"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"></path></svg>
+        </div>
+        <div style="aspect-ratio: 1; background: #FFC629; border-radius: 8px; display: flex; align-items: center; justify-content: center">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#0B0B0C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Puerta"><rect x="4" y="3" width="11" height="18" rx="1"></rect><path d="M11 12h10"></path><path d="M18 9l3 3-3 3"></path></svg>
+        </div>
+        <div style="aspect-ratio: 1; background: #FFC629; border-radius: 8px; display: flex; align-items: center; justify-content: center">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#0B0B0C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Conexión entre vuelos"><circle cx="5" cy="17" r="2.5"></circle><circle cx="19" cy="17" r="2.5"></circle><path d="M7 15.5C9 7 15 7 17 15.5"></path></svg>
+        </div>
+        <div style="aspect-ratio: 1; background: #0B0B0C; border: 2px solid #4FE3E0; border-radius: 8px; display: flex; align-items: center; justify-content: center; box-sizing: border-box">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4FE3E0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Qubit"><circle cx="12" cy="12" r="9"></circle><ellipse cx="12" cy="12" rx="9" ry="3.5"></ellipse><path d="M12 12 16 6"></path><circle cx="16" cy="6" r="1.3" fill="#4FE3E0"></circle></svg>
+        </div>
+      </div>
+      <div style="display: flex; gap: 6px">
+        <sc-for list="{{flaps}}" as="f" hint-placeholder-count="5">
+          <div style="position: relative; flex: 1; height: 72px; background: #1E2024; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 40px; color: #F4F1E8">{{f.ch}}<div style="position: absolute; left: 0; right: 0; top: 35px; height: 2px; background: #0B0B0C"></div></div>
+        </sc-for>
+      </div>
+      <div style="position: relative; display: flex; background: #F4F1E8; color: #0B0B0C; border-radius: 10px; overflow: hidden; height: 112px">
+        <div style="flex: 1; padding: 14px 18px; display: flex; flex-direction: column; justify-content: space-between">
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; color: #55534D">BOARDING PASS · RESULTADO</div>
+          <div style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 44px; line-height: 0.9">340</div>
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #55534D">ÓPTIMO DE REFERENCIA · N = 10</div>
+        </div>
+        <div style="width: 0; border-left: 2px dashed #B9B5A8; margin: 12px 0"></div>
+        <div style="width: 96px; display: flex; align-items: center; justify-content: center; gap: 3px">
+          <sc-for list="{{bars}}" as="b" hint-placeholder-count="14">
+            <div style="width: {{b.w}}px; height: 64px; background: #0B0B0C"></div>
+          </sc-for>
+        </div>
+        <div style="position: absolute; top: -10px; right: 86px; width: 20px; height: 20px; border-radius: 50%; background: #0B0B0C"></div>
+        <div style="position: absolute; bottom: -10px; right: 86px; width: 20px; height: 20px; border-radius: 50%; background: #0B0B0C"></div>
+      </div>
+      <svg width="100%" height="72" viewBox="0 0 400 72" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M0 36 C 25 6, 50 66, 75 36 S 125 6, 150 36 S 200 66, 225 36 S 275 6, 300 36 S 350 66, 400 36" fill="none" stroke="#4FE3E0" stroke-width="1.5"></path>
+        <path d="M0 36 C 25 20, 50 52, 75 36 S 125 20, 150 36 S 200 52, 225 36 S 275 20, 300 36 S 350 52, 400 36" fill="none" stroke="#4FE3E0" stroke-opacity="0.55" stroke-width="1"></path>
+        <path d="M0 36 C 25 30, 50 42, 75 36 S 125 30, 150 36 S 200 42, 225 36 S 275 30, 300 36 S 350 42, 400 36" fill="none" stroke="#4FE3E0" stroke-opacity="0.3" stroke-width="1"></path>
+      </svg>
+    </div>
+  </div>
+
+  <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #2C2F35; padding-top: 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.1em; color: #9A9890">
+    <div>AMARILLO = SEÑALÉTICA Y LO QUE DECIDE EL USUARIO · CIAN = TODO LO QUE SALE DE QISKIT · NARANJA = INVÁLIDO</div>
+    <div>RETO NTT DATA · QAP10 · TRACK A AEROPUERTO</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      swatches: [
+        { name: 'Pista', hex: '#0B0B0C', role: 'fondo' },
+        { name: 'Tablero', hex: '#141518', role: 'paneles' },
+        { name: 'Ficha', hex: '#1E2024', role: 'split-flap' },
+        { name: 'Señal', hex: '#FFC629', role: 'acento y señalética' },
+        { name: 'Qubit', hex: '#4FE3E0', role: 'datos cuánticos' },
+        { name: 'Inválido', hex: '#FF6B3D', role: 'reglas rotas' },
+        { name: 'Papel', hex: '#F4F1E8', role: 'texto' }
+      ],
+      flaps: ['Q', 'G', 'A', 'T', 'E'].map(function (c) { return { ch: c }; }),
+      bars: [3, 1, 2, 1, 4, 1, 2, 3, 1, 2, 1, 3, 2, 1].map(function (w) { return { w: w }; })
+    };
+  }
+}
+</script>
+</body>
+</html>

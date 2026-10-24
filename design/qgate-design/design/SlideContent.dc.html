@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>QGate · Slide de contenido</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#FFC629}a:hover{color:#FFD866}
+</style>
+</helmet>
+<div style="width: 1280px; height: 720px; box-sizing: border-box; padding: 48px 56px 40px; background: #0B0B0C; color: #F4F1E8; font-family: 'IBM Plex Sans', sans-serif; display: flex; flex-direction: column; gap: 32px; overflow: hidden">
+  <div style="display: flex; align-items: center; gap: 16px">
+    <div style="padding: 6px 14px; border-radius: 6px; background: #FFC629; color: #0B0B0C; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 34px; line-height: 1">05</div>
+    <h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 56px; line-height: 1; letter-spacing: 0.01em">LÍMITES</h1>
+    <div style="margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.14em; color: #6E6C66">QGATE</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; flex-grow: 1">
+    <div style="background: #141518; border-radius: 14px; padding: 32px; display: flex; flex-direction: column; justify-content: space-between; border-top: 6px solid #FF6B3D">
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 14px; letter-spacing: 0.14em; color: #FF6B3D">QAOA DIRECTO · N = 10</div>
+      <div style="display: flex; align-items: baseline; gap: 16px">
+        <div style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 200px; line-height: 0.8; text-decoration: line-through; text-decoration-color: #FF6B3D; text-decoration-thickness: 10px">100</div>
+        <div style="font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 48px">qubits</div>
+      </div>
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 18px; color: #C9C6BC">2¹⁰⁰ amplitudes · imposible de simular</div>
+    </div>
+    <div style="background: #141518; border-radius: 14px; padding: 32px; display: flex; flex-direction: column; justify-content: space-between; border-top: 6px solid #4FE3E0">
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 14px; letter-spacing: 0.14em; color: #4FE3E0">QGATE · CUALQUIER N</div>
+      <div style="display: flex; align-items: baseline; gap: 16px">
+        <div style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 200px; line-height: 0.8; color: #4FE3E0">9</div>
+        <div style="font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 48px">qubits</div>
+      </div>
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 18px; color: #C9C6BC">por subproblema · siempre</div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 10px">
+    <div style="padding: 8px 14px; border-radius: 999px; border: 1px solid #2C2F35; font-family: 'IBM Plex Mono', monospace; font-size: 14px; color: #C9C6BC">λ elegida con barrido</div>
+    <div style="padding: 8px 14px; border-radius: 999px; border: 1px solid #2C2F35; font-family: 'IBM Plex Mono', monospace; font-size: 14px; color: #C9C6BC">ruido medido</div>
+    <div style="padding: 8px 14px; border-radius: 999px; border: 1px solid #2C2F35; font-family: 'IBM Plex Mono', monospace; font-size: 14px; color: #C9C6BC">crudo vs reparado</div>
+    <div style="padding: 8px 14px; border-radius: 999px; border: 1px solid #4FE3E0; font-family: 'IBM Plex Mono', monospace; font-size: 14px; color: #4FE3E0">IBM Quantum real · [backend]</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":720}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

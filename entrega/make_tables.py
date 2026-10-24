@@ -107,7 +107,7 @@ def tables(R: dict) -> str:
         names = {"simulated_annealing": "SA", "qgate_lns_exact": "QGate exacto", "qgate_lns_qaoa": "QGate QAOA"}
         for r in sc:
             out.append(f"| {r['N']} | {r['instance']} | {names.get(r['method'], r['method'])} | {g(r['best_cost'])} | {g(r['lower_bound'])} | "
-                       f"{g(r['gap_vs_bound_pct'], 1)} | {g(r['time_s'], 2)} | {g(r['peak_mem_mb'], 1)} | {r['qubits']} |")
+                       f"{g(r['gap_vs_bound_pct'], 1)} | {g(r['time_s'], 2)} | {g(r['peak_mem_mb'], 2)} | {r['qubits']} |")
 
     M = meta.get("statevector_memory")
     if M:
@@ -123,6 +123,13 @@ def tables(R: dict) -> str:
                f"Qiskit Aer {v.get('qiskit_aer')}, NumPy {v.get('numpy')}, SciPy {v.get('scipy')} · "
                f"corrida total {g(meta['total_time_s'] / 60, 1)} min.*")
     return "\n".join(out)
+
+
+def _scale_iters(meta: dict) -> int:
+    """Iteraciones del híbrido en el escalamiento (bench: max(H // 2, 40))."""
+    a = meta.get("args", {})
+    H = a.get("hybrid_iters") or (120 if a.get("quick") else 300)
+    return max(H // 2, 40)
 
 
 def findings(R: dict) -> str:
@@ -179,8 +186,17 @@ def findings(R: dict) -> str:
     if sc:
         ns = sorted(r["N"] for r in sc)
         mem = max(r["peak_mem_mb"] for r in sc)
-        out.append(f"8. **Escala.** De N={ns[0]} a N={ns[-1]} el subproblema cuántico sigue en 9 qubits y la memoria pico de "
-                   f"QGate no pasa de {g(mem, 1)} MB; un QUBO directo de N={ns[-1]} serían {ns[-1] ** 2} qubits.")
+        big = ns[-1]
+        allsc = R.get("scaling", [])
+        qb = next(r for r in allsc if r["N"] == big and r["method"] == "qgate_lns_qaoa")
+        sb = next((r for r in allsc if r["N"] == big and r["method"] == "simulated_annealing"), None)
+        out.append(f"8. **Escala.** De N={ns[0]} a N={big} el subproblema cuántico sigue en 9 qubits y la memoria pico de "
+                   f"QGate no pasa de {g(mem, 1)} MB; un QUBO directo de N={big} serían {big ** 2} qubits."
+                   + (f" Con {qb.get('iters') or _scale_iters(meta)} iteraciones, en N={big} el híbrido queda a {g(qb['gap_vs_bound_pct'], 1)}% "
+                      f"de la cota y SA a {g(sb['gap_vs_bound_pct'], 1)}%: con N grande, 3 vuelos por paso es un vecindario chico. "
+                      if sb else " ")
+                   + "Las diferencias entre QAOA y el control exacto en esta tabla vienen de empates entre permutaciones "
+                     "óptimas del subproblema y de mejoras no óptimas que cambian la trayectoria; no son ventaja de QAOA.")
     return "\n".join(out)
 
 

@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>QGate · Resultados</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0B0B0C}
+a{color:#FFC629}a:hover{color:#FFD866}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 900px; box-sizing: border-box; padding: 24px 32px 32px; background: #0B0B0C; color: #F4F1E8; font-family: 'IBM Plex Sans', sans-serif; display: flex; flex-direction: column; gap: 24px">
+
+  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; border-bottom: 1px solid #2C2F35; padding-bottom: 16px">
+    <div style="display: flex; align-items: center; gap: 12px">
+      <svg width="40" height="40" viewBox="0 0 64 64" role="img" aria-label="QGate"><rect width="64" height="64" rx="10" fill="#FFC629"></rect><circle cx="29" cy="29" r="15" fill="none" stroke="#0B0B0C" stroke-width="7"></circle><path d="M38 38 L48 48" stroke="#0B0B0C" stroke-width="7" stroke-linecap="square"></path><polygon points="55,55 55,40 40,55" fill="#0B0B0C"></polygon></svg>
+      <div style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 32px; letter-spacing: 0.02em">QGATE</div>
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.14em; color: #9A9890; margin-left: 8px">RESULTADOS · QAP10</div>
+    </div>
+    <nav style="display: flex; gap: 4px" aria-label="Escenas">
+      <a href="Qaoa.dc.html" style="text-decoration: none; padding: 10px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.08em; color: #9A9890; border-bottom: 3px solid transparent">01 QAOA</a>
+      <a href="Demo.dc.html" style="text-decoration: none; padding: 10px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.08em; color: #9A9890; border-bottom: 3px solid transparent">02 AEROPUERTO</a>
+      <a href="#" style="text-decoration: none; padding: 10px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.08em; color: #FFC629; border-bottom: 3px solid #FFC629">03 RESULTADO</a>
+    </nav>
+  </div>
+
+  <h2 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 56px; line-height: 0.95">TRES TARJETAS DE EMBARQUE, UNA POR PREGUNTA</h2>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 20px">
+    <sc-for list="{{passes}}" as="p" hint-placeholder-count="3">
+      <article style="position: relative; flex: 1 1 380px; min-width: 0; display: flex; background: #F4F1E8; color: #0B0B0C; border-radius: 14px; overflow: hidden; min-height: 300px">
+        <div style="flex: 1; min-width: 0; padding: 20px 22px; display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.16em; color: #55534D">BOARDING PASS · {{p.kicker}}</div>
+            <div style="padding: 3px 8px; border-radius: 4px; background: {{p.tagBg}}; color: #0B0B0C; font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600">{{p.tag}}</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px">
+            <div style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 44px; line-height: 0.9">{{p.from}}</div>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0B0B0C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"></path></svg>
+            <div style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 44px; line-height: 0.9">{{p.to}}</div>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; margin-top: auto">
+            <sc-for list="{{p.fields}}" as="f" hint-placeholder-count="4">
+              <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.14em; color: #55534D">{{f.k}}</div>
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 600">{{f.v}}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="width: 0; border-left: 2px dashed #B9B5A8; margin: 16px 0"></div>
+        <div style="width: 132px; padding: 20px 14px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; gap: 12px; box-sizing: border-box">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 2px">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.14em; color: #55534D">{{p.stubK}}</div>
+            <div style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 48px; line-height: 1">{{p.stubV}}</div>
+          </div>
+          <div style="display: flex; gap: 2px; height: 72px; align-items: stretch">
+            <sc-for list="{{barcode}}" as="b" hint-placeholder-count="16">
+              <div style="width: {{b.w}}px; background: #0B0B0C"></div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="position: absolute; top: -11px; right: 121px; width: 22px; height: 22px; border-radius: 50%; background: #0B0B0C"></div>
+        <div style="position: absolute; bottom: -11px; right: 121px; width: 22px; height: 22px; border-radius: 50%; background: #0B0B0C"></div>
+      </article>
+    </sc-for>
+  </div>
+
+  <div style="background: #141518; border-radius: 12px; padding: 18px 20px; overflow-x: auto">
+    <table style="width: 100%; min-width: 760px; border-collapse: collapse; font-family: 'IBM Plex Mono', monospace; font-size: 14px">
+      <thead>
+        <tr style="text-align: left; color: #9A9890; font-size: 11px; letter-spacing: 0.14em">
+          <th style="padding: 8px 10px; font-weight: 500">MÉTODO</th>
+          <th style="padding: 8px 10px; font-weight: 500">N</th>
+          <th style="padding: 8px 10px; font-weight: 500">QUBITS</th>
+          <th style="padding: 8px 10px; font-weight: 500">MEJOR COSTO VÁLIDO</th>
+          <th style="padding: 8px 10px; font-weight: 500">GAP</th>
+          <th style="padding: 8px 10px; font-weight: 500">TIEMPO</th>
+          <th style="padding: 8px 10px; font-weight: 500">DÓNDE CORRIÓ</th>
+        </tr>
+      </thead>
+      <tbody>
+        <sc-for list="{{rows}}" as="r" hint-placeholder-count="6">
+          <tr style="border-top: 1px solid #2C2F35">
+            <td style="padding: 12px 10px; color: {{r.color}}; font-weight: 600">{{r.m}}</td>
+            <td style="padding: 12px 10px">{{r.n}}</td>
+            <td style="padding: 12px 10px">{{r.q}}</td>
+            <td style="padding: 12px 10px">{{r.c}}</td>
+            <td style="padding: 12px 10px">{{r.g}}</td>
+            <td style="padding: 12px 10px">{{r.t}}</td>
+            <td style="padding: 12px 10px; color: #9A9890">{{r.w}}</td>
+          </tr>
+        </sc-for>
+      </tbody>
+    </table>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      passes: [
+        { kicker: 'DATOS', tag: 'VALIDADO', tagBg: '#FFC629', from: 'MPS', to: 'F·D', stubK: 'CONTROL', stubV: '340',
+          fields: [{ k: 'N = 3', v: '24 [✓]' }, { k: 'N = 4', v: '32 [✓]' }, { k: 'N = 10', v: '340 [✓]' }, { k: 'VARIABLES', v: '4 150' }] },
+        { kicker: 'QAOA · N = 4', tag: 'QISKIT', tagBg: '#4FE3E0', from: 'AZAR', to: 'QAOA', stubK: 'QUBITS', stubV: '16',
+          fields: [{ k: 'P(VÁLIDA)', v: '[00.0]%' }, { k: 'AL AZAR', v: '9.4%' }, { k: 'P(ÓPTIMO)', v: '[0.0]%' }, { k: 'CX', v: '[000]' }] },
+        { kicker: 'HÍBRIDO · N = 10', tag: 'QGATE', tagBg: '#FFC629', from: 'AZAR', to: 'QGATE', stubK: 'QUBITS', stubV: '9',
+          fields: [{ k: 'COSTO', v: '[000]' }, { k: 'GAP VS 340', v: '[0.0]%' }, { k: 'QAOA ÓPTIMO', v: '[00]%' }, { k: 'TIEMPO', v: '[00] s' }] }
+      ],
+      barcode: [3, 1, 2, 1, 1, 3, 1, 2, 2, 1, 3, 1, 1, 2, 1, 3].map(function (w) { return { w: w }; }),
+      rows: [
+        { m: 'Fuerza bruta (exacto)', n: '10', q: '0', c: '[000]', g: '[0.0]%', t: '[0.0] s', w: 'CPU', color: '#F4F1E8' },
+        { m: 'Simulated annealing', n: '10', q: '0', c: '[000]', g: '[0.0]%', t: '[0.0] s', w: 'CPU', color: '#F4F1E8' },
+        { m: 'QAOA mixer X', n: '4', q: '16', c: '[00]', g: '[0.0]%', t: '[0.0] s', w: 'Qiskit Aer', color: '#4FE3E0' },
+        { m: 'QAOA mixer XY', n: '4', q: '16', c: '[00]', g: '[0.0]%', t: '[0.0] s', w: 'Qiskit Aer', color: '#4FE3E0' },
+        { m: 'QAOA N = 3', n: '3', q: '9', c: '[00]', g: '[0.0]%', t: '[0.0] s', w: 'IBM Quantum [backend]', color: '#4FE3E0' },
+        { m: 'QGate híbrido', n: '10', q: '9 / subproblema', c: '[000]', g: '[0.0]%', t: '[00] s', w: 'Qiskit Aer + CPU', color: '#FFC629' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

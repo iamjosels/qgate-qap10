@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>QGate · Modo demo QAOA</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0B0B0C}
+a{color:#FFC629}a:hover{color:#FFD866}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 900px; box-sizing: border-box; padding: 24px 32px 28px; background: #0B0B0C; color: #F4F1E8; font-family: 'IBM Plex Sans', sans-serif; display: flex; flex-direction: column; gap: 20px">
+
+  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; border-bottom: 1px solid #2C2F35; padding-bottom: 16px">
+    <div style="display: flex; align-items: center; gap: 12px">
+      <svg width="40" height="40" viewBox="0 0 64 64" role="img" aria-label="QGate"><rect width="64" height="64" rx="10" fill="#FFC629"></rect><circle cx="29" cy="29" r="15" fill="none" stroke="#0B0B0C" stroke-width="7"></circle><path d="M38 38 L48 48" stroke="#0B0B0C" stroke-width="7" stroke-linecap="square"></path><polygon points="55,55 55,40 40,55" fill="#0B0B0C"></polygon></svg>
+      <div style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 32px; letter-spacing: 0.02em">QGATE</div>
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.14em; color: #9A9890; margin-left: 8px">MODO DEMO · COMPUERTAS CUÁNTICAS</div>
+    </div>
+    <nav style="display: flex; gap: 4px" aria-label="Escenas">
+      <a href="#" style="text-decoration: none; padding: 10px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.08em; color: #4FE3E0; border-bottom: 3px solid #4FE3E0">01 QAOA</a>
+      <a href="Demo.dc.html" style="text-decoration: none; padding: 10px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.08em; color: #9A9890; border-bottom: 3px solid transparent">02 AEROPUERTO</a>
+      <a href="Results.dc.html" style="text-decoration: none; padding: 10px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.08em; color: #9A9890; border-bottom: 3px solid transparent">03 RESULTADO</a>
+    </nav>
+    <div style="display: flex; gap: 8px; align-items: center">
+      <button type="button" aria-label="Reproducir" style="width: 48px; height: 48px; border-radius: 8px; border: none; background: #4FE3E0; display: flex; align-items: center; justify-content: center; cursor: pointer">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="#0B0B0C" aria-hidden="true"><path d="M7 4l13 8-13 8z"></path></svg>
+      </button>
+      <div role="group" aria-label="Mixer" style="display: flex; border: 1px solid #2C2F35; border-radius: 8px; overflow: hidden">
+        <button type="button" style="height: 46px; padding: 0 16px; border: none; background: #141518; color: #9A9890; font-family: 'IBM Plex Mono', monospace; font-size: 13px; cursor: pointer">MIXER X</button>
+        <button type="button" aria-pressed="true" style="height: 46px; padding: 0 16px; border: none; background: #4FE3E0; color: #0B0B0C; font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 13px; cursor: pointer">MIXER XY</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 20px; flex-grow: 1">
+
+    <section style="flex: 999 1 640px; min-width: 0; background: #141518; border-radius: 12px; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <h2 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 52px; line-height: 0.95">QAOA APRENDE A RESPETAR LAS REGLAS</h2>
+        <div style="font-size: 17px; color: #C9C6BC">Con 16 qubits hay 65 536 combinaciones y solo 24 son asignaciones válidas. Mira cómo la probabilidad se mueve hacia ellas.</div>
+      </div>
+      <div style="position: relative; height: 420px; border-radius: 10px; background: #0E0F11; padding: 20px 16px 36px; box-sizing: border-box; display: flex; align-items: flex-end; gap: 3px">
+        <sc-for list="{{bars}}" as="b" hint-placeholder-count="64">
+          <div style="flex: 1; height: {{b.h}}%; background: {{b.c}}; border-radius: 2px 2px 0 0"></div>
+        </sc-for>
+        <div style="position: absolute; left: 16px; right: 16px; bottom: 12px; display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6E6C66">
+          <div>CONFIGURACIONES MEDIDAS (MIXER XY · N = 4)</div>
+          <div>SHOTS 4096</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9A9890; white-space: nowrap">ITERACIÓN [12] / [60]</div>
+        <div style="position: relative; flex: 1; height: 6px; border-radius: 3px; background: #2C2F35">
+          <div style="width: 20%; height: 100%; border-radius: 3px; background: #4FE3E0"></div>
+          <div style="position: absolute; left: 20%; top: 50%; width: 18px; height: 18px; border-radius: 50%; background: #F4F1E8; transform: translate(-50%, -50%)"></div>
+        </div>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 18px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9A9890">
+        <div style="display: flex; align-items: center; gap: 6px"><div style="width: 14px; height: 14px; border-radius: 2px; background: #7A3A26"></div>Inválida (rompe una regla)</div>
+        <div style="display: flex; align-items: center; gap: 6px"><div style="width: 14px; height: 14px; border-radius: 2px; background: #4FE3E0"></div>Válida</div>
+        <div style="display: flex; align-items: center; gap: 6px"><div style="width: 14px; height: 14px; border-radius: 2px; background: #FFC629"></div>Óptima</div>
+      </div>
+    </section>
+
+    <section style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+      <div style="background: #141518; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 6px; border-top: 4px solid #4FE3E0">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.14em; color: #9A9890">P(ASIGNACIÓN VÁLIDA)</div>
+        <div style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 96px; line-height: 0.9; color: #4FE3E0">[00.0]%</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #C9C6BC">vs 9.4% al azar con el mismo mixer</div>
+      </div>
+      <div style="background: #141518; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 6px; border-top: 4px solid #FFC629">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.14em; color: #9A9890">P(ASIGNACIÓN ÓPTIMA)</div>
+        <div style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 72px; line-height: 0.9; color: #FFC629">[0.0]%</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #C9C6BC">óptimo de control N = 4: 32</div>
+      </div>
+      <div style="background: #141518; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.14em; color: #9A9890">UNA FILA DEL CIRCUITO · VUELO V01 · 4 QUBITS</div>
+        <sc-for list="{{wires}}" as="w" hint-placeholder-count="4">
+          <div style="position: relative; display: flex; align-items: center; gap: 10px; height: 34px">
+            <div style="width: 54px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9A9890">{{w.label}}</div>
+            <div style="position: relative; flex: 1; height: 34px; display: flex; align-items: center; justify-content: space-around">
+              <div style="position: absolute; left: 0; right: 0; top: 16px; height: 2px; background: #2C2F35"></div>
+              <div style="position: relative; padding: 4px 8px; border-radius: 4px; background: #F4F1E8; color: #0B0B0C; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600">W</div>
+              <div style="position: relative; padding: 4px 8px; border-radius: 4px; background: #FFC629; color: #0B0B0C; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600">COSTO γ</div>
+              <div style="position: relative; padding: 4px 8px; border-radius: 4px; background: #4FE3E0; color: #0B0B0C; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600">XY β</div>
+              <div style="position: relative; width: 22px; height: 22px; border-radius: 4px; border: 2px solid #F4F1E8; box-sizing: border-box"></div>
+            </div>
+          </div>
+        </sc-for>
+        <div style="font-size: 14px; color: #C9C6BC">El mixer XY mueve al vuelo entre puertas sin dejarlo nunca en dos a la vez.</div>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var bars = [];
+    var valid = { 5: 1, 13: 1, 22: 1, 31: 1, 38: 1, 47: 1, 55: 1, 60: 1 };
+    for (var i = 0; i < 64; i++) {
+      var base = 6 + 10 * Math.abs(Math.sin(i * 1.7)) + 4 * Math.abs(Math.cos(i * 0.9));
+      var c = '#7A3A26';
+      if (valid[i]) { base = 34 + 22 * Math.abs(Math.sin(i)); c = '#4FE3E0'; }
+      if (i === 31) { base = 92; c = '#FFC629'; }
+      bars.push({ h: Math.round(base), c: c });
+    }
+    return {
+      bars: bars,
+      wires: [{ label: 'V01·P1' }, { label: 'V01·P2' }, { label: 'V01·P3' }, { label: 'V01·P4' }]
+    };
+  }
+}
+</script>
+</body>
+</html>

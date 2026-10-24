@@ -139,7 +139,7 @@ def _gate_map(R: dict, out: str) -> None:
     xy, F, D = data.get("gate_xy"), data.get("F"), data.get("D")
     A = {a["label"]: a for a in R.get("assignments", [])}
     pick = [A[k] for k in ("Aleatoria", "QGate híbrido") if k in A]
-    if not xy or not F or not D or len(pick) < 2:
+    if any(m is None or len(m) == 0 for m in (xy, F, D)) or len(pick) < 2:
         return
     import numpy as np
     P, F, D = np.array(xy), np.array(F), np.array(D)

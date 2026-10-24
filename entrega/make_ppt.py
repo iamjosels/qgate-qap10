@@ -342,8 +342,8 @@ def build(results_path, out_path):
     if qrows:
         mem = max(r["peak_mem_mb"] for r in qrows)
         kpi(s, 10.2, 5.4, 2.6, 1.4, f"{mem:.1f} MB", "memoria pico QGate", CYAN, vsize=28)
-    footer(s, f"N > {N}: instancias sintéticas (sin óptimo conocido), gap medido contra la cota Gilmore-Lawler "
-              f"(N={N}: cota {g(glb['bound'])}).")
+    footer(s, f"N > {N}: sintéticas sin óptimo conocido, gap contra la cota Gilmore-Lawler (N={N}: cota {g(glb['bound'])}). "
+              "SA gana en calidad y tiempo; lo que no crece es la parte cuántica.")
     notes(s, "Al crecer N el subproblema cuántico sigue siendo de 9 qubits y la memoria no crece. Sin óptimo "
              "conocido en N mayores, medimos contra una cota inferior. La búsqueda es más lenta que simulated "
              "annealing en simulador: eso es honesto y es lo que esperamos mejorar con hardware.")

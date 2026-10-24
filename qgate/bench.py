@@ -282,7 +282,7 @@ def main(argv=None):
             R["scaling"].append({"N": ns, "instance": si.name, "method": meth, "best_cost": c,
                                  "lower_bound": lb, "gap_vs_bound_pct": gap(c, lb),
                                  "gap_vs_opt_pct": gap(c, opt), "time_s": t,
-                                 "peak_mem_mb": mem, "qubits": qb,
+                                 "peak_mem_mb": mem, "qubits": qb, "iters": hs if meth != "simulated_annealing" else None,
                                  "search_space": f"{ns}! = {float(np.prod(np.arange(1, ns + 1, dtype=float))):.3g}"})
         log(f"Escala N={ns} ({si.name}): " + ", ".join(f"{m}={c:.0f}" for m, c, *_ in rows)
             + f" | cota {lb:.0f}")

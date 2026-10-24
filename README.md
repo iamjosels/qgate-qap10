@@ -86,11 +86,104 @@ Todo sale de [`results/results.json`](results/results.json) (simulador, nunca ha
 generadas con `python entrega/make_tables.py`.
 
 <!-- RESULTS:START -->
+### Validación de escala
+
+| N | Óptimo calculado | Esperado | OK | Tiempo (s) |
+|---|---|---|---|---|
+| 3 | 24 | 24 | sí | 0.000 |
+| 4 | 32 | 32 | sí | 0.000 |
+| 10 | 340 | 340 | sí | 6.948 |
+
+### Instancia completa N = 10 (gap solo sobre asignaciones válidas)
+
+| Método | Costo | Gap vs 340 (%) | Tiempo (s) | Notas |
+|---|---|---|---|---|
+| Fuerza bruta (10! permutaciones) | 340 | 0.0 | 6.9 | 1 óptimo(s) |
+| Simulated annealing | 340 | 0.0 | 13.7 | clásico puro |
+| Cota Gilmore-Lawler | 301 (cota inferior) | - | 0.005 | no es una asignación |
+| **QGate híbrido (QAOA p=2, 9 qubits, 512 shots)** crudo | **340** | 0.0 | 186.0 | 300 iteraciones, 300 subproblemas |
+| QGate híbrido + pulido 2-swap (clásico) | 340 | 0.0 | - | reportado aparte del crudo |
+| QGate con subproblema exacto (control) | 340 | 0.0 | 0.44 | mismo presupuesto, semilla y arranque |
+| Asignación aleatoria | 536 | 57.6 | - | referencia |
+
+### Ablación del solver del subproblema (mismas iteraciones, semilla y arranque)
+
+| Solver | Shots | Costo final | Gap (%) | Éxito en subproblemas | P(óptimo) medio por subproblema | Azar P(óptimo) | Tiempo (s) |
+|---|---|---|---|---|---|---|---|
+| QGate · QAOA (512 shots) | 512 | 340 | 0.0 | 100% | 0.094 | 0.039 | 186.0 |
+| Control · subproblema exacto | - | 340 | 0.0 | 100% | 1.000 | 0.039 | 0.4 |
+| Control · azar (512 shots) | 512 | 340 | 0.0 | 100% | 0.039 | 0.039 | 0.6 |
+| QGate · QAOA (8 shots) | 8 | 372 | 9.4 | 59% | 0.096 | 0.04 | 208.3 |
+| Control · azar (8 shots) | 8 | 390 | 14.7 | 29% | 0.039 | 0.039 | 0.7 |
+
+*Éxito = el solver devolvió el óptimo del subproblema (sin muestra válida cuenta como fallo). Azar = muestras uniformes sobre los estados con una puerta por vuelo (el mismo espacio que el estado W).*
+
+Robustez (solver exacto, 300 iteraciones, semillas 7 a 18): media 354.5 (gap medio 4.3%), mejor 340, peor 374, llega a 340 en 4 de 12.
+
+### QAOA en subinstancias (Qiskit Aer)
+
+| Experimento | Qubits | Mixer | p | Ruido | P(válida) ideal | Válidas en shots | Azar | P(óptimo) | Mejor costo | Ratio medio | Tiempo (s) | CX | Profundidad |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| N3-x-p1 | 9 | X | 1 | none | 0.137 | 0.144 | 0.012 | 0.047 | 24 (ópt 24) | 0.904 | 1.0 | 72 | 53 |
+| N3-x-p2 | 9 | X | 2 | none | 0.307 | 0.313 | 0.012 | 0.102 | 24 (ópt 24) | 0.899 | 3.2 | 144 | 85 |
+| N3-xy-p1 | 9 | XY | 1 | none | 0.789 | 0.775 | 0.222 | 0.266 | 24 (ópt 24) | 0.899 | 3.4 | 126 | 98 |
+| N3-xy-p2 | 9 | XY | 2 | none | 0.623 | 0.612 | 0.222 | 0.185 | 24 (ópt 24) | 0.896 | 7.7 | 234 | 163 |
+| N4-xy-p1 | 16 | XY | 1 | none | 0.477 | 0.475 | 0.094 | 0.042 | 32 (ópt 32) | 0.690 | 19.3 | 292 | 143 |
+| N4-x-p1 | 16 | X | 1 | none | 0.041 | 0.041 | 0.00037 | 0.0035 | 32 (ópt 32) | 0.684 | 7.5 | 192 | 86 |
+| N4-xy-p2 | 16 | XY | 2 | none | 0.475 | 0.474 | 0.094 | 0.042 | 32 (ópt 32) | 0.688 | 55.5 | 548 | 237 |
+| N3-x-p1-noise0.01 | 9 | X | 1 | desp. 0.01 | 0.137 | 0.085 | 0.012 | 0.047 | 24 (ópt 24) | 0.906 | 1.0 | 72 | 53 |
+| N3-xy-p1-noise0.01 | 9 | XY | 1 | desp. 0.01 | 0.789 | 0.250 | 0.222 | 0.266 | 24 (ópt 24) | 0.897 | 3.2 | 126 | 98 |
+
+*Ratio medio = óptimo / costo medio de las muestras válidas. Azar: para mixer X es la fracción de bitstrings válidos; para XY, la fracción válida entre estados con una puerta por vuelo.*
+
+### Barrido de λ (N = 3, p = 1)
+
+| Mixer | λ0×0.25 | λ0×0.5 | λ0×1 | λ0×2 | λ0×4 |
+|---|---|---|---|---|---|
+| X P(válida) / P(óptimo) | 0.02 / 0.0082 | 0.076 / 0.027 | 0.137 / 0.047 | 0.255 / 0.082 | 0.243 / 0.079 |
+| XY P(válida) / P(óptimo) | 0.241 / 0.119 | 0.557 / 0.230 | 0.789 / 0.266 | 0.361 / 0.115 | 0.364 / 0.116 |
+
+### Escalamiento (N > 10 son instancias sintéticas)
+
+| N | Instancia | Método | Costo | Cota GL | Gap vs cota (%) | Tiempo (s) | Memoria pico (MB) | Qubits |
+|---|---|---|---|---|---|---|---|---|
+| 10 | qap10 | SA | 340 | 301 | 13.0 | 23.31 | 0.04 | 0 |
+| 10 | qap10 | QGate exacto | 374 | 301 | 24.3 | 0.28 | 0.05 | 0 |
+| 10 | qap10 | QGate QAOA | 362 | 301 | 20.3 | 107.20 | 0.84 | 9 |
+| 12 | synthetic-12 | SA | 362 | 302 | 19.9 | 23.87 | 0.04 | 0 |
+| 12 | synthetic-12 | QGate exacto | 380 | 302 | 25.8 | 0.29 | 0.04 | 0 |
+| 12 | synthetic-12 | QGate QAOA | 380 | 302 | 25.8 | 126.56 | 0.82 | 9 |
+| 14 | synthetic-14 | SA | 665 | 548 | 21.4 | 22.96 | 0.04 | 0 |
+| 14 | synthetic-14 | QGate exacto | 729 | 548 | 33.0 | 0.24 | 0.04 | 0 |
+| 14 | synthetic-14 | QGate QAOA | 697 | 548 | 27.2 | 124.20 | 0.84 | 9 |
+| 16 | synthetic-16 | SA | 675 | 524 | 28.8 | 23.40 | 0.04 | 0 |
+| 16 | synthetic-16 | QGate exacto | 730 | 524 | 39.3 | 0.40 | 0.04 | 0 |
+| 16 | synthetic-16 | QGate QAOA | 730 | 524 | 39.3 | 124.79 | 0.82 | 9 |
+
+### Memoria de un statevector genérico (16 bytes por amplitud)
+
+| N | Qubits (N²) | Memoria |
+|---|---|---|
+| 3 | 9 | 8 KiB |
+| 4 | 16 | 1 MiB |
+| 5 | 25 | 512 MiB |
+| 10 | 100 | 2.03e+31 B |
+| 14 | 196 | 1.61e+60 B |
+
+*Generado 2026-10-24T12:19:42 · semilla 7 · Python 3.14.7, Qiskit 2.6.1, Qiskit Aer 0.18.0, NumPy 2.5.4, SciPy 1.18.1 · corrida total 18.5 min.*
 <!-- RESULTS:END -->
 
 ### Lectura de los resultados
 
 <!-- FINDINGS:START -->
+1. **Datos.** La reconstrucción del MPS reproduce los óptimos de control: N=3 → 24, N=4 → 32, N=10 → 340.
+2. **QAOA directo (N=4, 16 qubits).** Con mixer X, P(válida) = 0.041 frente a 0.00037 del azar (112 veces). Con mixer XY + estado W, 0.477 frente a 0.094 (azar sobre estados con una puerta por vuelo). El mejor costo muestreado es el óptimo (32) en ambos, pero P(óptimo) es baja (0.0035 y 0.042): QAOA p=1 concentra poco.
+3. **Ruido.** Con ruido despolarizante de 1%, la fracción válida del mixer XY cae de 0.789 a 0.250 (su azar es 0.222); la del mixer X, de 0.137 a 0.085. La ventaja estructural de XY es frágil al ruido.
+4. **Híbrido N=10.** Con la semilla 7, QGate con QAOA (512 shots) termina en **340** (gap 0.0%) en 186 s. El control exacto termina en 340 y el azar con las mismas 512 muestras en 340: con piezas de 3 vuelos (6 asignaciones) y 512 muestras, el azar también encuentra el óptimo de cada pieza.
+5. **Qué aporta QAOA.** P(óptimo) medio por subproblema: 0.094 con QAOA p=2 frente a 0.039 del azar (2.4 veces). Con solo 8 shots, QAOA resuelve el 59% de los subproblemas y el azar el 29%; el costo final es 372 frente a 390.
+6. **Robustez.** En 12 semillas y arranques, el mismo marco con solver exacto (equivale a QAOA cuando QAOA acierta) llega a 340 en 4 y su media es 354.5 (gap medio 4.3%). El límite es el vecindario de 3 vuelos, no el solver.
+7. **Tiempo.** En simulador, lo clásico gana: fuerza bruta 6.9 s y simulated annealing 13.7 s llegan a 340; el híbrido con QAOA tarda 186 s. No afirmamos ventaja cuántica.
+8. **Escala.** De N=10 a N=16 el subproblema cuántico sigue en 9 qubits y la memoria pico de QGate no pasa de 0.8 MB; un QUBO directo de N=16 serían 256 qubits. Con 150 iteraciones, en N=16 el híbrido queda a 39.3% de la cota y SA a 28.8%: con N grande, 3 vuelos por paso es un vecindario chico. Las diferencias entre QAOA y el control exacto en esta tabla vienen de empates entre permutaciones óptimas del subproblema y de mejoras no óptimas que cambian la trayectoria; no son ventaja de QAOA.
 <!-- FINDINGS:END -->
 
 ## 6. Limitaciones y cómo las manejamos
@@ -116,9 +209,8 @@ curl -L -o data/qap10.mps.gz https://miplib.zib.de/WebData/instances/qap10.mps.g
 python tests/test_core.py && python tests/test_quantum.py && python tests/test_hybrid.py
 python -m qgate.bench --mps data/qap10.mps.gz --scale 10,12,14,16      # ~15 min, escribe results/
 python -m qgate.bench --mps data/qap10.mps.gz --quick                  # versión rápida
-python dashboard/build_report.py results/results.json results/report.html
-python entrega/make_tables.py        # tablas del README
-pip install python-pptx && python entrega/make_ppt.py                  # PPT
+pip install python-pptx
+python entrega/publicar.py           # dashboard (docs/index.html), tablas del README y PPT
 ```
 
 Semilla por defecto 7 (`--seed`). Versiones, argumentos, fecha y tiempos quedan en `results.json → meta`.
