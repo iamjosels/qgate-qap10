@@ -1,0 +1,21 @@
+{
+ "job_id": "dbefhdom94ac738rnc00",
+ "backend": "ibm_kingston",
+ "fake": false,
+ "submitted_at": "2026-10-24T13:28:05",
+ "shots": 4096,
+ "ids": [
+  "N3-x-p1",
+  "N3-xy-p1"
+ ],
+ "transpiled": {
+  "N3-x-p1": {
+   "depth": 246,
+   "two_qubit_gates": 132
+  },
+  "N3-xy-p1": {
+   "depth": 302,
+   "two_qubit_gates": 161
+  }
+ }
+}

@@ -1,7 +1,7 @@
 # Guion del pitch (2:30 a 3:00)
 
 Una slide por bloque. Hablar con números, sin leer la pantalla. Todos los números salen de
-`results/results.json` (simulador Qiskit Aer, no hardware real).
+`results/results.json` (simulador Qiskit Aer) y `results/hardware.json` (una corrida N=3 en ibm_kingston de IBM Quantum).
 
 | Tiempo | Slide | Quién | Texto |
 |---|---|---|---|
@@ -12,7 +12,7 @@ Una slide por bloque. Hablar con números, sin leer la pantalla. Todos los núme
 | 1:30 a 1:50 | 5 Límites | Integrante 3 | "N=10 completo serían 100 qubits: imposible de simular. Justificamos λ y lo validamos con un barrido. Y medimos el ruido: con 1% de ruido el mixer XY pierde casi toda su ventaja de factibilidad." |
 | 1:50 a 2:25 | 6 Híbrido | Integrante 4 | "Por eso QGate usa QAOA como subrutina: elige 3 vuelos, 9 qubits, y el resto queda fijo. Llega a 340 con nuestra semilla. Y somos honestos: con 512 muestras hasta el azar resuelve piezas tan chicas. Con 8 muestras QAOA resuelve el 59% de las piezas y el azar el 29%. Eso es lo que aporta lo cuántico aquí." |
 | 2:25 a 2:40 | 7 Escala | Integrante 4 | "Al crecer a N=16 seguimos con 9 qubits y memoria constante; medimos contra una cota inferior porque no hay óptimo conocido." |
-| 2:40 a 3:00 | 8 Cierre | Integrante 2 | "Hoy lo cuántico aporta estructura y concentración de probabilidad en piezas pequeñas, no velocidad en simulador. El siguiente paso es hardware IBM real, piezas de 16 qubits y mitigación de errores. Gracias." |
+| 2:40 a 3:00 | 8 Cierre | Integrante 2 | "Hoy lo cuántico aporta estructura y concentración de probabilidad en piezas pequeñas, no velocidad. Lo medimos en el simulador Qiskit Aer y en una corrida en ibm_kingston de IBM Quantum: en N=3 con mixer XY salieron 25% de asignaciones válidas, contra 79% ideal y 22% al azar. El siguiente paso es mitigación de errores y piezas de 16 qubits. Gracias." |
 
 ## Preguntas probables del jurado
 
@@ -25,8 +25,11 @@ Los qubits por paso son siempre 9 (3 vuelos × 3 puertas). Lo que crece con N es
 Medimos N = 10, 12, 14 y 16 contra la cota Gilmore-Lawler, con tiempo y memoria pico.
 
 **¿Corrieron en hardware real?**
-No. Todo es Qiskit Aer, y lo decimos en cada resultado. Modelamos ruido despolarizante: con 1% el mixer
-XY cae casi al nivel del azar. Es el primer experimento que haríamos en hardware.
+Sí, una vez y solo N=3 (9 qubits): un job en ibm_kingston de IBM Quantum, 4096 shots por circuito, 5 s de
+QPU, con los ángulos optimizados en el simulador. Mixer XY: 25.4% válidas (ideal 78.9%, azar
+22.2%); mixer X: 6.3% (ideal 13.7%, azar 1.2%). Ambos muestrearon el óptimo
+24. El ruido real borró casi toda la ventaja de XY, como predijo nuestra simulación con 1% de ruido
+(25.0%). Todo lo demás (N=4, N=10 y escalamiento) es simulador.
 
 **¿Cómo eligieron λ?**
 λ0 es el mayor aporte posible de una sola asignación. Quitar o duplicar una asignación cambia el costo

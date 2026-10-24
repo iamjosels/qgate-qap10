@@ -82,7 +82,7 @@ que con λ ≥ λ0 ninguna asignación inválida le gana a la mejor válida. Se 
 
 ## 5. Resultados
 
-Todo sale de [`results/results.json`](results/results.json) (simulador, nunca hardware real). Tablas
+Todo sale de [`results/results.json`](results/results.json) (simulador Qiskit Aer) y de [`results/hardware.json`](results/hardware.json) (una corrida N=3 en ibm_kingston de IBM Quantum, reportada aparte). Tablas
 generadas con `python entrega/make_tables.py`.
 
 <!-- RESULTS:START -->
@@ -160,6 +160,15 @@ Robustez (solver exacto, 300 iteraciones, semillas 7 a 18): media 354.5 (gap med
 | 16 | synthetic-16 | QGate exacto | 730 | 524 | 39.3 | 0.40 | 0.04 | 0 |
 | 16 | synthetic-16 | QGate QAOA | 730 | 524 | 39.3 | 124.79 | 0.82 | 9 |
 
+### IBM Quantum real · ibm_kingston (job `dbefhdom94ac738rnc00`)
+
+| Experimento | Qubits | Válidas en hardware | Ideal (Aer) | Aer con ruido 1% | Azar | P(óptimo) | Mejor costo | Profundidad | Compuertas 2q |
+|---|---|---|---|---|---|---|---|---|---|
+| N3-x-p1 | 9 | **0.063** | 0.137 | 0.085 | 0.012 | 0.021 | 24 (ópt 24) | 246 | 132 |
+| N3-xy-p1 | 9 | **0.254** | 0.789 | 0.250 | 0.222 | 0.087 | 24 (ópt 24) | 302 | 161 |
+
+*4096 shots por circuito, ángulos optimizados en el simulador, circuito transpilado para ibm_kingston; 5 s de QPU. Resultado de hardware, separado del resto (simulador).*
+
 ### Memoria de un statevector genérico (16 bytes por amplitud)
 
 | N | Qubits (N²) | Memoria |
@@ -183,6 +192,7 @@ Robustez (solver exacto, 300 iteraciones, semillas 7 a 18): media 354.5 (gap med
 5. **Qué aporta QAOA.** P(óptimo) medio por subproblema: 0.094 con QAOA p=2 frente a 0.039 del azar (2.4 veces). Con solo 8 shots, QAOA resuelve el 59% de los subproblemas y el azar el 29%; el costo final es 372 frente a 390.
 6. **Robustez.** En 12 semillas y arranques, el mismo marco con solver exacto (equivale a QAOA cuando QAOA acierta) llega a 340 en 4 y su media es 354.5 (gap medio 4.3%). El límite es el vecindario de 3 vuelos, no el solver.
 7. **Tiempo.** En simulador, lo clásico gana: fuerza bruta 6.9 s y simulated annealing 13.7 s llegan a 340; el híbrido con QAOA tarda 186 s. No afirmamos ventaja cuántica.
+9. **Hardware real.** Una corrida N=3 (9 qubits) en ibm_kingston de IBM Quantum: N3-x-p1: 0.063 válidas (ideal 0.137, azar 0.012); N3-xy-p1: 0.254 válidas (ideal 0.789, azar 0.222).
 8. **Escala.** De N=10 a N=16 el subproblema cuántico sigue en 9 qubits y la memoria pico de QGate no pasa de 0.8 MB; un QUBO directo de N=16 serían 256 qubits. Con 150 iteraciones, en N=16 el híbrido queda a 39.3% de la cota y SA a 28.8%: con N grande, 3 vuelos por paso es un vecindario chico. Las diferencias entre QAOA y el control exacto en esta tabla vienen de empates entre permutaciones óptimas del subproblema y de mejoras no óptimas que cambian la trayectoria; no son ventaja de QAOA.
 <!-- FINDINGS:END -->
 
@@ -192,14 +202,14 @@ Robustez (solver exacto, 300 iteraciones, semillas 7 a 18): media 354.5 (gap med
 |---|---|
 | Simular 100 qubits es imposible (2^100 amplitudes) | Subproblemas de 9 qubits dentro de una búsqueda clásica: memoria constante |
 | Penalidades: λ chico deja ganar inválidas, λ grande aplana el paisaje | λ0 con justificación analítica + barrido; mixer XY elimina la mitad de las penalidades |
-| Ruido: con 1% despolarizante el mixer XY pierde casi toda su ventaja de factibilidad | Lo medimos y reportamos aparte (P(válida) ideal vs fracción válida en shots) |
+| Ruido: con 1% despolarizante el mixer XY pierde casi toda su ventaja de factibilidad | Lo medimos y reportamos aparte (P(válida) ideal vs fracción válida en shots). En ibm_kingston (N=3) salió 25.4% válidas, en línea con el 25.0% simulado con ruido |
 | Tiempo: en simulador el híbrido es más lento que simulated annealing | Lo decimos con números; la ganancia esperable está en hardware, no en simulación |
 | El vecindario de 3 vuelos limita la calidad final | Control exacto y varias semillas para separar el efecto del solver del de la búsqueda |
 | Sin óptimo conocido para N > 10 | Comparación contra la cota Gilmore-Lawler; instancias sintéticas marcadas |
 | Unidades del aeropuerto | Supuestos de negocio: qap10 es un benchmark matemático |
 | Reparación y pulido clásicos | Se reportan aparte del resultado crudo |
 
-No se ejecutó en hardware IBM real (no hubo token a tiempo); todo es Qiskit Aer.
+Hardware real: una sola corrida N=3 (9 qubits) en ibm_kingston de IBM Quantum (job `dbefhdom94ac738rnc00`, 5 s de QPU). Todo lo demás (N=4, N=10, escalamiento) es simulador Qiskit Aer.
 
 ## 7. Reproducir
 

@@ -109,6 +109,18 @@ def tables(R: dict) -> str:
             out.append(f"| {r['N']} | {r['instance']} | {names.get(r['method'], r['method'])} | {g(r['best_cost'])} | {g(r['lower_bound'])} | "
                        f"{g(r['gap_vs_bound_pct'], 1)} | {g(r['time_s'], 2)} | {g(r['peak_mem_mb'], 2)} | {r['qubits']} |")
 
+    hw = R.get("hardware")
+    if hw and hw.get("experiments"):
+        out.append(f"\n### IBM Quantum real · {hw['backend']} (job `{hw['job_id']}`)\n")
+        out.append("| Experimento | Qubits | Válidas en hardware | Ideal (Aer) | Aer con ruido 1% | Azar | P(óptimo) | Mejor costo | Profundidad | Compuertas 2q |")
+        out.append("|---|---|---|---|---|---|---|---|---|---|")
+        for e in hw["experiments"]:
+            out.append(f"| {e['id']} | {e['qubits']} | **{fp(e['feasible_fraction'])}** | {fp(e['sim_ideal_p_feasible'])} | "
+                       f"{fp(e.get('sim_noise_feasible_fraction'))} | {fp(e['random_feasible_baseline'])} | {fp(e['p_optimal'])} | "
+                       f"{g(e['best_feasible_cost'])} (ópt {g(e['optimum'])}) | {e.get('depth', '-')} | {e.get('two_qubit_gates', '-')} |")
+        out.append(f"\n*{hw['experiments'][0]['shots']} shots por circuito, ángulos optimizados en el simulador, circuito transpilado "
+                   f"para {hw['backend']}" + (f"; {g(hw['usage_quantum_seconds'])} s de QPU" if hw.get("usage_quantum_seconds") else "")
+                   + ". Resultado de hardware, separado del resto (simulador).*")
     M = meta.get("statevector_memory")
     if M:
         out.append("\n### Memoria de un statevector genérico (16 bytes por amplitud)\n")
@@ -182,6 +194,11 @@ def findings(R: dict) -> str:
         out.append(f"7. **Tiempo.** En simulador, lo clásico gana: fuerza bruta {g(bf['time_s'], 1)} s y simulated annealing "
                    f"{g(sa['time_s'], 1)} s llegan a {g(bf['cost'])}; el híbrido con QAOA tarda {g(hq['time_s'], 0)} s. "
                    f"No afirmamos ventaja cuántica.")
+    hw = R.get("hardware")
+    if hw and hw.get("experiments"):
+        parts = [f"{e['id']}: {fp(e['feasible_fraction'])} válidas (ideal {fp(e['sim_ideal_p_feasible'])}, azar {fp(e['random_feasible_baseline'])})"
+                 for e in hw["experiments"]]
+        out.append(f"9. **Hardware real.** Una corrida N=3 (9 qubits) en {hw['backend']} de IBM Quantum: " + "; ".join(parts) + ".")
     sc = [r for r in R.get("scaling", []) if r["method"] == "qgate_lns_qaoa"]
     if sc:
         ns = sorted(r["N"] for r in sc)
@@ -205,6 +222,12 @@ def main():
     readme = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, "README.md")
     with open(src, encoding="utf-8") as fh:
         R = json.load(fh)
+    hwp = os.path.join(os.path.dirname(os.path.abspath(src)), "hardware.json")
+    if os.path.exists(hwp):
+        with open(hwp, encoding="utf-8") as fh:
+            H = json.load(fh)
+        if not H.get("fake"):
+            R["hardware"] = H
     with open(readme, encoding="utf-8") as fh:
         txt = fh.read()
     i, j = txt.index(START), txt.index(END)

@@ -4,4 +4,4 @@ QGate asigna 10 vuelos de conexión a 10 puertas de embarque para reducir la dis
 Reconstruimos el modelo cuadrático desde el MPS linealizado y verificamos la escala con los óptimos de control 24, 32 y 340.
 Comparamos fuerza bruta, simulated annealing y QAOA en Qiskit con dos ansatz: mixer X con penalidades y mixer XY con estado W, que mantiene una puerta por vuelo por construcción.
 Como 100 qubits no se pueden simular, QGate usa QAOA como subrutina de 9 qubits dentro de una búsqueda clásica por vecindarios: los qubits y la memoria no crecen con N.
-Un dashboard web muestra el mapa de puertas, QAOA frente al azar, el barrido de λ, la convergencia del híbrido, el escalamiento y las limitaciones medidas (ruido, tiempo).
+Medimos en el simulador Qiskit Aer y en una corrida en ibm_kingston de IBM Quantum (N=3, 9 qubits: 25.4% de asignaciones válidas con mixer XY, contra 78.9% ideal y 22.2% al azar). Un dashboard web con tres escenas animadas muestra QAOA, el aeropuerto y los resultados, con sus limitaciones (ruido, tiempo).

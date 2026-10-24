@@ -85,7 +85,13 @@ def build(json_path: str, out_path: str) -> str:
     hw = os.path.join(os.path.dirname(os.path.abspath(json_path)), "hardware.json")
     if os.path.exists(hw):
         with open(hw, encoding="utf-8") as fh:
-            R["hardware"] = json.load(fh)
+            H = json.load(fh)
+        if not H.get("fake"):                      # un resultado fake nunca se muestra como hardware
+            R["hardware"] = H
+            lim = R.get("meta", {}).get("limitations", [])
+            R["meta"]["limitations"] = [
+                (f"Simulador Qiskit Aer y una corrida N={H.get('N')} en {H.get('backend')} de IBM Quantum "
+                 f"(job {H.get('job_id')}); el resto es simulación") if "hardware real" in l else l for l in lim]
     data = R.setdefault("data", {})
     data["gate_grid"] = _grid_layout(data.get("D"))
     payload = json.dumps(_clean(_slim(R)), ensure_ascii=False, allow_nan=False)
@@ -403,6 +409,13 @@ footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40
     <div class="chips" id="seedChips" style="margin-top:14px"></div>
   </section>
 
+  <section class="detail hidden" id="d-hw">
+    <div class="sec-head"><span class="num-sign">05b</span><h3>IBM Quantum real</h3>
+      <p id="hwLede"></p></div>
+    <div class="tbl"><table><thead><tr><th>EXPERIMENTO</th><th class="r">QUBITS</th><th class="r">VÁLIDAS EN HARDWARE</th><th class="r">IDEAL (AER)</th><th class="r">AER CON RUIDO 1%</th><th class="r">AZAR</th><th class="r">P(ÓPTIMO)</th><th class="r">MEJOR COSTO</th><th class="r">PROFUNDIDAD</th><th class="r">COMPUERTAS 2Q</th></tr></thead>
+      <tbody id="hwRows"></tbody></table></div>
+  </section>
+
   <section class="detail" id="d-lambda">
     <div class="sec-head"><span class="num-sign">06</span><h3>Barrido de λ</h3>
       <p>λ0 es el mayor aporte posible de una asignación: con λ ≥ λ0 ninguna inválida le gana a la mejor válida. λ chico deja ganar inválidas; λ grande aplana el paisaje.</p></div>
@@ -710,7 +723,9 @@ QGate · IBM Quantum Hackathon 2026 · Reto NTT DATA QAP10 · Track A Aeropuerto
     if (sa) row("Simulated annealing", N, "0", f(sa.cost), gap(sa.cost), tm(sa.time_s), "CPU", "var(--paper)");
     ["N4-x-p1", "N4-xy-p1"].forEach((id) => { const q = Q[id]; if (q) row(`QAOA mixer ${q.mixer.toUpperCase()}`, q.N, String(q.qubits), f(q.best_feasible_cost), gap(q.best_feasible_cost, q.optimum), tm(q.time_s), "Qiskit Aer", "var(--qubit)"); });
     const hw = R.hardware;
-    if (hw && num(hw.best_feasible_cost)) row(`QAOA N = ${hw.N}`, hw.N, String(hw.qubits ?? "-"), f(hw.best_feasible_cost), gap(hw.best_feasible_cost, hw.optimum), tm(hw.time_s), "IBM Quantum " + (hw.backend || ""), "var(--qubit)");
+    if (hw && has(hw.experiments)) hw.experiments.forEach((e) => row(`QAOA mixer ${String(e.mixer).toUpperCase()} · hardware`, e.N, String(e.qubits),
+      e.best_feasible_cost === null || e.best_feasible_cost === undefined ? null : f(e.best_feasible_cost), num(e.best_feasible_cost) ? gap(e.best_feasible_cost, e.optimum) : null,
+      num(hw.usage_quantum_seconds) ? f(hw.usage_quantum_seconds) + " s QPU" : null, "IBM Quantum · " + hw.backend, "var(--qubit)"));
     if (hq) row("QGate híbrido", N, "9 / subproblema", f(hq.final_cost), gap(hq.final_cost), tm(hq.time_s, 0), "Qiskit Aer + CPU", "var(--signal)");
     const h8 = H.qgate_lns_qaoa_s8, r8 = H.qgate_lns_random_s8;
     if (h8) row("QGate híbrido · 8 shots", N, "9 / subproblema", f(h8.final_cost), gap(h8.final_cost), tm(h8.time_s, 0), "Qiskit Aer + CPU", "var(--signal)");
@@ -752,6 +767,17 @@ QGate · IBM Quantum Hackathon 2026 · Reto NTT DATA QAP10 · Track A Aeropuerto
     const S = R.hybrid_seeds;
     if (S && has(S.final_costs)) $("seedChips").innerHTML = `<span>robustez · ${S.final_costs.length} semillas (exacto): media <b>${f(S.mean, 1)}</b></span><span>llega a ${f(REF)} en <b>${S.hits_ref}/${S.final_costs.length}</b></span>`
       + S.final_costs.map((c, i) => `<span style="${Math.abs(c - REF) < 1e-6 ? "border-color:var(--signal);color:var(--signal)" : ""}">s${S.seeds[i]} · ${f(c)}</span>`).join("");
+  })();
+
+  (function hardware() {
+    const hw = R.hardware;
+    if (!hw || !has(hw.experiments)) return;
+    $("d-hw").classList.remove("hidden");
+    $("hwLede").textContent = `Un job en ${hw.backend} (job ${hw.job_id}${num(hw.usage_quantum_seconds) ? `, ${f(hw.usage_quantum_seconds)} s de QPU` : ""}) con los ángulos ya optimizados en el simulador. Resultado de hardware, separado de todo lo demás.`;
+    $("hwRows").innerHTML = hw.experiments.map((e) => `<tr><td style="color:var(--qubit);font-weight:600">${esc(e.id)}</td><td class="r">${e.qubits}</td>
+      <td class="r" style="color:var(--qubit)">${pct(e.feasible_fraction) ?? "-"}</td><td class="r">${pct(e.sim_ideal_p_feasible) ?? "-"}</td><td class="r">${pct(e.sim_noise_feasible_fraction) ?? "-"}</td>
+      <td class="r">${pct(e.random_feasible_baseline) ?? "-"}</td><td class="r">${pct(e.p_optimal) ?? "-"}</td><td class="r">${f(e.best_feasible_cost) ?? "-"}${num(e.optimum) ? " (ópt " + f(e.optimum) + ")" : ""}</td>
+      <td class="r">${e.depth ?? "-"}</td><td class="r">${e.two_qubit_gates ?? "-"}</td></tr>`).join("");
   })();
 
   /* gráfico de líneas SVG (sin librerías); tooltip con <title> en cada punto */

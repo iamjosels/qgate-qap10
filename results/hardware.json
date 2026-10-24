@@ -1,0 +1,50 @@
+{
+ "backend": "ibm_kingston",
+ "job_id": "dbefhdom94ac738rnc00",
+ "fake": false,
+ "date": "2026-10-24T13:36:27",
+ "usage_quantum_seconds": 5.0,
+ "N": 3,
+ "qubits": 9,
+ "best_feasible_cost": 24.0,
+ "optimum": 24.0,
+ "time_s": 5.0,
+ "experiments": [
+  {
+   "id": "N3-x-p1",
+   "N": 3,
+   "qubits": 9,
+   "mixer": "x",
+   "p": 1,
+   "optimum": 24.0,
+   "shots": 4096,
+   "feasible_fraction": 0.062744140625,
+   "p_optimal": 0.021484375,
+   "best_feasible_cost": 24.0,
+   "mean_feasible_cost": 26.420233463035018,
+   "random_feasible_baseline": 0.01171875,
+   "sim_ideal_p_feasible": 0.13730572732076252,
+   "sim_noise_feasible_fraction": 0.084716796875,
+   "depth": 246,
+   "two_qubit_gates": 132
+  },
+  {
+   "id": "N3-xy-p1",
+   "N": 3,
+   "qubits": 9,
+   "mixer": "xy",
+   "p": 1,
+   "optimum": 24.0,
+   "shots": 4096,
+   "feasible_fraction": 0.253662109375,
+   "p_optimal": 0.08740234375,
+   "best_feasible_cost": 24.0,
+   "mean_feasible_cost": 26.62752646775746,
+   "random_feasible_baseline": 0.2222222222222222,
+   "sim_ideal_p_feasible": 0.7893910218727629,
+   "sim_noise_feasible_fraction": 0.25048828125,
+   "depth": 302,
+   "two_qubit_gates": 161
+  }
+ ]
+}

@@ -246,6 +246,11 @@ def finish(R, items, job, info):
 
 
 def main():
+    for stream in (sys.stdout, sys.stderr):   # la consola de Windows (cp1252) no imprime ✓ ni λ
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
     ap = argparse.ArgumentParser(description="QAOA N=3 en IBM Quantum")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("check")

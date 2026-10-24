@@ -110,7 +110,7 @@ def slides(R, team, img):
       </div>
       <div style="font-size:36px;font-weight:500">Vuelos → puertas con QAOA híbrido</div>
     </div>
-    <div class="mono" style="display:flex;gap:28px;font-size:15px;color:#C9C6BC;flex-wrap:wrap">{names}</div>
+    <div class="mono" style="display:grid;grid-template-columns:repeat(2,max-content);gap:10px 40px;font-size:15px;color:#C9C6BC">{names}</div>
   </div>
   <div style="width:380px;background:#FFC629;color:#0B0B0C;padding:48px 40px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between">
     {PLANE.format(s=96)}
@@ -186,8 +186,11 @@ def slides(R, team, img):
     if nxy:
         lim_chips.insert(1, (f"ruido 1%: XY {pct(nxy['p_feasible'], 0)} → {pct(nxy['feasible_fraction_shots'], 0)} válidas", False))
     hw = R.get("hardware")
+    hxy = None
     if hw and hw.get("backend"):
-        lim_chips.append((f"IBM Quantum real · {hw['backend']}", True))
+        hxy = next((e for e in hw.get("experiments", []) if e["mixer"] == "xy"), None)
+        lim_chips.append((f"IBM Quantum real · {hw['backend']}" + (
+            f" · N=3 XY {pct(hxy['feasible_fraction'], 0)} válidas" if hxy else ""), True))
     out.append((f"""<div class="c" style="height:100%">{head("04", "Límites")}
   <div class="g2">
     <div class="card" style="border-top:6px solid #FF6B3D">
@@ -205,7 +208,11 @@ def slides(R, team, img):
 </div>""",
                 f"Simular el problema completo exige {N * N} qubits: imposible. QGate usa siempre piezas de 9. Elegimos "
                 "lambda con un criterio analítico y lo validamos con un barrido. Medimos el ruido: con 1% el mixer XY "
-                "pierde casi toda su ventaja de factibilidad. Todo es simulador."))
+                "pierde casi toda su ventaja de factibilidad. "
+                + (f"Además corrimos N=3 una vez en {hw['backend']} de IBM Quantum: con mixer XY salieron "
+                   f"{pct(hxy['feasible_fraction'], 0)} de asignaciones válidas, frente a {pct(hxy['sim_ideal_p_feasible'], 0)} "
+                   f"ideal y {pct(hxy['random_feasible_baseline'], 0)} al azar."
+                   if hw and hxy else "Todo es simulador.")))
 
     # 6 · híbrido
     abl = []
@@ -264,8 +271,8 @@ def slides(R, team, img):
                                  "Pieza cuántica de tamaño fijo"]),
             ("Límites", "#FF6B3D", ["Simulador más lento que SA", "El ruido borra la ventaja de XY",
                                     "Con muchos shots el azar también llega"]),
-            ("Siguiente", "#FFC629", ["Hardware IBM real (9 qubits)", "Piezas de 4 vuelos (16 qubits)",
-                                      "Mitigación de errores"])]
+            ("Siguiente", "#FFC629", ["Más corridas en hardware IBM" if R.get("hardware") else "Hardware IBM real (9 qubits)",
+                                      "Piezas de 4 vuelos (16 qubits)", "Mitigación de errores"])]
     colh = "".join(f"""<div class="card" style="border-top:6px solid {c};justify-content:flex-start;gap:18px">
       <div class="k" style="color:{c}">{t}</div>{''.join(f'<div style="font-size:24px;line-height:1.25">{html.escape(i)}</div>' for i in items)}</div>"""
                    for t, c, items in cols)
@@ -275,8 +282,11 @@ def slides(R, team, img):
   <div class="mono" style="font-size:12px;letter-spacing:.12em;color:#6E6C66">QISKIT · QISKIT AER · NUMPY · SCIPY · MIPLIB 2017 (QAP10) · {html.escape(team['repo'].replace('https://', '').upper())}</div>
 </div>""",
                 "Hoy lo cuántico aporta estructura y concentración de probabilidad en piezas pequeñas, no velocidad en "
-                "simulador, y lo mostramos con números. El siguiente paso es hardware IBM real, piezas más grandes y "
-                "mitigación de errores. Gracias."))
+                "simulador, y lo mostramos con números. "
+                + (f"Lo medimos en el simulador Qiskit Aer y en una corrida en {R['hardware']['backend']} de IBM Quantum. "
+                   "El siguiente paso es más tiempo de hardware, piezas más grandes y mitigación de errores. Gracias."
+                   if R.get("hardware") else
+                   "El siguiente paso es hardware IBM real, piezas más grandes y mitigación de errores. Gracias.")))
     return out
 
 
@@ -292,6 +302,12 @@ def build(results_path, out_path):
         R = json.load(fh)
     with open(os.path.join(HERE, "equipo.json"), encoding="utf-8") as fh:
         team = json.load(fh)
+    hwp = os.path.join(os.path.dirname(os.path.abspath(results_path)), "hardware.json")
+    if os.path.exists(hwp):
+        with open(hwp, encoding="utf-8") as fh:
+            H = json.load(fh)
+        if not H.get("fake"):                      # un resultado fake nunca va al PPT
+            R["hardware"] = H
     img_dir = os.path.dirname(os.path.abspath(results_path))
     img = lambda n: "file:///" + os.path.join(img_dir, n).replace("\\", "/")  # noqa: E731
     browser = find_browser()
