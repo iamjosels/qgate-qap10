@@ -207,6 +207,9 @@ Robustez (solver exacto, 300 iteraciones, semillas 7 a 18): media 354.5 (gap med
 | El vecindario de 3 vuelos limita la calidad final | Control exacto y varias semillas para separar el efecto del solver del de la búsqueda |
 | Sin óptimo conocido para N > 10 | Comparación contra la cota Gilmore-Lawler; instancias sintéticas marcadas |
 | Unidades del aeropuerto | Supuestos de negocio: qap10 es un benchmark matemático |
+| `stall_limit` se ajustó probando semillas sobre qap10 contra el óptimo conocido | Posible sesgo a favor de qap10; declarado en `docs/DECISIONES.md` |
+| Hardware: un solo job, un solo backend (ibm_kingston, N=3) | Se reporta aparte; sin repeticiones no hay barra de error |
+| En piezas de 3 vuelos, muestrear las 6 permutaciones válidas o enumerarlas supera a QAOA | Medido en `analysis/baselines.py` (`results/extra.json`); QAOA se usa para medir concentración, no para ganar |
 | Reparación y pulido clásicos | Se reportan aparte del resultado crudo |
 
 Hardware real: una sola corrida N=3 (9 qubits) en ibm_kingston de IBM Quantum (job `dbefhdom94ac738rnc00`, 5 s de QPU). Todo lo demás (N=4, N=10, escalamiento) es simulador Qiskit Aer.

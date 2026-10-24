@@ -100,3 +100,17 @@ Todo es simulador (Qiskit Aer); nada se presenta como hardware real.
 
 Windows 11, Python 3.14.7, Qiskit 2.6.1, Qiskit Aer 0.18.0, NumPy 2.5.4, SciPy 1.18.1. La consola de
 Windows usa cp1252: el bench fuerza UTF-8 en stdout para poder imprimir λ.
+
+## 8. Límites declarados (revisión externa, 24/10)
+
+- **Posible sesgo en `stall_limit`.** Los parámetros de perturbación del híbrido (`stall_limit = 10`,
+  `kick_swaps = 3`, adaptativo) se ajustaron probando semillas sobre qap10 y comparando con el óptimo
+  conocido 340. Eso puede favorecer a qap10; en instancias nuevas no hay garantía.
+- **N > 10 son instancias sintéticas** (generadas con semilla), sin óptimo conocido: se comparan contra
+  la cota de Gilmore-Lawler.
+- **Hardware: un solo job, un solo backend** (ibm_kingston, N=3, 4096 shots por circuito). No hay
+  repeticiones ni otros backends; no se puede estimar la variación entre corridas.
+- **Línea base de las piezas** (`analysis/baselines.py`, `results/extra.json`): con 8 muestras, el azar
+  sobre las 6 permutaciones válidas acierta más piezas que QAOA, y enumerar las 6 acierta todas.
+- **Control de escala** (`analysis/scale_check.py`): la asignación óptima cuesta 340 con cada par una vez y
+  680 con cada par dos veces.
