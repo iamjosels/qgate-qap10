@@ -431,6 +431,7 @@ footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40
     <div class="passes" id="passes"></div>
     <div class="tbl"><table><thead><tr><th>MÉTODO</th><th>N</th><th>QUBITS</th><th>MEJOR COSTO VÁLIDO</th><th>GAP</th><th>TIEMPO</th><th>DÓNDE CORRIÓ</th></tr></thead>
       <tbody id="resRows"></tbody></table></div>
+    <p class="lede" style="font-size:14px" id="resNote"></p>
   </div>
 </div>
 
@@ -446,6 +447,8 @@ footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40
         <div><div class="kick" style="margin-bottom:8px">D · distancia entre puertas</div><div class="heat" id="heatD"></div></div>
       </div></div>
     </div>
+    <div class="panel" style="margin-top:20px" id="recBox"><div class="kick" style="margin-bottom:8px">Cómo se recuperaron los coeficientes del MPS</div>
+      <ol class="steps" id="recSteps"></ol></div>
     <div class="twocol" style="margin-top:20px">
       <div class="panel qside"><div class="kick" style="color:var(--qubit)">Qiskit hace</div><ul>
         <li>Circuito QAOA: costo Ising + mixer X, o estado W + mixer XY</li>
@@ -466,6 +469,7 @@ footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40
     <div class="tbl"><table><thead><tr><th>SOLVER</th><th class="r">SHOTS</th><th class="r">COSTO FINAL</th><th class="r">GAP</th><th class="r">PIEZAS RESUELTAS</th><th class="r">P(ÓPTIMO) POR PIEZA</th><th class="r">AZAR (27 ESTADOS)</th><th class="r">TIEMPO</th></tr></thead>
       <tbody id="ablRows"></tbody></table></div>
     <p class="verdict" id="ablRead" style="margin-top:14px"></p>
+    <div class="panel" style="margin-top:14px" id="whyBox"><div class="kick" style="margin-bottom:8px">¿Por qué QAOA aquí?</div><ul class="lim" id="whyList"></ul></div>
     <div class="chips" id="seedChips" style="margin-top:14px"></div>
   </section>
 
@@ -862,6 +866,30 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
       <td class="r">${pct(e.random_feasible_baseline) ?? "-"}</td><td class="r">${pct(e.p_optimal) ?? "-"}</td>
       <td class="r">${(() => { const r = hro.find((x) => x.id === e.id); return r ? `${pct(r.random_p_optimal, 2)} (${r.ratio_hw_vs_random.toFixed(2)}×)` : "-"; })()}</td><td class="r">${f(e.best_feasible_cost) ?? "-"}${num(e.optimum) ? " (ópt " + f(e.optimum) + ")" : ""}</td>
       <td class="r">${e.depth ?? "-"}</td><td class="r">${e.two_qubit_gates ?? "-"}</td></tr>`).join("");
+  })();
+
+  (function traceability() {
+    const X = R.extra || {}, sc = X.scale_check, mr = data.mps_report || {};
+    const st = [];
+    if (sc) {
+      st.push(`Las ${sc.assignment_rows} restricciones con lado derecho 1 y coeficientes 1 son las de asignación: sus variables son las ${sc.n_x} x.`);
+      st.push(`Esas ${sc.assignment_rows} filas se parten en dos familias de ${sc.assignment_rows / 2}: vuelos y puertas; cada x está una vez en cada familia, eso da su índice (i, j).`);
+      st.push(`Cada una de las ${sp(sc.n_y)} variables y aparece en filas de enlace junto a exactamente dos x (x_ij, x_kl): su coeficiente objetivo es F_ik · D_jl.`);
+      st.push(`Con eso se arma el tensor T y se factoriza en F y D por SVD de rango 1: residuo ${sc.factorization_residual}.`);
+      st.push(`El orden de índices se elige entre las candidatas (${sc.candidates.join(", ")}) con la que reproduce los óptimos de control ${(R.validation || []).map((v) => f(v.optimum)).join(" · ")}.`);
+      st.push(`Control de escala, calculado en código: la asignación óptima cuesta ${f(sc.cost_pair_once)} contando cada par una vez (convención del archivo) y ${f(sc.cost_pair_twice)} contando cada par dos veces.`);
+      $("recSteps").innerHTML = st.map((x) => `<li>${esc(x)}</li>`).join("");
+    } else hide("recBox");
+    const hw = R.hardware, B8 = X.baselines_qaoa_s8;
+    const why = ["Las piezas de 3 vuelos tienen solo 6 opciones válidas: se pueden enumerar. QAOA se mide ahí para ver cuánto concentra probabilidad con un circuito que cabe en hardware, no porque se espere que gane."];
+    if (B8) why.push(`SIMULADOR, N=10, piezas de 3 vuelos, 8 muestras: QAOA resuelve ${f(100 * (H.qgate_lns_qaoa_s8 || {}).sub_success_rate)}% de las piezas; el azar sobre las 6 permutaciones válidas, ${f(100 * B8.hit_k8_random_valid_6)}%; la enumeración, 100%.`);
+    why.push(`La memoria cuántica no crece con N (9 qubits por pieza); la calidad todavía no escala: en N=16 el híbrido queda más lejos de la cota que simulated annealing (ver 07).`);
+    if (hw) { const e = hw.experiments.find((x) => x.mixer === "xy"); if (e) why.push(`HARDWARE ${hw.backend}: el ruido real borra casi toda la ventaja del mixer XY (${pct(e.feasible_fraction)} válidas vs ${pct(e.random_feasible_baseline)} de su azar). Es un solo job con N=3.`); }
+    $("whyList").innerHTML = why.map((x) => `<li>${esc(x)}</li>`).join("");
+    const x4 = Q["N4-xy-p1"];
+    $("resNote").textContent = "Filas de QAOA: valores crudos de las muestras, sin reparación clásica. 'Mejor costo válido' es el costo C de una asignación válida, no la energía penalizada del QUBO"
+      + (x4 ? ` (N=4: λ = ${f(x4.lam)} = λ0, fracción factible ${pct(x4.p_feasible)} ideal y ${pct(x4.feasible_fraction_shots)} en ${x4.shots} shots)` : "")
+      + ". El híbrido produce asignaciones válidas por construcción.";
   })();
 
   /* gráfico de líneas SVG (sin librerías); tooltip con <title> en cada punto */
