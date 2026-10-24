@@ -1,0 +1,2 @@
+Resultados de una corrida rapida sobre un MPS SINTETICO (no es qap10).
+Sirven solo para ver el formato de results.json y de los graficos. No usar en el PPT.
