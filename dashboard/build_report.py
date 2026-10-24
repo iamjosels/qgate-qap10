@@ -1,10 +1,14 @@
-"""Genera un reporte HTML autocontenido a partir de results.json (solo stdlib).
+"""Genera el reporte HTML autocontenido de QGate a partir de results.json (solo stdlib).
 
 Uso:
     python dashboard/build_report.py results/results.json results/report.html
 
-El JSON va embebido en <script id="data" type="application/json">; todo el dibujo ocurre en el
-navegador (Chart.js desde cdnjs, fuentes de Google Fonts). Cada sección se oculta si falta su dato.
+Sigue design/BRAND.md y los mockups design/*.dc.html: tres escenas del modo demo
+(01 QAOA, 02 Aeropuerto, 03 Resultado) con reproducción, x2 y pantalla completa, y debajo las
+secciones de detalle. El JSON va embebido en <script id="data" type="application/json">; todos los
+gráficos son SVG propios, así que funciona sin red salvo las fuentes de Google Fonts.
+Si existe hardware.json junto a results.json se agrega como fila aparte. Un dato que no existe
+oculta su elemento: nunca se muestra un valor de relleno.
 """
 from __future__ import annotations
 
@@ -26,22 +30,66 @@ def _clean(o):
 
 
 def _slim(R: dict) -> dict:
-    """Quita campos pesados que el reporte no usa."""
     for q in R.get("quantum", []):
         q.pop("perm_distribution", None)
     for h in R.get("hybrid", []):
         hist = h.get("history") or []
-        if len(hist) > 600:                       # submuestreo para no inflar el HTML
+        if len(hist) > 600:
             step = math.ceil(len(hist) / 600)
             h["history"] = hist[::step] + [hist[-1]]
     return R
 
 
+def _grid_layout(D):
+    """Si D es distancia Manhattan entre puntos de una grilla entera, devuelve sus coordenadas
+    (columna, fila); si no, None. Se usa solo para dibujar el terminal con la geometría real."""
+    if not D:
+        return None
+    n = len(D)
+    try:
+        D = [[int(round(abs(float(v)))) for v in row] for row in D]
+    except (TypeError, ValueError):
+        return None
+    span = max(max(r) for r in D)
+    if span > 12:
+        return None
+    xs = sorted(range(-span, span + 1), key=lambda v: (abs(v), v < 0))   # preferir crecer a la derecha
+    cand = [(x, y) for y in range(0, span + 1) for x in xs]
+    pos = [None] * n
+    pos[0] = (0, 0)
+
+    def ok(j, p):
+        return all(abs(p[0] - pos[i][0]) + abs(p[1] - pos[i][1]) == D[i][j] and p != pos[i]
+                   for i in range(j))
+
+    def bt(j):
+        if j == n:
+            return True
+        for p in cand:
+            if ok(j, p):
+                pos[j] = p
+                if bt(j + 1):
+                    return True
+        pos[j] = None
+        return False
+
+    if not bt(1):
+        return None
+    mx, my = min(p[0] for p in pos), min(p[1] for p in pos)
+    return [[p[0] - mx, p[1] - my] for p in pos]
+
+
 def build(json_path: str, out_path: str) -> str:
     with open(json_path, encoding="utf-8") as fh:
         R = json.load(fh)
+    hw = os.path.join(os.path.dirname(os.path.abspath(json_path)), "hardware.json")
+    if os.path.exists(hw):
+        with open(hw, encoding="utf-8") as fh:
+            R["hardware"] = json.load(fh)
+    data = R.setdefault("data", {})
+    data["gate_grid"] = _grid_layout(data.get("D"))
     payload = json.dumps(_clean(_slim(R)), ensure_ascii=False, allow_nan=False)
-    payload = payload.replace("</", "<\\/")       # no cerrar el <script> por accidente
+    payload = payload.replace("</", "<\\/")
     html = TEMPLATE.replace("__DATA__", payload)
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as fh:
@@ -58,636 +106,727 @@ TEMPLATE = r"""<!doctype html>
 <meta name="description" content="QGate: asignación de vuelos a puertas (QAP qap10) con QAOA híbrido en Qiskit. IBM Quantum Hackathon 2026, reto NTT DATA.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
-  color-scheme: dark;
-  --bg: #0a101c;
-  --surface: #111a2b;
-  --surface-2: #17233a;
-  --line: #24324d;
-  --grid: #1c2840;
-  --text: #e8edf5;
-  --text-2: #a9b4c7;
-  --muted: #74829b;
-  --amber: #f5b942;          /* acento de interfaz (texto, badges) */
-  --cyan-text: #5fd4ee;      /* texto de lo cuántico */
-  --ok: #3ecf8e;
-  /* series (validadas sobre --surface: banda L, croma, CVD, contraste) */
-  --s-quantum: #1c9ab8;
-  --s-quantum-2: #7fd3e6;
-  --s-classic: #c98500;
-  --s-sa: #9085e9;
-  --s-alt: #e66767;
-  --s-ref: #74829b;
-  --radius: 14px;
-  --font-ui: "Inter", system-ui, sans-serif;
-  --font-head: "Space Grotesk", "Inter", sans-serif;
-  --font-num: "JetBrains Mono", ui-monospace, monospace;
+  --ink: #0B0B0C; --board: #141518; --flap: #1E2024; --line: #2C2F35; --well: #0E0F11;
+  --signal: #FFC629; --qubit: #4FE3E0; --invalid: #FF6B3D; --invalid-bar: #7A3A26;
+  --paper: #F4F1E8; --mute: #9A9890; --ink-2: #55534D; --soft: #C9C6BC; --dim: #6E6C66;
+  --head: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --sans: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
-body {
-  margin: 0; background: var(--bg); color: var(--text);
-  font: 15px/1.5 var(--font-ui);
-  background-image: radial-gradient(1200px 500px at 85% -10%, rgba(28,154,184,.13), transparent 60%),
-                    radial-gradient(900px 420px at -10% 10%, rgba(245,185,66,.08), transparent 60%);
-  background-attachment: fixed;
-}
-a { color: var(--cyan-text); }
-.wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
-.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
-/* barra superior */
-.topbar { position: sticky; top: 0; z-index: 10; background: rgba(10,16,28,.86);
-  backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
-.topbar .wrap { display: flex; align-items: center; gap: 18px; height: 52px; }
-.logo { font: 700 18px var(--font-head); letter-spacing: .02em; color: var(--text); text-decoration: none; }
-.logo b { color: var(--amber); }
-.nav { display: flex; gap: 14px; overflow-x: auto; scrollbar-width: none; margin-left: auto; }
-.nav a { color: var(--text-2); text-decoration: none; font-size: 13px; white-space: nowrap; }
-.nav a:hover { color: var(--amber); }
-@media (max-width: 720px) { .nav { display: none; } }
-/* hero */
-.hero { padding: 44px 0 26px; }
-.badges { display: flex; gap: 8px; flex-wrap: wrap; }
-.badge { font: 600 12px var(--font-num); letter-spacing: .06em; text-transform: uppercase;
-  padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--amber);
-  background: rgba(245,185,66,.08); }
-.badge.q { color: var(--cyan-text); background: rgba(28,154,184,.12); }
-.badge.n { color: var(--text-2); background: transparent; }
-h1 { font: 700 clamp(44px, 9vw, 84px)/1 var(--font-head); margin: 18px 0 6px; letter-spacing: -.02em; }
-h1 span { color: var(--amber); }
-.sub { font: 500 clamp(18px, 3.2vw, 24px) var(--font-head); color: var(--text-2); margin: 0; }
-.sub .arrow { color: var(--amber); }
-.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 28px; }
-@media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 16px 16px 14px; position: relative; overflow: hidden; min-width: 0; }
-.kpi::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--amber); }
-.kpi.q::before { background: var(--s-quantum); }
-.kpi .lbl { font-size: 12px; color: var(--text-2); text-transform: uppercase; letter-spacing: .06em; }
-.kpi .val { font: 700 clamp(28px, 5vw, 40px)/1.15 var(--font-num); margin-top: 6px; }
-.kpi .val small { font-size: .45em; color: var(--text-2); font-weight: 600; margin-left: 4px; }
-.kpi .foot { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
-.kpi .foot b { color: var(--ok); font-weight: 600; }
-.disclaimer { color: var(--muted); font-size: 12.5px; margin-top: 14px; }
-/* secciones */
-section { padding: 30px 0 6px; }
-.sec-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
-.sec-head .idx { font: 600 12px var(--font-num); color: var(--amber); letter-spacing: .1em; }
-h2 { font: 600 clamp(21px, 3.4vw, 27px) var(--font-head); margin: 0; }
-.sec-head p { margin: 0; color: var(--text-2); font-size: 14px; flex-basis: 100%; }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 18px; min-width: 0; }
-.card h3 { font: 600 14px var(--font-head); margin: 0 0 12px; color: var(--text-2);
-  text-transform: uppercase; letter-spacing: .07em; }
-.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-@media (max-width: 860px) { .grid2, .grid3 { grid-template-columns: minmax(0, 1fr); } }
-.chart-box { position: relative; height: 300px; }
-.chart-box.tall { height: 340px; }
-.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--text-2); margin: 0 0 10px; }
-.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px;
-  vertical-align: -1px; }
-.legend i.line { height: 3px; border-radius: 2px; vertical-align: 3px; width: 16px; }
-.legend i.dash { height: 0; border-top: 2px dashed; background: none !important; vertical-align: 3px; width: 16px; }
-/* tablas tipo tablero de salidas */
-.tbl-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--line); }
-table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
-th { text-align: left; font: 600 11px var(--font-ui); text-transform: uppercase; letter-spacing: .08em;
-  color: var(--muted); padding: 9px 12px; background: var(--surface-2); white-space: nowrap; }
-td { padding: 9px 12px; border-top: 1px solid var(--grid); white-space: nowrap; }
-td.num, th.num { text-align: right; }
-tr:hover td { background: rgba(255,255,255,.02); }
-.board td { font-family: var(--font-num); }
-.board td.hl { color: var(--amber); font-weight: 600; }
-.check { color: var(--ok); font-weight: 700; }
-.cross { color: var(--s-alt); font-weight: 700; }
-.tag { font: 600 11px var(--font-num); padding: 2px 7px; border-radius: 6px; background: var(--surface-2);
-  color: var(--text-2); border: 1px solid var(--line); }
-.tag.q { color: var(--cyan-text); }
-.tag.c { color: var(--amber); }
-/* validación */
-.valid-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-@media (max-width: 560px) { .valid-row { grid-template-columns: minmax(0, 1fr); } }
-.vcell { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px;
-  display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.vcell .n { font: 600 13px var(--font-num); color: var(--text-2); }
-.vcell .v { font: 700 34px var(--font-num); }
-.vcell .ok { font: 600 12px var(--font-num); color: var(--ok); text-align: right; }
-.vcell .ok.bad { color: var(--s-alt); }
-.facts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-.fact { font: 500 12.5px var(--font-num); color: var(--text-2); background: var(--surface-2);
-  border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; }
-.fact b { color: var(--text); font-weight: 600; }
-/* heatmaps */
-.heat { display: grid; gap: 2px; max-width: 330px; margin: 0 auto; }
-.heat div { aspect-ratio: 1; border-radius: 3px; display: flex; align-items: center; justify-content: center;
-  font: 600 10px var(--font-num); color: rgba(255,255,255,.0); cursor: default; }
-.heat div:hover { outline: 1px solid var(--text); color: var(--text); }
-.heat-axis { max-width: 330px; margin-left: auto; margin-right: auto; display: flex; justify-content: space-between; font: 11px var(--font-num); color: var(--muted); margin-top: 6px; }
-/* mapa */
-.map-layout { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 14px; }
-@media (max-width: 900px) { .map-layout { grid-template-columns: minmax(0, 1fr); } }
-.seg { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-.seg button { font: 600 13px var(--font-ui); color: var(--text-2); background: var(--surface-2);
-  border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; cursor: pointer; display: flex;
-  gap: 8px; align-items: baseline; }
-.seg button .c { font-family: var(--font-num); color: var(--muted); }
-.seg button.on { color: var(--bg); background: var(--amber); border-color: var(--amber); }
-.seg button.on .c { color: rgba(10,16,28,.75); }
-.seg button:focus-visible { outline: 2px solid var(--cyan-text); outline-offset: 2px; }
-#map svg { width: 100%; height: auto; display: block; }
-#map .edge { fill: none; stroke: var(--amber); stroke-linecap: round; transition: d .7s ease, stroke-opacity .7s ease, stroke-width .7s ease; }
-#map .edge:hover { stroke: var(--cyan-text); stroke-opacity: 1 !important; }
-#map .gate circle { fill: var(--surface-2); stroke: var(--line); stroke-width: 2; }
-#map .gate .g { font: 600 13px var(--font-num); fill: var(--muted); text-anchor: middle; }
-#map .gate .f { font: 700 17px var(--font-num); fill: var(--amber); text-anchor: middle; dominant-baseline: central; transition: opacity .3s; }
-.costbig { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
-.costbig .v { font: 700 46px/1 var(--font-num); color: var(--amber); }
-.costbig .l { color: var(--text-2); font-size: 13px; }
-.costbig .g { font: 600 14px var(--font-num); color: var(--text-2); }
-.map-note { color: var(--muted); font-size: 12.5px; margin-top: 8px; }
-/* qiskit vs clásico */
-.split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
-@media (max-width: 700px) { .split { grid-template-columns: minmax(0, 1fr); } }
-.split ul { margin: 0; padding-left: 18px; color: var(--text-2); font-size: 13.5px; }
-.split li { margin: 3px 0; }
-.split .card.q { border-color: rgba(28,154,184,.5); }
-.split .card.q h3 { color: var(--cyan-text); }
-.split .card.c h3 { color: var(--amber); }
-/* semillas */
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { font: 600 13px var(--font-num); padding: 5px 9px; border-radius: 8px; background: var(--surface-2);
-  border: 1px solid var(--line); color: var(--text-2); }
-.chip.hit { color: var(--ok); border-color: rgba(62,207,142,.45); }
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
-@media (max-width: 560px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.stat .l { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
-.stat .v { font: 700 24px var(--font-num); }
-.limits { margin: 0; padding-left: 18px; color: var(--text-2); }
-.limits li { margin: 5px 0; }
-.chips.v .chip b { color: var(--text); }
-footer { padding: 34px 0 50px; color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--line); margin-top: 34px; }
+body { margin: 0; background: var(--ink); color: var(--paper); font: 16px/1.45 var(--sans); }
+a { color: var(--signal); } a:hover { color: #FFD866; }
+.wrap { max-width: 1440px; margin: 0 auto; padding: 0 32px; }
+@media (max-width: 640px) { .wrap { padding: 0 16px; } }
+.mono { font-family: var(--mono); }
+.kick { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; color: var(--mute); text-transform: uppercase; }
 .hidden { display: none !important; }
-.msg { color: var(--muted); font-size: 13px; }
+button { font: inherit; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--qubit); outline-offset: 2px; }
+
+.top { position: sticky; top: 0; z-index: 20; background: var(--ink); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; padding-top: 14px; padding-bottom: 12px; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand b { font: 800 32px/1 var(--head); letter-spacing: .02em; }
+.brand .kick { margin-left: 6px; }
+@media (max-width: 760px) { .brand .kick { display: none; } .top { position: static; } }
+.tabs { display: flex; gap: 4px; overflow-x: auto; max-width: 100%; }
+.tabs button { background: none; border: 0; border-bottom: 3px solid transparent; padding: 10px 14px; color: var(--mute);
+  font: 13px var(--mono); letter-spacing: .08em; cursor: pointer; white-space: nowrap; }
+@media (max-width: 640px) { .tabs button { padding: 8px 8px; font-size: 12px; } }
+.tabs button[aria-selected="true"] { color: var(--signal); border-bottom-color: var(--signal); }
+.tabs button[data-scene="qaoa"][aria-selected="true"] { color: var(--qubit); border-bottom-color: var(--qubit); }
+.ctrl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.btn { height: 46px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--board); color: var(--paper);
+  font: 13px var(--mono); cursor: pointer; }
+.btn.play { width: 48px; padding: 0; border: 0; background: var(--signal); display: flex; align-items: center; justify-content: center; }
+.btn.play.q { background: var(--qubit); }
+.btn[aria-pressed="true"] { background: var(--paper); color: var(--ink); }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { height: 44px; padding: 0 14px; border: 0; background: var(--board); color: var(--mute); font: 13px var(--mono); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--qubit); color: var(--ink); font-weight: 600; }
+
+.stage { padding: 20px 0 28px; }
+.stage:fullscreen { background: var(--ink); overflow: auto; padding: 24px; max-width: none; }
+.scene { display: flex; flex-wrap: wrap; gap: 20px; }
+.panel { background: var(--board); border-radius: 12px; padding: 20px 22px; min-width: 0; }
+@media (max-width: 640px) { .panel { padding: 16px 14px; } }
+.main-col { flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.side-col { flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+h2.big { margin: 0; font: 800 clamp(34px, 5vw, 52px)/.95 var(--head); letter-spacing: .01em; text-transform: uppercase; }
+h2.mid { margin: 0; font: 800 clamp(28px, 4vw, 40px)/1 var(--head); letter-spacing: .01em; text-transform: uppercase; }
+.lede { font-size: 17px; color: var(--soft); margin: 0; }
+.stat { background: var(--board); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 6px; border-top: 4px solid var(--qubit); }
+.stat.y { border-top-color: var(--signal); }
+.stat .v { font: 800 clamp(64px, 9vw, 96px)/.9 var(--head); color: var(--qubit); font-variant-numeric: tabular-nums; }
+.stat.y .v { font-size: clamp(52px, 7vw, 72px); color: var(--signal); }
+.stat .s { font: 13px var(--mono); color: var(--soft); }
+
+.hist { position: relative; height: 420px; border-radius: 10px; background: var(--well); padding: 20px 16px 40px; display: flex; align-items: flex-end; gap: 3px; }
+@media (max-width: 640px) { .hist { height: 280px; gap: 1px; padding: 14px 8px 52px; } }
+.hist .bar { flex: 1; min-width: 1px; border-radius: 2px 2px 0 0; transition: height .18s linear; }
+.hist .cap { position: absolute; left: 16px; right: 16px; bottom: 10px; display: flex; justify-content: space-between; gap: 4px 10px; flex-wrap: wrap;
+  font: 11px var(--mono); color: var(--dim); text-transform: uppercase; }
+.prog { display: flex; align-items: center; gap: 14px; }
+.prog .lbl { font: 12px var(--mono); color: var(--mute); white-space: nowrap; }
+.track { position: relative; flex: 1; height: 6px; border-radius: 3px; background: var(--line); cursor: pointer; }
+.track .fill { height: 100%; border-radius: 3px; background: var(--qubit); width: 0; }
+.track .knob { position: absolute; top: 50%; width: 18px; height: 18px; border-radius: 50%; background: var(--paper); transform: translate(-50%, -50%); left: 0; }
+.track.y .fill { background: var(--signal); }
+.legend { display: flex; flex-wrap: wrap; gap: 10px 18px; font: 12px var(--mono); color: var(--mute); }
+.legend span { display: flex; align-items: center; gap: 6px; }
+.legend i { width: 14px; height: 14px; border-radius: 2px; display: inline-block; }
+.legend i.ln { height: 4px; width: 22px; border-radius: 0; }
+.legend i.dash { height: 0; width: 22px; border-top: 3px dashed var(--qubit); border-radius: 0; }
+
+.wire { position: relative; display: flex; align-items: center; gap: 10px; height: 34px; }
+.wire .wl { width: 58px; font: 12px var(--mono); color: var(--mute); }
+.wire .wr { position: relative; flex: 1; height: 34px; display: flex; align-items: center; justify-content: space-around; }
+.wire .wr::before { content: ""; position: absolute; left: 0; right: 0; top: 16px; height: 2px; background: var(--line); }
+.gate { position: relative; padding: 4px 8px; border-radius: 4px; color: var(--ink); font: 600 12px var(--mono); }
+.meas { position: relative; width: 22px; height: 22px; border-radius: 4px; border: 2px solid var(--paper); }
+
+.terminal { position: relative; border-radius: 10px; background: var(--well); overflow: hidden; }
+.terminal svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.gpost { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 5px; z-index: 2; }
+.gsign { min-width: 64px; padding: 5px 8px; border-radius: 6px; background: var(--signal); color: var(--ink); font: 800 24px/1 var(--head); text-align: center; }
+.gchip { min-width: 64px; padding: 5px 8px; border-radius: 6px; background: var(--flap); border: 2px solid var(--line); color: var(--paper);
+  font: 600 15px var(--mono); text-align: center; transition: border-color .3s, color .3s; }
+.gchip.moved { border-color: var(--qubit); color: var(--qubit); }
+@media (max-width: 640px) { .gsign { min-width: 36px; font-size: 15px; padding: 3px 4px; } .gchip { min-width: 36px; font-size: 10px; padding: 2px 3px; } }
+.tlegend { position: absolute; left: 14px; bottom: 12px; z-index: 3; }
+
+.flaps { display: flex; gap: 4px; align-items: center; }
+.flap { position: relative; border-radius: 4px; background: var(--flap); display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-weight: 600; perspective: 300px; overflow: hidden; flex: 0 0 auto; }
+.flap::after { content: ""; position: absolute; left: 0; right: 0; top: calc(50% - 1px); height: 2px; background: var(--ink); z-index: 3; }
+.flap .ov { position: absolute; left: 0; right: 0; top: 0; height: 50%; overflow: hidden; background: var(--flap); transform-origin: bottom; z-index: 2; }
+.flap .ov span { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; justify-content: center; }
+.board-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; align-items: center; }
+.board-row .flap { width: 22px; height: 34px; font-size: 17px; }
+@media (max-width: 640px) { .board-row .flap { width: 17px; height: 28px; font-size: 13px; } }
+.board-head { font: 11px var(--mono); letter-spacing: .12em; color: var(--mute); padding: 0 4px; }
+.st { font: 600 12px var(--mono); letter-spacing: .1em; color: var(--mute); }
+.st.mv { color: var(--qubit); }
+.cost-flaps .flap { width: 64px; height: 88px; font-size: 54px; border-radius: 6px; }
+@media (max-width: 640px) { .cost-flaps .flap { width: 46px; height: 64px; font-size: 38px; } }
+.pill { padding: 6px 10px; border-radius: 999px; border: 1px solid var(--qubit); color: var(--qubit); font: 12px var(--mono); }
+.pill.n { border-color: var(--line); color: var(--soft); }
+.foot-strip { font: 12px var(--mono); letter-spacing: .14em; color: var(--dim); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
+
+.passes { display: flex; flex-wrap: wrap; gap: 20px; }
+.pass { position: relative; flex: 1 1 340px; min-width: 0; display: flex; background: var(--paper); color: var(--ink); border-radius: 14px; overflow: hidden; min-height: 290px; }
+.pass .body { flex: 1; min-width: 0; padding: 20px 22px; display: flex; flex-direction: column; gap: 12px; }
+.pass .k { font: 11px var(--mono); letter-spacing: .16em; color: var(--ink-2); }
+.pass .tag { padding: 3px 8px; border-radius: 4px; color: var(--ink); font: 600 11px var(--mono); }
+.pass .route { display: flex; align-items: center; gap: 12px; font: 800 44px/.9 var(--head); flex-wrap: wrap; }
+.pass .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; margin-top: auto; }
+.pass .fk { font: 10px var(--mono); letter-spacing: .14em; color: var(--ink-2); }
+.pass .fv { font: 600 20px var(--mono); }
+.pass .cut { width: 0; border-left: 2px dashed #B9B5A8; margin: 16px 0; }
+.pass .stub { width: 116px; padding: 20px 10px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; gap: 12px; }
+.pass .stub .sv { font: 800 48px/1 var(--head); }
+.pass .notch { position: absolute; right: 105px; width: 22px; height: 22px; border-radius: 50%; background: var(--ink); }
+@media (max-width: 480px) { .pass .stub { width: 84px; } .pass .notch { right: 73px; } .pass .route { font-size: 34px; } .pass .fv { font-size: 16px; } }
+.barcode { display: flex; gap: 2px; height: 72px; }
+.barcode i { background: var(--ink); display: block; }
+
+.tbl { background: var(--board); border-radius: 12px; padding: 14px 16px; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font: 14px var(--mono); }
+th { text-align: left; color: var(--mute); font-size: 11px; letter-spacing: .14em; font-weight: 500; padding: 8px 10px; white-space: nowrap; }
+td { padding: 11px 10px; border-top: 1px solid var(--line); white-space: nowrap; }
+td.r, th.r { text-align: right; }
+.detail { padding: 34px 0 10px; border-top: 1px solid var(--line); }
+.sec-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+.num-sign { padding: 4px 12px; border-radius: 6px; background: var(--signal); color: var(--ink); font: 800 28px/1 var(--head); }
+.sec-head h3 { margin: 0; font: 800 clamp(30px, 4vw, 44px)/1 var(--head); text-transform: uppercase; }
+.sec-head p { margin: 0; flex-basis: 100%; color: var(--soft); }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+@media (max-width: 900px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+.heat { display: grid; gap: 2px; max-width: 340px; }
+.heat div { aspect-ratio: 1; border-radius: 2px; }
+.chart svg { width: 100%; height: auto; display: block; }
+#lamChart { max-width: 860px; }
+.chart text { font-family: var(--mono); font-size: 11px; fill: var(--mute); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips span { padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); font: 12px var(--mono); color: var(--soft); }
+.chips b { color: var(--paper); font-weight: 600; }
+ul.lim { margin: 0; padding-left: 18px; color: var(--soft); } ul.lim li { margin: 6px 0; }
+.twocol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 700px) { .twocol { grid-template-columns: minmax(0, 1fr); } }
+.twocol ul { margin: 8px 0 0; padding-left: 18px; color: var(--soft); font-size: 15px; }
+.qside { border-top: 4px solid var(--qubit); } .cside { border-top: 4px solid var(--signal); }
+.waves { display: block; width: 100%; height: 48px; margin-top: 6px; }
+footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40px; font: 12px var(--mono); letter-spacing: .08em; color: var(--mute); }
+@media (prefers-reduced-motion: reduce) { .hist .bar, .gchip { transition: none; } }
 </style>
 </head>
 <body>
 <script id="data" type="application/json">__DATA__</script>
 
-<div class="topbar"><div class="wrap">
-  <a class="logo" href="#top">Q<b>Gate</b></a>
-  <nav class="nav">
-    <a href="#datos">Datos</a><a href="#mapa">Mapa</a><a href="#qaoa">QAOA</a><a href="#lambda">λ</a>
-    <a href="#hibrido">Híbrido</a><a href="#escala">Escala</a><a href="#repro">Reproducir</a>
-    <a href="https://github.com/iamjosels/qgate-qap10">GitHub</a>
+<header class="top"><div class="wrap">
+  <div class="brand">
+    <svg width="40" height="40" viewBox="0 0 64 64" role="img" aria-label="QGate"><rect width="64" height="64" rx="10" fill="#FFC629"></rect><circle cx="29" cy="29" r="15" fill="none" stroke="#0B0B0C" stroke-width="7"></circle><path d="M38 38 L48 48" stroke="#0B0B0C" stroke-width="7" stroke-linecap="square"></path><polygon points="55,55 55,40 40,55" fill="#0B0B0C"></polygon></svg>
+    <b>QGATE</b><span class="kick" id="kicker">MODO DEMO · COMPUERTAS CUÁNTICAS</span>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Escenas">
+    <button role="tab" data-scene="qaoa" aria-selected="true">01 QAOA</button>
+    <button role="tab" data-scene="airport" aria-selected="false">02 AEROPUERTO</button>
+    <button role="tab" data-scene="result" aria-selected="false">03 RESULTADO</button>
   </nav>
-</div></div>
-
-<main class="wrap" id="top">
-  <header class="hero">
-    <div class="badges">
-      <span class="badge">Track A · Aeropuerto</span>
-      <span class="badge q" id="b-qiskit">Qiskit</span>
-      <span class="badge n">MIPLIB qap10</span>
+  <div class="ctrl">
+    <button class="btn play q" id="play" type="button" aria-label="Reproducir"></button>
+    <button class="btn" id="speed" type="button" aria-pressed="false">x2</button>
+    <div class="seg" id="mixerSeg" role="group" aria-label="Mixer">
+      <button type="button" data-mixer="x" aria-pressed="false">MIXER X</button>
+      <button type="button" data-mixer="xy" aria-pressed="true">MIXER XY</button>
     </div>
-    <h1>Q<span>Gate</span></h1>
-    <p class="sub">Vuelos <span class="arrow">→</span> puertas con QAOA híbrido</p>
-    <div class="kpis" id="kpis"></div>
-    <p class="disclaimer">Datos: benchmark qap10. Pasajeros y distancias son supuestos de negocio. Todo lo cuántico corre en simulador (Qiskit Aer).</p>
-  </header>
+    <button class="btn" id="fs" type="button">Pantalla completa</button>
+  </div>
+</div></header>
 
-  <section id="datos">
-    <div class="sec-head"><span class="idx">01</span><h2>Datos validados</h2>
-      <p>MPS linealizado → flujos F y distancias D. Escala verificada con los óptimos de control.</p></div>
-    <div class="valid-row" id="valid"></div>
-    <div class="grid2">
-      <div class="card"><h3>F · pasajeros en conexión</h3><div class="heat" id="heatF"></div>
-        <div class="heat-axis"><span>vuelo 1</span><span>vuelo N</span></div></div>
-      <div class="card"><h3>D · distancia entre puertas</h3><div class="heat" id="heatD"></div>
-        <div class="heat-axis"><span>puerta 1</span><span>puerta N</span></div></div>
-    </div>
-    <div class="facts" id="facts"></div>
-  </section>
+<main>
+<div class="stage wrap" id="stage">
 
-  <section id="mapa">
-    <div class="sec-head"><span class="idx">02</span><h2>Mapa de puertas</h2>
-      <p>Grosor = pasajeros que conectan. Brillo = costo del par (flujo × distancia). Mejor asignación: líneas gruesas más cortas.</p></div>
-    <div class="seg" id="assignBtns" role="tablist" aria-label="Asignación"></div>
-    <div class="map-layout">
-      <div class="card" id="map"></div>
-      <div class="card">
-        <div class="costbig"><span class="v num" id="mapCost">-</span><span class="l">costo C<br>(cada par una vez)</span></div>
-        <div class="costbig"><span class="g" id="mapGap"></span></div>
-        <div class="tbl-wrap"><table class="board"><thead><tr><th>Vuelo</th><th>Puerta</th><th class="num">Pasajeros</th><th class="num">Pax × dist</th></tr></thead>
-          <tbody id="boardBody"></tbody></table></div>
-        <p class="map-note">Pax × dist suma las conexiones de cada vuelo (cada par aparece en sus dos vuelos: la columna suma 2C). Posiciones de puertas por MDS clásico sobre D (proyección visual).</p>
+  <div class="scene" id="scene-qaoa">
+    <section class="panel main-col">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <h2 class="big">QAOA aprende a respetar las reglas</h2>
+        <p class="lede" id="qLede"></p>
       </div>
-    </div>
-  </section>
+      <div class="hist" id="hist"><div class="cap"><span id="histCap"></span><span id="histShots"></span></div></div>
+      <div class="prog" id="qProg"><span class="lbl" id="qIter"></span><div class="track" id="qTrack"><div class="fill"></div><div class="knob"></div></div></div>
+      <div class="legend">
+        <span><i style="background:var(--invalid-bar)"></i>Inválida (rompe una regla)</span>
+        <span><i style="background:var(--qubit)"></i>Válida</span>
+        <span><i style="background:var(--signal)"></i>Óptima</span>
+      </div>
+    </section>
+    <section class="side-col">
+      <div class="stat" id="qValidBox"><div class="kick">P(asignación válida)</div><div class="v" id="qValid"></div><div class="s" id="qValidS"></div></div>
+      <div class="stat y" id="qOptBox"><div class="kick">P(asignación óptima)</div><div class="v" id="qOpt"></div><div class="s" id="qOptS"></div></div>
+      <div class="panel" style="display:flex;flex-direction:column;gap:12px">
+        <div class="kick" id="wireHead"></div>
+        <div id="wires"></div>
+        <div style="font-size:14px;color:var(--soft)" id="wireNote"></div>
+        <svg class="waves" viewBox="0 0 400 48" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M0 24 C 25 4, 50 44, 75 24 S 125 4, 150 24 S 200 44, 225 24 S 275 4, 300 24 S 350 44, 400 24" fill="none" stroke="#4FE3E0" stroke-width="1.5"/>
+          <path d="M0 24 C 25 13, 50 35, 75 24 S 125 13, 150 24 S 200 35, 225 24 S 275 13, 300 24 S 350 35, 400 24" fill="none" stroke="#4FE3E0" stroke-opacity=".55" stroke-width="1"/>
+          <path d="M0 24 C 25 20, 50 28, 75 24 S 125 20, 150 24 S 200 28, 225 24 S 275 20, 300 24 S 350 28, 400 24" fill="none" stroke="#4FE3E0" stroke-opacity=".3" stroke-width="1"/>
+        </svg>
+      </div>
+    </section>
+  </div>
 
-  <section id="qaoa">
-    <div class="sec-head"><span class="idx">03</span><h2>QAOA vs azar</h2>
-      <p>Probabilidad de muestrear una asignación válida (escala log). Mixer X: todo penalizado. Mixer XY + estado W: filas válidas por construcción.</p></div>
-    <div class="card">
-      <div class="legend"><span><i style="background:var(--s-quantum)"></i>QAOA (ideal)</span>
-        <span><i style="background:var(--s-quantum-2)"></i>QAOA (muestras)</span>
-        <span><i style="background:var(--s-ref)"></i>Azar uniforme</span></div>
-      <div class="chart-box tall"><canvas id="cQaoa" aria-label="P(válida) QAOA vs azar"></canvas></div>
+  <div class="scene hidden" id="scene-airport">
+    <section class="panel main-col">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+        <h2 class="mid">Terminal Q · Muelle A</h2>
+        <span class="kick">Grosor = pasajeros en conexión</span>
+      </div>
+      <div class="terminal" id="terminal"></div>
+      <div class="prog" id="hProg"><span class="lbl" id="hIterLbl"></span><div class="track y" id="hTrack"><div class="fill"></div><div class="knob"></div></div></div>
+    </section>
+    <section class="side-col">
+      <div class="panel" style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:40px;height:40px;border-radius:6px;background:var(--signal);display:flex;align-items:center;justify-content:center;flex:0 0 auto">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0B0B0C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"></path></svg>
+          </div>
+          <h2 class="mid" style="color:var(--signal)">Salidas</h2>
+          <span class="kick" style="margin-left:auto" id="vuelta"></span>
+        </div>
+        <div class="board-row board-head"><div>VUELO</div><div>PUERTA</div><div>ESTADO</div></div>
+        <div id="board" style="display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+      <div class="panel" style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap">
+          <span class="kick">Costo total · caminata ponderada</span><span class="kick" id="optLbl"></span>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <div class="flaps cost-flaps" id="costFlaps"></div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div style="font:700 28px var(--head);color:var(--signal)" id="gapLbl"></div>
+            <div class="kick" style="letter-spacing:.06em;text-transform:none">valores reales desde results.json</div>
+          </div>
+        </div>
+        <div style="height:6px;border-radius:3px;background:var(--line);overflow:hidden"><div id="costBar" style="height:100%;width:0;background:var(--signal);transition:width .3s"></div></div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px" id="hPills"></div>
+      </div>
+    </section>
+    <div class="foot-strip" style="flex-basis:100%" id="strip"></div>
+  </div>
+
+  <div class="scene hidden" id="scene-result" style="flex-direction:column;flex-wrap:nowrap">
+    <h2 class="big">Tres tarjetas de embarque, una por pregunta</h2>
+    <div class="passes" id="passes"></div>
+    <div class="tbl"><table><thead><tr><th>MÉTODO</th><th>N</th><th>QUBITS</th><th>MEJOR COSTO VÁLIDO</th><th>GAP</th><th>TIEMPO</th><th>DÓNDE CORRIÓ</th></tr></thead>
+      <tbody id="resRows"></tbody></table></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <section class="detail" id="d-valid">
+    <div class="sec-head"><span class="num-sign">04</span><h3>Datos validados</h3>
+      <p>Del MPS linealizado a flujos F y distancias D. La escala se verifica con los óptimos de control; cada par se cuenta una vez.</p></div>
+    <div class="grid2">
+      <div><div class="tbl"><table><thead><tr><th>N</th><th class="r">ÓPTIMO CALCULADO</th><th class="r">ESPERADO</th><th>OK</th><th class="r">TIEMPO</th></tr></thead><tbody id="valRows"></tbody></table></div>
+        <div class="chips" id="facts" style="margin-top:14px"></div></div>
+      <div class="panel"><div class="grid2" style="gap:16px">
+        <div><div class="kick" style="margin-bottom:8px">F · pasajeros en conexión</div><div class="heat" id="heatF"></div></div>
+        <div><div class="kick" style="margin-bottom:8px">D · distancia entre puertas</div><div class="heat" id="heatD"></div></div>
+      </div></div>
     </div>
-    <div class="tbl-wrap" style="margin-top:14px"><table><thead><tr>
-      <th>Experimento</th><th class="num">N</th><th class="num">Qubits</th><th>Mixer</th><th class="num">p</th><th>Ruido</th>
-      <th class="num">P(válida)</th><th class="num">Muestras válidas</th><th class="num">Azar</th><th class="num">P(óptimo)</th>
-      <th class="num">Mejor costo</th><th class="num">Ratio medio</th><th class="num">Tiempo s</th><th class="num">CX</th><th class="num">Prof.</th>
-    </tr></thead><tbody id="qaoaBody"></tbody></table></div>
-    <div class="split">
-      <div class="card q"><h3>Qiskit hace</h3><ul>
-        <li>Circuito QAOA parametrizado (costo Ising + mixer)</li>
-        <li>Estado W por fila y mixer XY que conserva filas válidas</li>
-        <li>Simulación statevector y muestreo con shots (Aer)</li>
-        <li>Modelo de ruido despolarizante</li>
-        <li>Transpilación: profundidad y número de CX</li>
+    <div class="twocol" style="margin-top:20px">
+      <div class="panel qside"><div class="kick" style="color:var(--qubit)">Qiskit hace</div><ul>
+        <li>Circuito QAOA: costo Ising + mixer X, o estado W + mixer XY</li>
+        <li>Statevector exacto y muestreo con shots en Aer, con y sin ruido</li>
+        <li>Transpilación: profundidad y CX</li>
         <li>Cada subproblema de 9 qubits del híbrido (QAOA p=2)</li></ul></div>
-      <div class="card c"><h3>Clásico hace</h3><ul>
+      <div class="panel cside"><div class="kick" style="color:var(--signal)">Clásico hace</div><ul>
         <li>Leer el MPS y reconstruir F y D</li>
-        <li>QUBO, λ y paso a Ising</li>
-        <li>COBYLA ajusta los ángulos (CVaR)</li>
-        <li>Elegir vecindarios y aceptar movimientos (LNS)</li>
+        <li>QUBO, λ, paso a Ising; COBYLA ajusta los ángulos</li>
+        <li>Elegir vecindarios, aceptar mejoras, perturbar</li>
         <li>Referencias: fuerza bruta, SA, cota Gilmore-Lawler</li></ul></div>
     </div>
   </section>
 
-  <section id="lambda">
-    <div class="sec-head"><span class="idx">04</span><h2>Barrido de λ</h2>
-      <p>λ chico deja ganar inválidas; λ grande aplana el paisaje. λ0 = mayor aporte posible de una asignación.</p></div>
-    <div class="card">
-      <div class="legend"><span><i class="line" style="background:var(--s-quantum)"></i>XY</span>
-        <span><i class="line" style="background:var(--s-sa)"></i>X</span>
-        <span><i class="line" style="background:var(--text-2)"></i>P(válida)</span>
-        <span><i class="dash" style="border-color:var(--text-2)"></i>P(óptimo)</span></div>
-      <div class="chart-box"><canvas id="cLambda" aria-label="Barrido de lambda"></canvas></div>
-    </div>
+  <section class="detail" id="d-ablation">
+    <div class="sec-head"><span class="num-sign">05</span><h3>¿Cuánto aporta QAOA?</h3>
+      <p>El mismo híbrido con distintos solvers del subproblema, mismas iteraciones, semilla y arranque. Con muchas muestras el azar también resuelve piezas de 3 vuelos; con pocas se ve la concentración de QAOA.</p></div>
+    <div class="tbl"><table><thead><tr><th>SOLVER</th><th class="r">SHOTS</th><th class="r">COSTO FINAL</th><th class="r">GAP</th><th class="r">PIEZAS RESUELTAS</th><th class="r">P(ÓPTIMO) POR PIEZA</th><th class="r">AZAR</th><th class="r">TIEMPO</th></tr></thead>
+      <tbody id="ablRows"></tbody></table></div>
+    <div class="chips" id="seedChips" style="margin-top:14px"></div>
   </section>
 
-  <section id="hibrido">
-    <div class="sec-head"><span class="idx">05</span><h2>Híbrido QGate</h2>
-      <p>Subproblemas de 3 vuelos (9 qubits) resueltos con QAOA dentro de una búsqueda clásica por vecindarios. Controles con el mismo presupuesto, semilla y arranque: solver exacto y muestreo al azar.</p></div>
-    <div class="grid3" id="hybStats" style="margin-bottom:14px"></div>
-    <div class="card">
-      <div class="seg" id="hybAxis"><button class="on" data-ax="iter">Iteración</button><button data-ax="t">Tiempo (s)</button></div>
-      <div class="legend" id="hybLegend"></div>
-      <div class="chart-box tall"><canvas id="cHyb" aria-label="Convergencia del híbrido"></canvas></div>
-    </div>
-    <div class="tbl-wrap" id="ablWrap" style="margin-top:14px"><table><thead><tr><th>Solver del subproblema</th><th class="num">Shots</th>
-      <th class="num">Costo final</th><th class="num">Gap %</th><th class="num">Éxito subproblema</th><th class="num">P(óptimo) medio</th>
-      <th class="num">Azar P(óptimo)</th><th class="num">Tiempo s</th></tr></thead><tbody id="ablBody"></tbody></table></div>
-    <p class="map-note">Ablación con mismas iteraciones, semilla y arranque. Con 512 shots el azar también encuentra el óptimo de 3 vuelos (6 asignaciones); con 8 shots se ve cuánto concentra QAOA.</p>
-    <div class="card" id="seedsCard" style="margin-top:14px"><h3>Robustez · solver exacto en varias semillas</h3>
-      <div class="stats" id="seedStats"></div><div class="chips" id="seedChips"></div></div>
+  <section class="detail" id="d-lambda">
+    <div class="sec-head"><span class="num-sign">06</span><h3>Barrido de λ</h3>
+      <p>λ0 es el mayor aporte posible de una asignación: con λ ≥ λ0 ninguna inválida le gana a la mejor válida. λ chico deja ganar inválidas; λ grande aplana el paisaje.</p></div>
+    <div class="panel"><div class="legend" id="lamLegend" style="margin-bottom:10px"></div><div class="chart" id="lamChart"></div></div>
   </section>
 
-  <section id="escala">
-    <div class="sec-head"><span class="idx">06</span><h2>Escalabilidad</h2>
-      <p>Qubits constantes (9) aunque N crezca. Sin óptimo conocido en N > 10: se mide contra la cota Gilmore-Lawler. * = instancia sintética.</p></div>
+  <section class="detail" id="d-scale">
+    <div class="sec-head"><span class="num-sign">07</span><h3>Escalamiento</h3>
+      <p>La parte cuántica no crece: 9 qubits por subproblema en todo N. Sin óptimo conocido en N &gt; 10 se mide contra la cota Gilmore-Lawler. * = instancia sintética.</p></div>
     <div class="grid2">
-      <div class="card"><h3>Gap vs cota inferior (%)</h3><div class="legend" id="scLegend"></div>
-        <div class="chart-box"><canvas id="cScaleGap"></canvas></div></div>
-      <div class="card"><h3>Tiempo (s, log)</h3><div class="legend" id="scLegend2"></div>
-        <div class="chart-box"><canvas id="cScaleT"></canvas></div></div>
+      <div class="panel"><div class="kick" style="margin-bottom:8px">Gap vs cota inferior (%)</div><div class="legend" id="scLeg" style="margin-bottom:8px"></div><div class="chart" id="scGap"></div></div>
+      <div class="panel"><div class="kick" style="margin-bottom:8px">Tiempo (s, escala log)</div><div class="legend" id="scLeg2" style="margin-bottom:8px"></div><div class="chart" id="scTime"></div></div>
     </div>
-    <div style="margin-top:14px">
-      <div class="tbl-wrap"><table><thead><tr><th>N</th><th>Instancia</th><th>Método</th><th class="num">Costo</th>
-        <th class="num">Cota</th><th class="num">Gap cota</th><th class="num">Gap 340</th><th class="num">Tiempo s</th><th class="num">Mem MB</th><th class="num">Qubits</th></tr></thead>
-        <tbody id="scaleBody"></tbody></table></div>
-      <div class="card" style="margin-top:14px;max-width:520px"><h3>Muro de memoria · statevector</h3>
-        <div class="tbl-wrap"><table><thead><tr><th class="num">N</th><th class="num">Qubits N²</th><th class="num">Memoria</th></tr></thead>
-        <tbody id="memBody"></tbody></table></div>
-        <p class="map-note">QGate usa siempre subproblemas de 9 qubits: memoria constante.</p></div>
-    </div>
+    <div class="tbl" style="margin-top:20px"><table><thead><tr><th>N</th><th>INSTANCIA</th><th>MÉTODO</th><th class="r">COSTO</th><th class="r">COTA</th><th class="r">GAP COTA</th><th class="r">TIEMPO</th><th class="r">MEMORIA PICO</th><th class="r">QUBITS</th></tr></thead><tbody id="scRows"></tbody></table></div>
+    <div class="tbl" style="margin-top:20px;max-width:560px" id="memBox"><div class="kick" style="padding:6px 10px">Muro de memoria · statevector genérico</div>
+      <table><thead><tr><th class="r">N</th><th class="r">QUBITS N²</th><th class="r">MEMORIA</th></tr></thead><tbody id="memRows"></tbody></table></div>
   </section>
 
-  <section id="repro">
-    <div class="sec-head"><span class="idx">07</span><h2>Reproducibilidad y límites</h2></div>
+  <section class="detail" id="d-repro">
+    <div class="sec-head"><span class="num-sign">08</span><h3>Reproducibilidad y límites</h3></div>
     <div class="grid2">
-      <div class="card"><h3>Entorno</h3><div class="chips v" id="versions"></div>
-        <pre class="num" id="cmd" style="white-space:pre-wrap;color:var(--text-2);font-size:12.5px;margin:14px 0 0"></pre></div>
-      <div class="card"><h3>Limitaciones</h3><ul class="limits" id="limits"></ul></div>
+      <div class="panel"><div class="kick" style="margin-bottom:10px">Entorno</div><div class="chips" id="versions"></div>
+        <pre class="mono" id="cmd" style="white-space:pre-wrap;color:var(--soft);font-size:13px;margin:14px 0 0"></pre></div>
+      <div class="panel"><div class="kick" style="margin-bottom:10px">Limitaciones</div><ul class="lim" id="limits"></ul></div>
     </div>
   </section>
+</div>
 </main>
 
-<footer><div class="wrap">
-  QGate · IBM Quantum Hackathon 2026 · Reto NTT DATA QAP10 · <a href="https://github.com/iamjosels/qgate-qap10">código en GitHub</a>.
-  Librerías: Qiskit, Qiskit Aer, NumPy, SciPy, Matplotlib, Chart.js. Datos: MIPLIB 2017, instancia qap10.
-  <span id="gen"></span>
-</div></footer>
+<footer><div class="wrap">AMARILLO = SEÑALÉTICA Y LO ÓPTIMO · CIAN = TODO LO QUE SALE DE QISKIT · NARANJA = INVÁLIDO<br>
+QGate · IBM Quantum Hackathon 2026 · Reto NTT DATA QAP10 · Track A Aeropuerto · Qiskit, Qiskit Aer, NumPy, SciPy · datos MIPLIB 2017 qap10 ·
+<a href="https://github.com/iamjosels/qgate-qap10">código</a> <span id="gen"></span></div></footer>
 
 <script>
 (function () {
   "use strict";
   const R = JSON.parse(document.getElementById("data").textContent);
-  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-  const C = { q: css("--s-quantum"), q2: css("--s-quantum-2"), c: css("--s-classic"), sa: css("--s-sa"),
-              alt: css("--s-alt"), ref: css("--s-ref"), text: css("--text"), text2: css("--text-2"),
-              muted: css("--muted"), grid: css("--grid"), amber: css("--amber"), surface: css("--surface") };
   const $ = (id) => document.getElementById(id);
-  const hide = (id) => { const el = $(id); if (el) el.classList.add("hidden"); };
   const has = (a) => Array.isArray(a) && a.length > 0;
-  const f = (v, d = 0) => (v === null || v === undefined || Number.isNaN(v)) ? "-" : Number(v).toFixed(d);
-  const fp = (v) => (v === null || v === undefined) ? "-" : (v >= 0.1 ? v.toFixed(3) : v.toPrecision(2));
-  const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+  const num = (v) => typeof v === "number" && isFinite(v);
+  const hide = (el) => { if (typeof el === "string") el = $(el); if (el) el.classList.add("hidden"); };
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const f = (v, d = 0) => num(v) ? Number(v).toFixed(d) : null;
+  const pct = (v, d = 1) => num(v) ? (100 * v).toFixed(d) + "%" : null;
+  const sp = (n) => num(n) ? String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, " ") : null;
+  const pad2 = (i) => String(i + 1).padStart(2, "0");
+  const V = (i) => "V" + pad2(i), P = (j) => "P" + pad2(j);
+  const RM = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  /* Pone el texto o, si el dato no existe, oculta el elemento (nunca un valor de relleno). */
+  const put = (id, txt, box) => { const el = $(id); if (!el) return; if (txt === null || txt === undefined || txt === "") hide(box ? $(box) : el); else { el.textContent = txt; el.classList.remove("hidden"); } };
+
   const meta = R.meta || {}, data = R.data || {};
-  const REF = meta.reference_optimum;
-  const gap = (c) => (REF && c !== null && c !== undefined) ? 100 * (c - REF) / REF : null;
-  const N = meta.N;
+  const REF = meta.reference_optimum, N = meta.N;
+  const gap = (c, ref = REF) => (num(c) && num(ref) && ref) ? 100 * (c - ref) / ref : null;
+  const Q = {}; (R.quantum || []).forEach((q) => { Q[q.id] = q; });
+  const H = {}; (R.hybrid || []).forEach((h) => { H[h.method] = h; });
+  const C = {}; (R.classical || []).forEach((c) => { C[c.method] = c; });
+  const valid = {}; (R.validation || []).forEach((v) => { valid[v.n] = v; });
 
-  if (window.Chart) {
-    Chart.defaults.color = C.text2;
-    Chart.defaults.font.family = "Inter, system-ui, sans-serif";
-    Chart.defaults.font.size = 12;
-    Chart.defaults.borderColor = C.grid;
-    Chart.defaults.plugins.legend.display = false;
-    Chart.defaults.plugins.tooltip.backgroundColor = "#0a101c";
-    Chart.defaults.plugins.tooltip.borderColor = "#24324d";
-    Chart.defaults.plugins.tooltip.borderWidth = 1;
-    Chart.defaults.plugins.tooltip.titleFont = { family: "JetBrains Mono", weight: "600" };
-    Chart.defaults.plugins.tooltip.bodyFont = { family: "JetBrains Mono" };
-    Chart.defaults.maintainAspectRatio = false;
-  }
-  const v = meta.versions || {};
-  if (v.qiskit) $("b-qiskit").textContent = "Qiskit " + v.qiskit + (v.qiskit_aer ? " · Aer " + v.qiskit_aer : "");
-
-  // ------------------------------------------------------------------ KPIs
-  const hyb = (R.hybrid || []);
-  const hq = hyb.find((h) => h.method === "qgate_lns_qaoa");
-  const he = hyb.find((h) => h.method === "qgate_lns_exact");
-  const bf = (R.classical || []).find((c) => c.method === "brute_force");
-  const q4 = (R.quantum || []).filter((q) => q.N === 4 && q.noise === "none");
-  const kp = [];
-  const best = R.best_assignment || (hq ? { cost: hq.final_cost } : null);
-  if (best) {
-    const g = gap(best.cost);
-    const pol = hq && hq.polished_cost !== undefined && hq.polished_cost < hq.final_cost
-      ? ` · pulido ${f(hq.polished_cost)}` : "";
-    kp.push(`<div class="kpi q"><div class="lbl">QGate híbrido</div><div class="val num">${f(best.cost)}</div>
-      <div class="foot">${g === null ? "" : (g <= 1e-9 ? "<b>gap 0 %</b> vs 340" : "gap " + f(g, 1) + " % vs " + f(REF))}${pol}</div></div>`);
-  }
-  if (bf) kp.push(`<div class="kpi"><div class="lbl">Óptimo exacto</div><div class="val num">${f(bf.cost)}</div>
-      <div class="foot">fuerza bruta ${N}! en ${f(bf.time_s, 1)} s</div></div>`);
-  if (q4.length) {
-    const qb = q4.reduce((a, b) => ((b.mean_approx_ratio || 0) > (a.mean_approx_ratio || 0) ? b : a));
-    kp.push(`<div class="kpi q"><div class="lbl">QAOA N=4 · ${esc(qb.mixer.toUpperCase())}</div>
-      <div class="val num">${f(qb.mean_approx_ratio, 2)}<small>ratio</small></div>
-      <div class="foot">P(válida) ${fp(qb.p_feasible)} vs azar ${fp(qb.random_feasible_baseline)}</div></div>`);
-  }
-  kp.push(`<div class="kpi q"><div class="lbl">Qubits por subproblema</div><div class="val num">${meta.qubits_per_subproblem || 9}</div>
-      <div class="foot">QUBO completo N=${N}: ${N * N} qubits</div></div>`);
-  $("kpis").innerHTML = kp.join("");
-
-  // ------------------------------------------------------------- validación
-  if (has(R.validation)) {
-    $("valid").innerHTML = R.validation.map((r) => `<div class="vcell"><div><div class="n">N = ${r.n}</div>
-      <div class="v num">${f(r.optimum)}</div></div><div class="ok ${r.ok === false ? "bad" : ""}">${r.ok === false ? "✗" : (r.ok ? "✓" : "")}
-      ${r.expected !== null && r.expected !== undefined ? "esperado " + f(r.expected) : ""}<br>${f(r.time_s, r.time_s < 1 ? 3 : 1)} s</div></div>`).join("");
-  } else hide("valid");
-  function heat(id, M, color) {
-    const el = $(id);
-    if (!has(M)) { el.closest(".card").classList.add("hidden"); return; }
-    const n = M.length, mx = Math.max(...M.flat()) || 1;
-    el.style.gridTemplateColumns = `repeat(${n}, minmax(0, 1fr))`;
-    el.innerHTML = M.map((row, i) => row.map((x, j) => {
-      const a = x / mx;
-      const bg = x === 0 ? "#141e31" : `color-mix(in oklab, ${color} ${Math.round(15 + 85 * a)}%, #141e31)`;
-      return `<div style="background:${bg}" title="${i + 1}, ${j + 1}: ${x}">${x}</div>`;
-    }).join("")).join("");
-  }
-  heat("heatF", data.F, C.c);
-  heat("heatD", data.D, C.q);
-  const mr = data.mps_report || {};
-  const facts = [];
-  if (mr.n_cols) facts.push(`<span class="fact">variables <b>${mr.n_cols}</b> = ${mr.n_x} x + ${mr.n_y} y</span>`);
-  if (mr.n_rows) facts.push(`<span class="fact">restricciones <b>${mr.n_rows}</b></span>`);
-  if (mr.y_mapped !== undefined) facts.push(`<span class="fact">y mapeadas <b>${mr.y_mapped}/${mr.y_expected}</b></span>`);
-  if (data.factorization_residual !== null && data.factorization_residual !== undefined)
-    facts.push(`<span class="fact">residuo SVD F·D <b>${data.factorization_residual}</b></span>`);
-  if (data.index_strategy) facts.push(`<span class="fact">índices <b>${esc(data.index_strategy)}</b></span>`);
-  if (has(data.index_candidates)) facts.push(`<span class="fact">candidatas que dan 24/32 <b>${data.index_candidates.filter((c) => c.match).length}/${data.index_candidates.length}</b></span>`);
-  facts.push(`<span class="fact">convención <b>cada par una vez</b></span>`);
-  $("facts").innerHTML = facts.join("");
-
-  // ------------------------------------------------------------------ mapa
-  (function map() {
-    const xy = data.gate_xy, F = data.F, D = data.D, A = R.assignments || [];
-    if (!has(xy) || !has(F) || !has(D) || !has(A)) { hide("mapa"); return; }
-    const n = xy.length, W = 1000, H = 600, pad = 70;
-    const xs = xy.map((p) => p[0]), ys = xy.map((p) => p[1]);
-    const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
-    const sc = Math.min((W - 2 * pad) / ((maxx - minx) || 1), (H - 2 * pad) / ((maxy - miny) || 1));
-    const ox = (W - sc * (maxx - minx)) / 2, oy = (H - sc * (maxy - miny)) / 2;
-    const P = xy.map((p) => [ox + sc * (p[0] - minx), oy + sc * (p[1] - miny)]);
-    const Fmax = Math.max(...F.flat()) || 1;
-    const pairs = [];
-    for (let i = 0; i < n; i++) for (let k = i + 1; k < n; k++) if (F[i][k] > 0) pairs.push([i, k]);
-    let cmax = 1;
-    A.forEach((a) => pairs.forEach(([i, k]) => { cmax = Math.max(cmax, F[i][k] * D[a.perm[i]][a.perm[k]]); }));
-    const curve = (a, b) => {
-      const [x1, y1] = P[a], [x2, y2] = P[b];
-      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, dx = x2 - x1, dy = y2 - y1;
-      const cx = mx - dy * 0.18, cy = my + dx * 0.18;
-      return `M ${x1.toFixed(1)} ${y1.toFixed(1)} Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}`;
-    };
-    let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Mapa de puertas y conexiones">`;
-    pairs.forEach(([i, k]) => {
-      svg += `<path class="edge" id="e${i}_${k}" stroke-width="${(1 + 9 * F[i][k] / Fmax).toFixed(2)}"><title></title></path>`;
+  /* split-flap: la mitad superior del carácter anterior gira hacia abajo, escalonado por ficha */
+  function flapSet(el, text) {
+    const chars = String(text).split("");
+    while (el.children.length < chars.length) { const d = document.createElement("div"); d.className = "flap"; d.innerHTML = "<b></b>"; el.appendChild(d); }
+    while (el.children.length > chars.length) el.removeChild(el.lastChild);
+    chars.forEach((ch, i) => {
+      const d = el.children[i], b = d.firstChild, old = b.textContent;
+      if (old === ch) return;
+      b.textContent = ch;
+      if (RM || old === "" || !d.animate) return;
+      const ov = document.createElement("div"); ov.className = "ov";
+      const sp2 = document.createElement("span"); sp2.textContent = old; sp2.style.height = d.clientHeight + "px"; ov.appendChild(sp2);
+      d.appendChild(ov);
+      ov.animate([{ transform: "rotateX(0deg)" }, { transform: "rotateX(-90deg)" }],
+        { duration: 220, delay: i * 45, easing: "ease-in", fill: "forwards" }).onfinish = () => ov.remove();
     });
-    P.forEach((p, j) => {
-      svg += `<g class="gate"><circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="27"></circle>
-        <text class="g" x="${p[0].toFixed(1)}" y="${(p[1] - 36).toFixed(1)}">P${j + 1}</text>
-        <text class="f" id="gf${j}" x="${p[0].toFixed(1)}" y="${p[1].toFixed(1)}"></text></g>`;
-    });
-    $("map").innerHTML = svg + "</svg>";
-    function show(idx) {
-      const a = A[idx], perm = a.perm;
-      pairs.forEach(([i, k]) => {
-        const e = $(`e${i}_${k}`), c = F[i][k] * D[perm[i]][perm[k]];
-        const d = curve(perm[i], perm[k]);
-        e.style.d = `path("${d}")`;
-        e.setAttribute("d", d);
-        e.style.strokeOpacity = (0.12 + 0.85 * c / cmax).toFixed(3);
-        e.querySelector("title").textContent = `V${i + 1} ↔ V${k + 1} · ${F[i][k]} pasajeros × distancia ${D[perm[i]][perm[k]]} = ${c}`;
-      });
-      const inv = new Array(n);
-      perm.forEach((g, i) => { inv[g] = i; });
-      inv.forEach((i, g) => { $(`gf${g}`).textContent = "V" + (i + 1); });
-      $("mapCost").textContent = f(a.cost);
-      const g = gap(a.cost);
-      $("mapGap").textContent = g === null ? a.label : `gap ${f(g, 1)} % vs óptimo ${f(REF)}`;
-      $("boardBody").innerHTML = perm.map((g2, i) => {
-        let flow = 0, cost = 0;
-        for (let k = 0; k < n; k++) if (k !== i) { flow += F[Math.min(i, k)][Math.max(i, k)]; cost += F[Math.min(i, k)][Math.max(i, k)] * D[g2][perm[k]]; }
-        return `<tr><td class="hl">V${i + 1}</td><td>P${g2 + 1}</td><td class="num">${flow}</td><td class="num">${cost}</td></tr>`;
-      }).join("");
-      document.querySelectorAll("#assignBtns button").forEach((b, j) => {
-        b.classList.toggle("on", j === idx); b.setAttribute("aria-selected", j === idx);
-      });
+  }
+
+  /* reproducción: cada escena registra un player con step/atEnd/reset/seek */
+  let scene = "qaoa", playing = false, speed = 1, timer = null;
+  const players = {};
+  function tick() {
+    const pl = players[scene];
+    if (!pl || !playing) return;
+    if (!pl.step()) { playing = false; syncPlay(); return; }
+    timer = setTimeout(tick, pl.delay / speed);
+  }
+  function syncPlay() {
+    const b = $("play");
+    b.setAttribute("aria-label", playing ? "Pausar" : "Reproducir");
+    b.innerHTML = playing
+      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="#0B0B0C" aria-hidden="true"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>'
+      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="#0B0B0C" aria-hidden="true"><path d="M7 4l13 8-13 8z"/></svg>';
+    b.classList.toggle("q", scene === "qaoa");
+    b.classList.toggle("hidden", !players[scene]);
+    $("speed").classList.toggle("hidden", !players[scene]);
+  }
+  function setPlaying(on) {
+    clearTimeout(timer); playing = !!on && !!players[scene];
+    if (playing && players[scene].atEnd()) players[scene].reset();
+    syncPlay(); if (playing) timer = setTimeout(tick, 120);
+  }
+  $("play").addEventListener("click", () => setPlaying(!playing));
+  $("speed").addEventListener("click", () => { speed = speed === 1 ? 2 : 1; $("speed").setAttribute("aria-pressed", speed === 2); });
+  $("fs").addEventListener("click", () => {
+    const st = $("stage");
+    if (document.fullscreenElement) document.exitFullscreen(); else if (st.requestFullscreen) st.requestFullscreen();
+  });
+  function showScene(s) {
+    scene = s; clearTimeout(timer);
+    document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.scene === s));
+    ["qaoa", "airport", "result"].forEach((k) => $("scene-" + k).classList.toggle("hidden", k !== s));
+    $("mixerSeg").classList.toggle("hidden", s !== "qaoa");
+    $("kicker").textContent = { qaoa: "MODO DEMO · COMPUERTAS CUÁNTICAS", airport: "MODO DEMO · TRACK A AEROPUERTO", result: "RESULTADOS · QAP10" }[s];
+    setPlaying(!RM && !!players[s]);
+  }
+  document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => showScene(b.dataset.scene)));
+  function bindTrack(id, pl) {
+    const tr = $(id);
+    tr.addEventListener("click", (e) => { const r = tr.getBoundingClientRect(); setPlaying(false); pl.seek(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width))); });
+  }
+  function setTrack(id, frac) {
+    const tr = $(id); frac = Math.max(0, Math.min(1, frac));
+    tr.querySelector(".fill").style.width = (100 * frac) + "%"; tr.querySelector(".knob").style.left = (100 * frac) + "%";
+  }
+
+  /* ---------------- 01 QAOA: histograma animado con los frames de la optimización ---------------- */
+  (function qaoaScene() {
+    const byMixer = {};
+    ["x", "xy"].forEach((m) => { const q = (R.quantum || []).find((x) => x.N === 4 && x.p === 1 && x.mixer === m && x.noise === "none"); if (q) byMixer[m] = q; });
+    let mixer = byMixer.xy ? "xy" : (byMixer.x ? "x" : null);
+    if (!mixer) { hide("mixerSeg"); $("scene-qaoa").innerHTML = '<p class="lede">Sin experimento QAOA N=4 en results.json.</p>'; return; }
+    let fi = 0, bars = [];
+    const hist = $("hist");
+    function render() {
+      const q = byMixer[mixer], fr = q.frames;
+      const nValid = fr ? fr.kind.filter((k) => k !== "invalid").length : null;
+      $("qLede").textContent = `Con ${q.qubits} qubits hay ${sp(2 ** q.qubits)} combinaciones` + (nValid ? ` y solo ${nValid} son asignaciones válidas.` : ".")
+        + (fr ? " Mira cómo la probabilidad se mueve hacia ellas mientras el optimizador ajusta los ángulos." : "");
+      put("qValidS", num(q.random_feasible_baseline) ? `vs ${pct(q.random_feasible_baseline)} al azar con el mismo mixer` : null);
+      put("qOptS", valid[4] && num(valid[4].optimum) ? `óptimo de control N = 4: ${f(valid[4].optimum)}` : null);
+      $("wireHead").textContent = `Una fila del circuito · vuelo V01 · ${q.N} qubits`;
+      const gates = mixer === "xy" ? [["W", "var(--paper)"], ["COSTO γ", "var(--signal)"], ["XY β", "var(--qubit)"]]
+                                   : [["H", "var(--paper)"], ["COSTO γ", "var(--signal)"], ["X β", "var(--qubit)"]];
+      $("wires").innerHTML = Array.from({ length: q.N }, (_, j) => `<div class="wire"><div class="wl">V01·P${j + 1}</div><div class="wr">`
+        + gates.map(([t, c]) => `<div class="gate" style="background:${c}">${t}</div>`).join("") + '<div class="meas"></div></div></div>').join("");
+      $("wireNote").textContent = mixer === "xy" ? "El mixer XY mueve al vuelo entre puertas sin dejarlo nunca en dos a la vez."
+        : "El mixer X cambia cada qubit por separado: las reglas solo se cumplen por penalidad.";
+      document.querySelectorAll("#mixerSeg button").forEach((b) => { b.setAttribute("aria-pressed", b.dataset.mixer === mixer); b.disabled = !byMixer[b.dataset.mixer]; });
+      hist.querySelectorAll(".bar").forEach((b) => b.remove());
+      bars = [];
+      if (fr) {
+        const col = { invalid: "var(--invalid-bar)", valid: "var(--qubit)", optimal: "var(--signal)" };
+        const cap = hist.querySelector(".cap");
+        fr.kind.forEach((k) => { const b = document.createElement("div"); b.className = "bar"; b.style.background = col[k]; hist.insertBefore(b, cap); bars.push(b); });
+        $("histCap").textContent = `Probabilidad exacta de ${fr.states.length} configuraciones (${nValid} válidas + inválidas más probables) · mixer ${mixer.toUpperCase()} · N = ${q.N}`;
+        put("histShots", num(q.shots) ? `SHOTS ${q.shots}` : null);
+        $("qProg").classList.remove("hidden");
+      } else {
+        $("histCap").textContent = "Sin frames de la optimización en results.json"; hide("qProg");
+      }
+      fi = 0; draw();
     }
-    $("assignBtns").innerHTML = A.map((a) => `<button role="tab"><span>${esc(a.label)}</span><span class="c">${f(a.cost)}</span></button>`).join("");
-    document.querySelectorAll("#assignBtns button").forEach((b, j) => b.addEventListener("click", () => show(j)));
-    const start = A.findIndex((a) => a.label === "Aleatoria");
-    show(start >= 0 ? start : 0);
-    const target = A.findIndex((a) => a.label === "QGate híbrido");
-    if (target >= 0 && target !== start) setTimeout(() => show(target), 900);
+    function draw() {
+      const q = byMixer[mixer], fr = q.frames;
+      if (!fr) { put("qValid", pct(q.p_feasible), "qValidBox"); put("qOpt", pct(q.p_optimal), "qOptBox"); return; }
+      const mx = Math.max(...fr.p.flat()) || 1, row = fr.p[fi];
+      bars.forEach((b, i) => { b.style.height = Math.max(0.6, 100 * row[i] / mx) + "%"; b.title = `${fr.kind[i]} · p = ${row[i].toFixed(4)}`; });
+      $("qValid").textContent = pct(fr.p_valid[fi]); $("qOpt").textContent = pct(fr.p_opt[fi]);
+      $("qIter").textContent = `EVALUACIÓN ${fr.eval[fi]} / ${fr.n_evals}`;
+      setTrack("qTrack", fr.p.length > 1 ? fi / (fr.p.length - 1) : 1);
+    }
+    document.querySelectorAll("#mixerSeg button").forEach((b) => b.addEventListener("click", () => {
+      if (!byMixer[b.dataset.mixer]) return; mixer = b.dataset.mixer; render(); setPlaying(!RM && !!byMixer[mixer].frames);
+    }));
+    render();
+    if (Object.values(byMixer).some((q) => q.frames)) {
+      players.qaoa = {
+        delay: 160,
+        step() { const fr = byMixer[mixer].frames; if (!fr || fi >= fr.p.length - 1) return false; fi++; draw(); return true; },
+        atEnd() { const fr = byMixer[mixer].frames; return !fr || fi >= fr.p.length - 1; },
+        reset() { fi = 0; draw(); },
+        seek(x) { const fr = byMixer[mixer].frames; if (!fr) return; fi = Math.round(x * (fr.p.length - 1)); draw(); },
+      };
+      bindTrack("qTrack", players.qaoa);
+    }
   })();
 
-  // ------------------------------------------------------------------ QAOA
-  (function qaoa() {
-    const Q = R.quantum || [];
-    if (!has(Q)) { hide("qaoa"); return; }
-    if (window.Chart) new Chart($("cQaoa"), {
-      type: "bar",
-      data: { labels: Q.map((q) => q.id), datasets: [
-        { label: "QAOA (ideal)", data: Q.map((q) => q.p_feasible), backgroundColor: C.q, borderRadius: 4, borderSkipped: "start" },
-        { label: "QAOA (muestras)", data: Q.map((q) => q.feasible_fraction_shots), backgroundColor: C.q2, borderRadius: 4, borderSkipped: "start" },
-        { label: "Azar", data: Q.map((q) => q.random_feasible_baseline), backgroundColor: C.ref, borderRadius: 4, borderSkipped: "start" }] },
-      options: { datasets: { bar: { categoryPercentage: 0.72, barPercentage: 0.9 } },
-        scales: { y: { type: "logarithmic", min: 1e-4, max: 1, title: { display: true, text: "P(válida)" },
-                       ticks: { callback: (val) => [1, 0.1, 0.01, 0.001, 0.0001].includes(val) ? val : "" } },
-                  x: { grid: { display: false }, ticks: { font: { family: "JetBrains Mono", size: 11 } } } },
-        plugins: { tooltip: { mode: "index", intersect: false,
-          callbacks: { label: (c) => `${c.dataset.label}: ${fp(c.parsed.y)}` } } } } });
-    $("qaoaBody").innerHTML = Q.map((q) => `<tr><td><span class="tag q">${esc(q.id)}</span></td><td class="num">${q.N}</td><td class="num">${q.qubits}</td>
-      <td>${esc(q.mixer.toUpperCase())}</td><td class="num">${q.p}</td><td>${q.noise === "none" ? "-" : esc(q.noise.replace("depolarizing ", "desp. "))}</td>
-      <td class="num">${fp(q.p_feasible)}</td><td class="num">${fp(q.feasible_fraction_shots)}</td><td class="num">${fp(q.random_feasible_baseline)}</td>
-      <td class="num">${fp(q.p_optimal)}</td><td class="num">${f(q.best_feasible_cost)}</td><td class="num">${f(q.mean_approx_ratio, 3)}</td>
-      <td class="num">${f(q.time_s, 1)}</td><td class="num">${q.cx_count ?? "-"}</td><td class="num">${q.depth ?? "-"}</td></tr>`).join("");
+  /* ---------------- 02 AEROPUERTO: el híbrido mueve vuelos entre puertas ---------------- */
+  (function airportScene() {
+    const F = data.F, D = data.D, grid = data.gate_grid, xy = data.gate_xy;
+    const hq = H.qgate_lns_qaoa, best = R.best_assignment;
+    if (!has(F) || !has(D) || !(hq || best)) { $("scene-airport").innerHTML = '<p class="lede">Sin datos del híbrido en results.json.</p>'; return; }
+    const n = F.length;
+    let pos;
+    if (has(grid)) {        // geometría real: D es distancia Manhattan en una grilla
+      const cx = Math.max(...grid.map((p) => p[0])), cy = Math.max(...grid.map((p) => p[1]));
+      pos = grid.map((p) => [9 + 82 * (cx ? p[0] / cx : .5), 14 + 72 * (cy ? p[1] / cy : .5)]);
+    } else if (has(xy)) {   // si no, proyección MDS
+      const xs = xy.map((p) => p[0]), ys = xy.map((p) => p[1]);
+      const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+      pos = xy.map((p) => [9 + 82 * (p[0] - x0) / ((x1 - x0) || 1), 14 + 72 * (p[1] - y0) / ((y1 - y0) || 1)]);
+    } else { hide("scene-airport"); return; }
+    const term = $("terminal");
+    const rowsN = has(grid) ? Math.max(...grid.map((p) => p[1])) + 1 : 4;
+    term.style.height = `min(${170 * rowsN + 130}px, 72vh)`;
+    term.style.minHeight = (110 * rowsN + 60) + "px";
+    const fmax = Math.max(...F.flat()) || 1;
+    const pairs = []; for (let i = 0; i < n; i++) for (let k = i + 1; k < n; k++) if (F[i][k] > 0) pairs.push([i, k]);
+    const evs = (hq && has(hq.events)) ? hq.events : null;
+    const final = hq ? hq.final_perm : best.perm;
+    let cmax = 1; [evs ? evs[0].perm : final, final].forEach((pm) => pairs.forEach(([i, k]) => { cmax = Math.max(cmax, F[i][k] * D[pm[i]][pm[k]]); }));
+    let svg = '<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">';
+    pairs.forEach(([i, k]) => { svg += `<path id="fe${i}_${k}" fill="none" stroke="#FFC629" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-width="${(1 + 7 * F[i][k] / fmax).toFixed(1)}"></path>`; });
+    for (let i = 0; i < n; i++) svg += `<path id="mv${i}" fill="none" stroke="#4FE3E0" stroke-width="3" stroke-dasharray="6 5" vector-effect="non-scaling-stroke"></path>`;
+    term.innerHTML = svg + "</svg>" + pos.map((p, j) => `<div class="gpost" style="left:${p[0]}%;top:${p[1]}%"><div class="gsign">${P(j)}</div><div class="gchip" id="gc${j}"></div></div>`).join("")
+      + '<div class="legend tlegend"><span><i class="ln" style="background:var(--signal)"></i>Flujo entre vuelos</span><span><i class="dash"></i>Cambio propuesto por QAOA</span></div>';
+    const curve = (a, b) => {
+      const [x1, y1] = pos[a], [x2, y2] = pos[b];
+      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+      const bend = Math.abs(y1 - y2) < 1 ? 9 : 0;
+      return `M${x1.toFixed(2)} ${y1.toFixed(2)} Q ${(mx + (y2 - y1) * .12).toFixed(2)} ${(my + bend).toFixed(2)} ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+    };
+    const cost = (pm) => { let c = 0; pairs.forEach(([i, k]) => { c += F[i][k] * D[pm[i]][pm[k]]; }); return c; };
+    $("board").innerHTML = Array.from({ length: n }, (_, i) => `<div class="board-row"><div class="flaps" id="bf${i}"></div><div class="flaps" id="bg${i}" style="color:var(--signal)"></div><div class="st" id="bs${i}"></div></div>`).join("");
+    const startCost = evs ? evs[0].cost : (hq ? hq.start_cost : null);
+    put("optLbl", num(REF) ? `ÓPTIMO ${f(REF)}` : null);
+    const pills = ['<span class="pill">9 QUBITS POR SUBPROBLEMA</span>'];
+    if (hq && num(hq.sub_success_rate) && num(hq.shots)) pills.push(`<span class="pill">QAOA ÓPTIMO EN ${f(100 * hq.sub_success_rate)}% DE SUBPROBLEMAS (${hq.shots} SHOTS)</span>`);
+    if (hq && num(hq.qaoa_p_optimal_mean) && num(hq.random_p_optimal_mean)) pills.push(`<span class="pill">P(ÓPTIMO) POR PIEZA ${f(hq.qaoa_p_optimal_mean, 3)} VS AZAR ${f(hq.random_p_optimal_mean, 3)}</span>`);
+    const h8 = H.qgate_lns_qaoa_s8, r8 = H.qgate_lns_random_s8;
+    if (h8 && r8 && num(h8.sub_success_rate) && num(r8.sub_success_rate)) pills.push(`<span class="pill n">CON 8 SHOTS: QAOA ${f(100 * h8.sub_success_rate)}% · AZAR ${f(100 * r8.sub_success_rate)}%</span>`);
+    $("hPills").innerHTML = pills.join("");
+    let fact = 1; for (let i = 2; i <= n; i++) fact *= i;
+    $("strip").textContent = `${n} VUELOS · ${n} PUERTAS · ${n}! = ${sp(fact)} ASIGNACIONES · SUBPROBLEMAS DE 3 VUELOS = 9 QUBITS · CADA PAR SE CUENTA UNA VEZ · DATOS QAP10 (MIPLIB) · UNIDADES SUPUESTAS`;
+    let ei = 0, prev = null;
+    function draw() {
+      const ev = evs ? evs[ei] : { perm: final, cost: hq ? hq.final_cost : best.cost, iter: hq ? hq.iters : null, type: "end" };
+      const pm = ev.perm, moved = new Set(ev.type === "move" && ev.elems ? ev.elems : []);
+      pairs.forEach(([i, k]) => { const e = $(`fe${i}_${k}`); e.setAttribute("d", curve(pm[i], pm[k])); e.setAttribute("stroke-opacity", (0.12 + 0.8 * F[i][k] * D[pm[i]][pm[k]] / cmax).toFixed(3)); });
+      for (let i = 0; i < n; i++) {
+        const e = $(`mv${i}`);
+        if (moved.has(i) && prev && prev[i] !== pm[i]) e.setAttribute("d", curve(prev[i], pm[i])); else e.removeAttribute("d");
+      }
+      const inv = []; pm.forEach((g, i) => { inv[g] = i; });
+      inv.forEach((i, g) => { const c = $(`gc${g}`); c.textContent = V(i); c.classList.toggle("moved", moved.has(i) && !!prev && prev[i] !== pm[i]); });
+      for (let i = 0; i < n; i++) {
+        flapSet($(`bf${i}`), V(i)); flapSet($(`bg${i}`), P(pm[i]));
+        const ch = !!prev && prev[i] !== pm[i];
+        const mv = ch && moved.has(i);
+        $(`bs${i}`).textContent = mv ? "MOVIDO" : (ch && ev.type === "kick" ? "PERTURBADO" : "EN POSICIÓN");
+        $(`bs${i}`).classList.toggle("mv", mv);
+      }
+      const c = num(ev.cost) ? ev.cost : cost(pm);
+      flapSet($("costFlaps"), String(Math.round(c)).padStart(3, "0"));
+      const g = gap(c); put("gapLbl", g === null ? null : `GAP ${g.toFixed(1)}%`);
+      if (num(startCost) && num(REF) && startCost > REF) $("costBar").style.width = (100 * Math.max(0, Math.min(1, (startCost - c) / (startCost - REF)))) + "%";
+      const tot = hq ? hq.iters : null;
+      put("vuelta", num(ev.iter) && num(tot) ? `VUELTA ${String(ev.iter).padStart(3, "0")} / ${tot}` : null);
+      put("hIterLbl", num(ev.iter) && num(tot) ? `ITERACIÓN ${ev.iter} / ${tot}` : null);
+      setTrack("hTrack", evs ? ei / Math.max(evs.length - 1, 1) : 1);
+      prev = pm.slice();
+    }
+    draw();
+    if (evs) {
+      players.airport = {
+        delay: 650,
+        step() { if (ei >= evs.length - 1) return false; ei++; draw(); return true; },
+        atEnd() { return ei >= evs.length - 1; },
+        reset() { ei = 0; prev = null; draw(); },
+        seek(x) { ei = Math.round(x * (evs.length - 1)); prev = null; draw(); },
+      };
+      bindTrack("hTrack", players.airport);
+    } else hide("hProg");
   })();
 
-  // ---------------------------------------------------------------- lambda
+  /* ---------------- 03 RESULTADO: tarjetas de embarque y comparación ---------------- */
+  (function resultScene() {
+    const bar = '<div class="barcode">' + [3, 1, 2, 1, 1, 3, 1, 2, 2, 1, 3, 1, 1, 2, 1, 3].map((w) => `<i style="width:${w}px"></i>`).join("") + "</div>";
+    const field = (k, v) => v === null || v === undefined ? "" : `<div><div class="fk">${esc(k)}</div><div class="fv">${esc(v)}</div></div>`;
+    const plane = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0B0B0C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"></path></svg>';
+    const pass = (o) => `<article class="pass"><div class="body"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <div class="k">BOARDING PASS · ${esc(o.kicker)}</div><div class="tag" style="background:${o.tagBg}">${esc(o.tag)}</div></div>
+      <div class="route"><span>${esc(o.from)}</span>${plane}<span>${esc(o.to)}</span></div>
+      <div class="fields">${o.fields.map(([k, v]) => field(k, v)).join("")}</div></div>
+      <div class="cut"></div><div class="stub"><div style="display:flex;flex-direction:column;align-items:center;gap:2px">${o.stubV ? `<div class="fk">${esc(o.stubK)}</div><div class="sv">${esc(o.stubV)}</div>` : ""}</div>${bar}</div>
+      <div class="notch" style="top:-11px"></div><div class="notch" style="bottom:-11px"></div></article>`;
+    const out = [];
+    const vck = (n) => valid[n] && num(valid[n].optimum) ? `${f(valid[n].optimum)} ${valid[n].ok ? "✓" : "✗"}` : null;
+    const mr = data.mps_report || {};
+    if (has(R.validation)) out.push(pass({ kicker: "DATOS", tag: "VALIDADO", tagBg: "#FFC629", from: "MPS", to: "F·D", stubK: "CONTROL", stubV: f(REF),
+      fields: [["N = 3", vck(3)], ["N = 4", vck(4)], [`N = ${N}`, vck(N)], ["VARIABLES", sp(mr.n_cols)]] }));
+    const q4 = Q["N4-xy-p1"];
+    if (q4) out.push(pass({ kicker: "QAOA · N = 4", tag: "QISKIT", tagBg: "#4FE3E0", from: "AZAR", to: "QAOA", stubK: "QUBITS", stubV: num(q4.qubits) ? String(q4.qubits) : null,
+      fields: [["P(VÁLIDA)", pct(q4.p_feasible)], ["AL AZAR", pct(q4.random_feasible_baseline)], ["P(ÓPTIMO)", pct(q4.p_optimal)], ["CX", num(q4.cx_count) ? String(q4.cx_count) : null]] }));
+    const hq = H.qgate_lns_qaoa;
+    if (hq) out.push(pass({ kicker: `HÍBRIDO · N = ${N}`, tag: "QGATE", tagBg: "#FFC629", from: "AZAR", to: "QGATE", stubK: "QUBITS", stubV: String(hq.qubits_per_subproblem || 9),
+      fields: [["COSTO", f(hq.final_cost)], [`GAP VS ${f(REF)}`, num(hq.gap_pct) ? hq.gap_pct.toFixed(1) + "%" : null],
+               [num(hq.shots) ? `QAOA ÓPTIMO · ${hq.shots} SHOTS` : "QAOA ÓPTIMO", num(hq.sub_success_rate) ? f(100 * hq.sub_success_rate) + "%" : null], ["TIEMPO", num(hq.time_s) ? f(hq.time_s) + " s" : null]] }));
+    $("passes").innerHTML = out.join("");
+    const rows = [];
+    const row = (m, n, q, c, g, t, w, color) => rows.push(`<tr><td style="color:${color};font-weight:600">${esc(m)}</td><td>${n}</td><td>${esc(q)}</td><td>${c ?? "-"}</td><td>${g === null ? "-" : g.toFixed(1) + "%"}</td><td>${t ?? "-"}</td><td style="color:var(--mute)">${esc(w)}</td></tr>`);
+    const tm = (t, d = 1) => num(t) ? f(t, d) + " s" : null;
+    const bf = C.brute_force, sa = C.simulated_annealing;
+    if (bf) row("Fuerza bruta (exacto)", N, "0", f(bf.cost), gap(bf.cost), tm(bf.time_s), "CPU", "var(--paper)");
+    if (sa) row("Simulated annealing", N, "0", f(sa.cost), gap(sa.cost), tm(sa.time_s), "CPU", "var(--paper)");
+    ["N4-x-p1", "N4-xy-p1"].forEach((id) => { const q = Q[id]; if (q) row(`QAOA mixer ${q.mixer.toUpperCase()}`, q.N, String(q.qubits), f(q.best_feasible_cost), gap(q.best_feasible_cost, q.optimum), tm(q.time_s), "Qiskit Aer", "var(--qubit)"); });
+    const hw = R.hardware;
+    if (hw && num(hw.best_feasible_cost)) row(`QAOA N = ${hw.N}`, hw.N, String(hw.qubits ?? "-"), f(hw.best_feasible_cost), gap(hw.best_feasible_cost, hw.optimum), tm(hw.time_s), "IBM Quantum " + (hw.backend || ""), "var(--qubit)");
+    if (hq) row("QGate híbrido", N, "9 / subproblema", f(hq.final_cost), gap(hq.final_cost), tm(hq.time_s, 0), "Qiskit Aer + CPU", "var(--signal)");
+    const h8 = H.qgate_lns_qaoa_s8, r8 = H.qgate_lns_random_s8;
+    if (h8) row("QGate híbrido · 8 shots", N, "9 / subproblema", f(h8.final_cost), gap(h8.final_cost), tm(h8.time_s, 0), "Qiskit Aer + CPU", "var(--signal)");
+    if (r8) row("Control azar · 8 shots", N, "0", f(r8.final_cost), gap(r8.final_cost), tm(r8.time_s), "CPU", "var(--mute)");
+    $("resRows").innerHTML = rows.join("");
+  })();
+
+  /* ---------------- detalle ---------------- */
+  if (has(R.validation)) $("valRows").innerHTML = R.validation.map((v) => `<tr><td>${v.n}</td><td class="r">${f(v.optimum)}</td><td class="r">${f(v.expected) ?? "-"}</td>
+    <td style="color:${v.ok ? "var(--signal)" : "var(--invalid)"}">${v.ok ? "✓" : "✗"}</td><td class="r">${f(v.time_s, v.time_s < 1 ? 3 : 1)} s</td></tr>`).join("");
+  else hide("d-valid");
+  (function facts() {
+    const mr = data.mps_report || {}, out = [];
+    if (num(mr.n_cols)) out.push(`<span>variables <b>${sp(mr.n_cols)}</b> = ${mr.n_x} x + ${sp(mr.n_y)} y</span>`);
+    if (num(mr.n_rows)) out.push(`<span>restricciones <b>${sp(mr.n_rows)}</b></span>`);
+    if (num(mr.y_mapped)) out.push(`<span>y mapeadas <b>${sp(mr.y_mapped)} / ${sp(mr.y_expected)}</b></span>`);
+    if (num(data.factorization_residual)) out.push(`<span>residuo SVD <b>${data.factorization_residual}</b></span>`);
+    if (data.index_strategy) out.push(`<span>índices <b>${esc(data.index_strategy)}</b></span>`);
+    if (has(data.gate_grid)) out.push("<span>D = distancia Manhattan en una grilla de puertas</span>");
+    $("facts").innerHTML = out.join("");
+  })();
+  function heat(id, M, rgb) {
+    if (!has(M)) { hide($(id).parentElement); return; }
+    const mx = Math.max(...M.flat().map(Math.abs)) || 1;
+    $(id).style.gridTemplateColumns = `repeat(${M.length}, minmax(0, 1fr))`;
+    $(id).innerHTML = M.map((r, i) => r.map((x, j) => `<div title="${i + 1}, ${j + 1}: ${Math.abs(x)}" style="background:${x ? `rgba(${rgb},${(0.15 + 0.85 * Math.abs(x) / mx).toFixed(3)})` : "#141518"}"></div>`).join("")).join("");
+  }
+  heat("heatF", data.F, "255,198,41"); heat("heatD", data.D, "79,227,224");
+
+  (function ablation() {
+    const L = (R.hybrid || []).filter((h) => h.method && h.method.startsWith("qgate_lns"));
+    if (!has(L)) { hide("d-ablation"); return; }
+    $("ablRows").innerHTML = L.map((h) => {
+      const pm = h.solver === "qaoa" ? h.qaoa_p_optimal_mean : h.solver === "random" ? h.random_p_optimal_mean : 1;
+      return `<tr><td style="color:${h.solver === "qaoa" ? "var(--qubit)" : "var(--paper)"};font-weight:600">${esc(h.label)}</td><td class="r">${h.shots ?? "-"}</td>
+      <td class="r">${f(h.final_cost)}</td><td class="r">${num(h.gap_pct) ? h.gap_pct.toFixed(1) + "%" : "-"}</td><td class="r">${num(h.sub_success_rate) ? f(100 * h.sub_success_rate) + "%" : "-"}</td>
+      <td class="r">${num(pm) ? pm.toFixed(3) : "-"}</td><td class="r">${num(h.random_p_optimal_mean) ? h.random_p_optimal_mean.toFixed(3) : "-"}</td><td class="r">${f(h.time_s, 1)} s</td></tr>`;
+    }).join("");
+    const S = R.hybrid_seeds;
+    if (S && has(S.final_costs)) $("seedChips").innerHTML = `<span>robustez · ${S.final_costs.length} semillas (exacto): media <b>${f(S.mean, 1)}</b></span><span>llega a ${f(REF)} en <b>${S.hits_ref}/${S.final_costs.length}</b></span>`
+      + S.final_costs.map((c, i) => `<span style="${Math.abs(c - REF) < 1e-6 ? "border-color:var(--signal);color:var(--signal)" : ""}">s${S.seeds[i]} · ${f(c)}</span>`).join("");
+  })();
+
+  /* gráfico de líneas SVG (sin librerías); tooltip con <title> en cada punto */
+  function lineChart(el, o) {
+    const W = 640, Hh = 300, l = 54, r = 16, t = 12, b = 34, iw = W - l - r, ih = Hh - t - b;
+    const xs = o.x, ylog = !!o.ylog;
+    const vals = o.series.flatMap((s) => s.y.filter(num));
+    if (!vals.length) { hide(el.parentElement); return; }
+    let y0, y1;
+    if (ylog) { y0 = Math.pow(10, Math.floor(Math.log10(Math.max(Math.min(...vals), 1e-6)))); y1 = Math.pow(10, Math.ceil(Math.log10(Math.max(...vals)))); if (y1 <= y0) y1 = y0 * 10; }
+    else { const lo = Math.min(...vals), hi = Math.max(...vals), padv = (hi - lo) * .08 || 1; y0 = o.ymin ?? lo - padv; y1 = o.ymax ?? hi + padv; }
+    const ty = (v) => t + ih - ih * (ylog ? (Math.log10(v) - Math.log10(y0)) / (Math.log10(y1) - Math.log10(y0)) : (v - y0) / (y1 - y0));
+    const tx = (i) => l + (xs.length > 1 ? iw * i / (xs.length - 1) : iw / 2);
+    let s = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="${esc(o.label || "")}">`;
+    const ticks = ylog ? (() => { const a = []; for (let e = Math.round(Math.log10(y0)); e <= Math.round(Math.log10(y1)); e++) a.push(Math.pow(10, e)); return a; })()
+                       : Array.from({ length: 5 }, (_, i) => y0 + (y1 - y0) * i / 4);
+    ticks.forEach((v) => { s += `<line x1="${l}" x2="${W - r}" y1="${ty(v).toFixed(1)}" y2="${ty(v).toFixed(1)}" stroke="#2C2F35"/><text x="${l - 8}" y="${(ty(v) + 4).toFixed(1)}" text-anchor="end">${o.yfmt ? o.yfmt(v) : +v.toPrecision(3)}</text>`; });
+    xs.forEach((x, i) => { s += `<text x="${tx(i).toFixed(1)}" y="${Hh - 10}" text-anchor="middle">${esc(x)}</text>`; });
+    o.series.forEach((se) => {
+      const pts = se.y.map((v, i) => num(v) ? [tx(i), ty(v), v, i] : null).filter(Boolean);
+      s += `<polyline fill="none" stroke="${se.color}" stroke-width="2.5" ${se.dash ? 'stroke-dasharray="7 5"' : ""} points="${pts.map((p) => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ")}"/>`;
+      pts.forEach((p) => { s += `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="5" fill="${se.color}" stroke="#141518" stroke-width="2"><title>${esc(se.name)} · ${esc(xs[p[3]])}: ${o.vfmt ? o.vfmt(p[2]) : p[2]}</title></circle>`; });
+    });
+    el.innerHTML = s + "</svg>";
+  }
   (function lam() {
     const L = R.lambda_sweep || [];
-    if (!has(L) || !window.Chart) { hide("lambda"); return; }
+    if (!has(L)) { hide("d-lambda"); return; }
     const facs = [...new Set(L.map((r) => r.lam_factor))].sort((a, b) => a - b);
-    const ds = [];
-    [["xy", C.q], ["x", C.sa]].forEach(([m, col]) => {
+    const ser = [];
+    [["xy", "#4FE3E0"], ["x", "#FFC629"]].forEach(([m, c]) => {
       const rows = facs.map((fc) => L.find((r) => r.mixer === m && r.lam_factor === fc));
       if (!rows.some(Boolean)) return;
-      ds.push({ label: `${m.toUpperCase()} · P(válida)`, data: rows.map((r) => r ? r.p_feasible : null), borderColor: col, backgroundColor: col, borderWidth: 2, pointRadius: 4 });
-      ds.push({ label: `${m.toUpperCase()} · P(óptimo)`, data: rows.map((r) => r ? r.p_optimal : null), borderColor: col, backgroundColor: col, borderWidth: 2, borderDash: [6, 4], pointRadius: 4 });
+      ser.push({ name: `${m.toUpperCase()} · P(válida)`, color: c, y: rows.map((r) => r ? r.p_feasible : null) });
+      ser.push({ name: `${m.toUpperCase()} · P(óptimo)`, color: c, dash: true, y: rows.map((r) => r ? r.p_optimal : null) });
     });
-    new Chart($("cLambda"), { type: "line", data: { labels: facs.map((x) => "λ0×" + x), datasets: ds },
-      options: { interaction: { mode: "index", intersect: false },
-        scales: { y: { min: 0, max: 1, title: { display: true, text: "probabilidad" } }, x: { grid: { display: false } } },
-        plugins: { tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fp(c.parsed.y)}` } } } } });
+    $("lamLegend").innerHTML = '<span><i class="ln" style="background:#4FE3E0"></i>Mixer XY</span><span><i class="ln" style="background:#FFC629"></i>Mixer X</span><span>continua = P(válida) · punteada = P(óptimo)</span>';
+    lineChart($("lamChart"), { label: "Barrido de lambda", x: facs.map((x) => "λ0×" + x), series: ser, ymin: 0, ymax: 1, yfmt: (v) => (100 * v).toFixed(0) + "%", vfmt: (v) => (100 * v).toFixed(1) + "%" });
   })();
-
-  // --------------------------------------------------------------- híbrido
-  (function hybrid() {
-    const Hs = (R.hybrid || []).filter((h) => has(h.history) && h.method.startsWith("qgate_lns"));
-    if (!has(Hs)) { hide("hibrido"); return; }
-    const STY = { qgate_lns_qaoa: [C.q, 4, []], qgate_lns_exact: [C.c, 2, [6, 4]], qgate_lns_random: [C.ref, 2, [2, 3]],
-                  qgate_lns_qaoa_s8: [C.q2, 2, []], qgate_lns_random_s8: [C.alt, 2, []] };
-    const colOf = (h) => (STY[h.method] || [C.sa])[0];
-    const st = [];
-    if (hq) st.push(`<div class="card"><h3>QGate · QAOA</h3><div class="stat"><div class="v num" style="color:var(--cyan-text)">${f(hq.final_cost)}</div>
-      <div class="l">${hq.start_cost !== undefined ? "desde " + f(hq.start_cost) + " · " : ""}${hq.iters} iter · ${f(hq.time_s, 1)} s</div></div>
-      <div class="facts"><span class="fact">P(óptimo) por subproblema <b>${fp(hq.qaoa_p_optimal_mean)}</b> vs azar ${fp(hq.random_p_optimal_mean)}</span>
-      <span class="fact">éxito con ${hq.shots} shots <b>${f(100 * hq.sub_success_rate, 0)} %</b></span>${hq.polished_cost !== undefined ? `<span class="fact">pulido 2-swap <b>${f(hq.polished_cost)}</b></span>` : ""}</div></div>`);
-    if (he) st.push(`<div class="card"><h3>Control · subproblema exacto</h3><div class="stat"><div class="v num" style="color:var(--amber)">${f(he.final_cost)}</div>
-      <div class="l">${he.iters} iter · ${f(he.time_s, 2)} s</div></div>
-      <div class="facts"><span class="fact">mismo marco, k! = 6 permutaciones</span>${he.polished_cost !== undefined ? `<span class="fact">pulido 2-swap <b>${f(he.polished_cost)}</b></span>` : ""}</div></div>`);
-    const sa = (R.hybrid || []).find((h) => h.method === "simulated_annealing");
-    if (sa) st.push(`<div class="card"><h3>Simulated annealing</h3><div class="stat"><div class="v num" style="color:var(--s-sa)">${f(sa.final_cost)}</div>
-      <div class="l">${f(sa.time_s, 1)} s · clásico puro</div></div>
-      <div class="facts"><span class="fact">gap <b>${f(sa.gap_pct, 1)} %</b></span></div></div>`);
-    $("hybStats").innerHTML = st.join("");
-    $("hybLegend").innerHTML = Hs.map((h) => `<span data-m="${h.method}"><i class="${(STY[h.method] || [0, 0, []])[2].length ? "dash" : "line"}" style="background:${colOf(h)};border-color:${colOf(h)}"></i>${esc(h.label)}</span>`).join("")
-      + (REF ? `<span><i class="dash" style="border-color:${C.text2}"></i>óptimo ${f(REF)}</span>` : "");
-    let chart = null;
-    function draw(ax) {
-      const use = Hs;
-      const ds = use.map((h) => ({ label: h.label, data: h.history.map((p, i) => ({ x: ax === "iter" ? (p.iter ?? i) : Math.max(p.t, 1e-3), y: p.best })),
-        borderColor: colOf(h), backgroundColor: colOf(h), borderWidth: (STY[h.method] || [0, 2])[1], borderDash: (STY[h.method] || [0, 0, []])[2],
-        pointRadius: 0, stepped: true }));
-      if (REF) {
-        const xmax = Math.max(...ds.flatMap((d) => d.data.map((p) => p.x)));
-        ds.push({ label: "Óptimo (solo referencia)", data: [{ x: ax === "iter" ? 0 : 1e-3, y: REF }, { x: xmax, y: REF }], borderColor: C.text2, borderDash: [6, 5], borderWidth: 1.5, pointRadius: 0 });
-      }
-      if (chart) chart.destroy();
-      chart = new Chart($("cHyb"), { type: "line", data: { datasets: ds },
-        options: { parsing: true, interaction: { mode: "nearest", axis: "x", intersect: false },
-          scales: { x: { type: ax === "t" ? "logarithmic" : "linear", title: { display: true, text: ax === "iter" ? "iteración" : "tiempo (s, log)" } },
-                    y: { title: { display: true, text: "mejor costo" } } },
-          plugins: { tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${f(c.parsed.y)}` } } } } });
-    }
-    if (window.Chart) draw("iter");
-    document.querySelectorAll("#hybAxis button").forEach((b) => b.addEventListener("click", () => {
-      document.querySelectorAll("#hybAxis button").forEach((x) => x.classList.toggle("on", x === b)); draw(b.dataset.ax);
-    }));
-    $("ablBody").innerHTML = Hs.map((h) => `<tr><td><span class="tag ${h.solver === "qaoa" ? "q" : "c"}">${esc(h.label)}</span></td>
-      <td class="num">${h.shots ?? "-"}</td><td class="num">${f(h.final_cost)}</td><td class="num">${f(h.gap_pct, 1)}</td>
-      <td class="num">${h.sub_success_rate === undefined ? "-" : f(100 * h.sub_success_rate, 0) + " %"}</td>
-      <td class="num">${h.solver === "qaoa" ? fp(h.qaoa_p_optimal_mean) : h.solver === "random" ? fp(h.random_p_optimal_mean) : "1"}</td>
-      <td class="num">${fp(h.random_p_optimal_mean)}</td><td class="num">${f(h.time_s, 1)}</td></tr>`).join("");
-    const S = R.hybrid_seeds;
-    if (!S || !has(S.final_costs)) { hide("seedsCard"); return; }
-    $("seedStats").innerHTML = [["media", f(S.mean, 1)], ["mejor", f(S.best)], ["peor", f(S.worst)],
-      ["llega a " + f(REF), S.hits_ref === null ? "-" : `${S.hits_ref}/${S.final_costs.length}`]]
-      .map(([l, val]) => `<div class="stat"><div class="l">${l}</div><div class="v num">${val}</div></div>`).join("");
-    $("seedChips").innerHTML = S.final_costs.map((c, i) => `<span class="chip ${REF && Math.abs(c - REF) < 1e-6 ? "hit" : ""}" title="semilla ${S.seeds[i]}">s${S.seeds[i]} · ${f(c)}</span>`).join("")
-      + `<span class="chip">${S.iters} iteraciones c/u</span>`;
-  })();
-
-  // ---------------------------------------------------------- escalabilidad
   (function scale() {
     const S = R.scaling || [];
-    if (!has(S)) { hide("escala"); return; }
-    const realName = meta.instance;
+    if (!has(S)) { hide("d-scale"); return; }
     const Ns = [...new Set(S.map((r) => r.N))].sort((a, b) => a - b);
-    const lab = (n) => { const r = S.find((x) => x.N === n); return "N=" + n + (r && r.instance !== realName ? "*" : ""); };
-    const meths = [...new Set(S.map((r) => r.method))];
-    const nameOf = { simulated_annealing: "SA", qgate_lns_exact: "QGate exacto", qgate_lns_qaoa: "QGate QAOA" };
-    const colOf = { simulated_annealing: C.sa, qgate_lns_exact: C.c, qgate_lns_qaoa: C.q };
-    const leg = meths.map((m) => `<span><i class="line" style="background:${colOf[m] || C.ref}"></i>${nameOf[m] || m}</span>`).join("");
-    $("scLegend").innerHTML = leg; $("scLegend2").innerHTML = leg;
-    const mk = (key) => meths.map((m) => ({ label: nameOf[m] || m, data: Ns.map((n) => { const r = S.find((x) => x.N === n && x.method === m); return r ? r[key] : null; }),
-      borderColor: colOf[m] || C.ref, backgroundColor: colOf[m] || C.ref, borderWidth: 2, pointRadius: 5 }));
-    if (window.Chart) {
-      new Chart($("cScaleGap"), { type: "line", data: { labels: Ns.map(lab), datasets: mk("gap_vs_bound_pct") },
-        options: { interaction: { mode: "index", intersect: false }, scales: { y: { min: 0, title: { display: true, text: "% sobre la cota" } }, x: { grid: { display: false } } },
-          plugins: { tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${f(c.parsed.y, 1)} %` } } } } });
-      new Chart($("cScaleT"), { type: "line", data: { labels: Ns.map(lab), datasets: mk("time_s") },
-        options: { interaction: { mode: "index", intersect: false }, scales: { y: { type: "logarithmic", title: { display: true, text: "segundos" },
-          ticks: { callback: (val) => [0.01, 0.1, 1, 10, 100, 1000].includes(val) ? String(val) : "" } }, x: { grid: { display: false } } },
-          plugins: { tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${f(c.parsed.y, 2)} s` } } } } });
-    }
-    $("scaleBody").innerHTML = S.map((r) => `<tr><td class="num">${r.N}</td><td>${esc(r.instance)}${r.instance !== realName ? " *" : ""}</td>
-      <td><span class="tag ${r.method.includes("qaoa") ? "q" : "c"}">${nameOf[r.method] || esc(r.method)}</span></td><td class="num">${f(r.best_cost)}</td>
-      <td class="num">${f(r.lower_bound)}</td><td class="num">${f(r.gap_vs_bound_pct, 1)}</td><td class="num">${r.gap_vs_opt_pct === null ? "-" : f(r.gap_vs_opt_pct, 1)}</td>
-      <td class="num">${f(r.time_s, 2)}</td><td class="num">${f(r.peak_mem_mb, 1)}</td><td class="num">${r.qubits}</td></tr>`).join("");
-    const M = meta.statevector_memory || [];
-    const hb = (b) => { const u = ["B", "KiB", "MiB", "GiB", "TiB"]; let i = 0; while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; }
-      return i < u.length - 1 || b < 1024 ? `${b % 1 ? b.toFixed(1) : b} ${u[i]}` : `${(b * 1024 ** i).toExponential(2)} B`; };
-    if (has(M)) $("memBody").innerHTML = M.map((m) => `<tr><td class="num">${m.N}</td><td class="num">${m.qubits}</td>
-      <td class="num">${m.bytes > 1024 ** 5 ? m.bytes.toExponential(2) + " B" : hb(m.bytes)}</td></tr>`).join("");
-    else $("memBody").closest(".card").classList.add("hidden");
+    const lab = Ns.map((n) => { const r = S.find((x) => x.N === n); return "N=" + n + (r && r.instance !== meta.instance ? "*" : ""); });
+    const M = [["simulated_annealing", "SA", "#9A9890"], ["qgate_lns_exact", "QGate exacto", "#FFC629"], ["qgate_lns_qaoa", "QGate QAOA", "#4FE3E0"]].filter(([m]) => S.some((r) => r.method === m));
+    const ser = (key) => M.map(([m, name, c]) => ({ name, color: c, y: Ns.map((n) => { const r = S.find((x) => x.N === n && x.method === m); return r ? r[key] : null; }) }));
+    const leg = M.map(([, name, c]) => `<span><i class="ln" style="background:${c}"></i>${name}</span>`).join("");
+    $("scLeg").innerHTML = leg; $("scLeg2").innerHTML = leg;
+    lineChart($("scGap"), { label: "Gap contra cota", x: lab, series: ser("gap_vs_bound_pct"), ymin: 0, yfmt: (v) => v.toFixed(0) + "%", vfmt: (v) => v.toFixed(1) + "%" });
+    lineChart($("scTime"), { label: "Tiempo", x: lab, series: ser("time_s"), ylog: true, yfmt: (v) => v >= 1 ? String(v) : String(+v.toPrecision(1)), vfmt: (v) => v.toFixed(2) + " s" });
+    const nm = { simulated_annealing: "SA", qgate_lns_exact: "QGate exacto", qgate_lns_qaoa: "QGate QAOA" };
+    $("scRows").innerHTML = S.map((r) => `<tr><td>${r.N}</td><td>${esc(r.instance)}${r.instance !== meta.instance ? " *" : ""}</td><td style="color:${r.method.includes("qaoa") ? "var(--qubit)" : "var(--paper)"}">${nm[r.method] || esc(r.method)}</td>
+      <td class="r">${f(r.best_cost)}</td><td class="r">${f(r.lower_bound)}</td><td class="r">${f(r.gap_vs_bound_pct, 1)}%</td><td class="r">${f(r.time_s, 1)} s</td><td class="r">${f(r.peak_mem_mb, 2)} MB</td><td class="r">${r.qubits}</td></tr>`).join("");
+    const Mm = meta.statevector_memory || [];
+    const hb = (b) => { const u = ["B", "KiB", "MiB", "GiB", "TiB"]; let i = 0; while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; } return (b % 1 ? b.toFixed(1) : b) + " " + u[i]; };
+    if (has(Mm)) $("memRows").innerHTML = Mm.map((m) => `<tr><td class="r">${m.N}</td><td class="r">${m.qubits}</td><td class="r" style="color:${m.N >= 10 ? "var(--invalid)" : "var(--paper)"}">${m.bytes > 1024 ** 5 ? m.bytes.toExponential(2) + " B" : hb(m.bytes)}</td></tr>`).join("");
+    else hide("memBox");
   })();
-
-  // ------------------------------------------------------- reproducibilidad
   (function repro() {
-    const vv = Object.entries(v).map(([k, val]) => `<span class="chip">${esc(k)} <b>${esc(val)}</b></span>`);
-    if (meta.seed !== undefined) vv.push(`<span class="chip">semilla <b>${meta.seed}</b></span>`);
-    if (meta.generated_at) vv.push(`<span class="chip">fecha <b>${esc(meta.generated_at)}</b></span>`);
-    if (meta.total_time_s) vv.push(`<span class="chip">corrida <b>${f(meta.total_time_s / 60, 1)} min</b></span>`);
-    $("versions").innerHTML = vv.join("");
+    const v = meta.versions || {};
+    const ch = Object.entries(v).filter(([, val]) => val).map(([k, val]) => `<span>${esc(k)} <b>${esc(val)}</b></span>`);
+    if (num(meta.seed)) ch.push(`<span>semilla <b>${meta.seed}</b></span>`);
+    if (meta.generated_at) ch.push(`<span>fecha <b>${esc(meta.generated_at)}</b></span>`);
+    if (num(meta.total_time_s)) ch.push(`<span>corrida <b>${(meta.total_time_s / 60).toFixed(1)} min</b></span>`);
+    ch.push(`<span>simulador <b>Qiskit Aer</b>${R.hardware ? " · hardware IBM reportado aparte" : " · sin hardware real"}</span>`);
+    $("versions").innerHTML = ch.join("");
     const a = meta.args || {};
     $("cmd").textContent = a.mps ? `python -m qgate.bench --mps ${a.mps}${a.quick ? " --quick" : ""} --scale ${a.scale} --seed ${a.seed}` : "";
     const L = meta.limitations || [];
-    if (has(L)) $("limits").innerHTML = L.map((l) => `<li>${esc(l)}</li>`).join("");
-    else $("limits").closest(".card").classList.add("hidden");
-    $("gen").textContent = meta.generated_at ? "Generado " + meta.generated_at + "." : "";
+    if (has(L)) $("limits").innerHTML = L.map((l) => `<li>${esc(l)}</li>`).join(""); else hide($("limits").parentElement);
+    $("gen").textContent = meta.generated_at ? "· generado " + meta.generated_at : "";
   })();
+
+  syncPlay();
+  showScene("qaoa");
 })();
 </script>
 </body>

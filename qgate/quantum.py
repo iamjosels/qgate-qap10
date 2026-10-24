@@ -158,7 +158,7 @@ def run_qaoa(inst: QAPInstance, p: int = 1, mixer: str = "xy", lam: float | None
              noise: float = 0.0, init_params: np.ndarray | None = None,
              optimum: float | None = None, exp_id: str | None = None,
              keep_distribution: int = 12, compute_stats: bool = True,
-             ideal_sampling: bool = False) -> dict:
+             ideal_sampling: bool = False, trace: bool = False) -> dict:
     """Optimiza QAOA sobre la subinstancia `inst` (N <= 4 recomendado; N=5 son 25 qubits)."""
     t0 = time.perf_counter()
     N = inst.N
@@ -183,7 +183,7 @@ def run_qaoa(inst: QAPInstance, p: int = 1, mixer: str = "xy", lam: float | None
             return _cvar(pr, E_sorted, order, alpha)
         return float(pr @ E)
 
-    best = (math.inf, None)
+    best = (math.inf, None, None)
     starts = []
     if init_params is not None:
         starts.append(np.asarray(init_params, dtype=float))
@@ -192,9 +192,11 @@ def run_qaoa(inst: QAPInstance, p: int = 1, mixer: str = "xy", lam: float | None
     for x0 in starts:
         res = minimize(f, x0, method="COBYLA", options={"maxiter": maxiter, "rhobeg": 0.4})
         if res.fun < best[0]:
-            best = (float(res.fun), res.x.copy())
+            best = (float(res.fun), res.x.copy(), np.array(x0, dtype=float))
     theta = best[1]
     probs = eng.probs(theta)
+
+    frames = _trace_frames(eng, best[2], f, maxiter, theta, E, feas) if trace else None
 
     # métricas exactas
     feas_cost = {}
@@ -263,10 +265,44 @@ def run_qaoa(inst: QAPInstance, p: int = 1, mixer: str = "xy", lam: float | None
         "evals": evals, "time_s": time.perf_counter() - t0,
         "perm_distribution": [{"perm": pm, "cost": c, "prob": pr} for pr, pm, c in dist],
     }
+    if frames is not None:
+        frames["optimum"] = float(opt_cost)
+        out["frames"] = frames
     if compute_stats:
         out.update(circuit_stats(qc, {**{g[i]: theta[i] for i in range(p)},
                                       **{bt[i]: theta[p + i] for i in range(p)}}))
     return out
+
+
+def _trace_frames(eng, x0, f, maxiter, theta, E, feas, n_bars=64, n_frames=60) -> dict:
+    """Repite (de forma determinista) el COBYLA del mejor arranque y guarda cómo se mueve la
+    probabilidad sobre un conjunto fijo de configuraciones: todas las válidas + las inválidas
+    más probables al inicio o al final. Sirve para animar el histograma del modo demo."""
+    p0, pf = eng.probs(x0), eng.probs(theta)
+    valid = np.where(feas)[0]
+    invalid = np.where(~feas)[0]
+    n_inv = max(n_bars - len(valid), 0)
+    top_inv = invalid[np.argsort(-(p0[invalid] + pf[invalid]))[:n_inv]]
+    sel = np.sort(np.concatenate([valid[:n_bars], top_inv]))
+    opt_cost = float(E[valid].min())
+    rec = []
+
+    def f_rec(t):
+        pr = eng.probs(t)
+        rec.append((pr[sel].copy(), float(pr[feas].sum()),
+                    float(pr[valid][np.abs(E[valid] - opt_cost) < 1e-9].sum())))
+        return f(t)
+
+    minimize(f_rec, x0, method="COBYLA", options={"maxiter": maxiter, "rhobeg": 0.4})
+    rec.append((pf[sel].copy(), float(pf[feas].sum()),
+                float(pf[valid][np.abs(E[valid] - opt_cost) < 1e-9].sum())))
+    idx = np.unique(np.linspace(0, len(rec) - 1, min(n_frames, len(rec))).round().astype(int))
+    kind = ["optimal" if feas[s] and abs(E[s] - opt_cost) < 1e-9 else "valid" if feas[s] else "invalid"
+            for s in sel]
+    return {"states": [int(s) for s in sel], "kind": kind,
+            "eval": [int(i) for i in idx], "n_evals": len(rec) - 1,
+            "p": [[round(float(v), 6) for v in rec[i][0]] for i in idx],
+            "p_valid": [rec[i][1] for i in idx], "p_opt": [rec[i][2] for i in idx]}
 
 
 def _sample(qc, g, bt, theta, shots, seed, noise):

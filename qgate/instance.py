@@ -155,3 +155,34 @@ def mds_2d(D: np.ndarray) -> np.ndarray:
     w, V = np.linalg.eigh(B)
     idx = np.argsort(w)[::-1][:2]
     return V[:, idx] * np.sqrt(np.clip(w[idx], 0.0, None))
+
+
+def manhattan_grid(D) -> np.ndarray | None:
+    """Coordenadas enteras (columna, fila) si D es distancia Manhattan entre puntos de una grilla.
+
+    qap10 cumple esto (puertas en filas de 4, 4 y 2); permite dibujar la geometría real en vez de
+    la proyección MDS. Devuelve None si no existe una grilla así.
+    """
+    D = np.rint(np.abs(np.asarray(D, dtype=float))).astype(int)
+    n, span = D.shape[0], int(D.max())
+    if span > 12:
+        return None
+    xs = sorted(range(-span, span + 1), key=lambda v: (abs(v), v < 0))
+    cand = [(x, y) for y in range(span + 1) for x in xs]
+    pos = [(0, 0)] + [None] * (n - 1)
+
+    def bt(j):
+        if j == n:
+            return True
+        for p in cand:
+            if all(abs(p[0] - pos[i][0]) + abs(p[1] - pos[i][1]) == D[i, j] and p != pos[i] for i in range(j)):
+                pos[j] = p
+                if bt(j + 1):
+                    return True
+        pos[j] = None
+        return False
+
+    if not bt(1):
+        return None
+    P = np.array(pos, dtype=float)
+    return P - P.min(axis=0)

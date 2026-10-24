@@ -1,384 +1,323 @@
-"""Genera entrega/QGate.pptx a partir de results/results.json y los PNG del bench.
+"""Genera entrega/QGate.pptx con el estilo de design/Slide.dc.html y design/SlideContent.dc.html.
 
 Uso:
     python entrega/make_ppt.py [results/results.json] [entrega/QGate.pptx]
 
-Todos los números salen del JSON; nombres del equipo desde entrega/equipo.json.
-Requiere python-pptx (pip install python-pptx).
+Cada slide se escribe como HTML 1280x720 con las fuentes de marca (Barlow Condensed, IBM Plex),
+se renderiza a PNG con Chrome o Edge en modo headless (entrega/slides/) y se arma el PPTX con esas
+imágenes y las notas del orador. BRAND.md lo permite cuando las fuentes no están instaladas.
+Todos los números salen de results.json; los nombres, de entrega/equipo.json.
+Requiere python-pptx y Chrome o Edge.
 """
 from __future__ import annotations
 
+import html
 import json
 import math
 import os
+import shutil
+import subprocess
 import sys
+import tempfile
 
 from pptx import Presentation
-from pptx.dml.color import RGBColor
-from pptx.enum.shapes import MSO_SHAPE
-from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
-from pptx.util import Inches, Pt
+from pptx.util import Inches
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
+BROWSERS = [r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+            "/usr/bin/google-chrome", "/usr/bin/chromium", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
 
-BG = RGBColor(0x0A, 0x10, 0x1C)
-SURF = RGBColor(0x11, 0x1A, 0x2B)
-LINE = RGBColor(0x24, 0x32, 0x4D)
-TEXT = RGBColor(0xE8, 0xED, 0xF5)
-TEXT2 = RGBColor(0xA9, 0xB4, 0xC7)
-MUTED = RGBColor(0x74, 0x82, 0x9B)
-AMBER = RGBColor(0xF5, 0xB9, 0x42)
-CYAN = RGBColor(0x5F, 0xD4, 0xEE)
-OK = RGBColor(0x3E, 0xCF, 0x8E)
-HEAD, BODY, MONO = "Segoe UI Semibold", "Segoe UI", "Consolas"
+PLANE = ('<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="#0B0B0C" stroke-width="1.8" '
+         'stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 '
+         '0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 '
+         '3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>')
+
+BASE = """<!doctype html><html lang="es"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;background:#0B0B0C}
+.s{width:1280px;height:720px;box-sizing:border-box;background:#0B0B0C;color:#F4F1E8;font-family:'IBM Plex Sans',sans-serif;overflow:hidden;position:relative}
+.c{padding:48px 56px 40px;display:flex;flex-direction:column;gap:28px;box-sizing:border-box}
+.hd{display:flex;align-items:center;gap:16px}
+.no{padding:6px 14px;border-radius:6px;background:#FFC629;color:#0B0B0C;font:800 34px/1 'Barlow Condensed',sans-serif}
+h1{margin:0;font:800 56px/1 'Barlow Condensed',sans-serif;letter-spacing:.01em;text-transform:uppercase}
+.brandk{margin-left:auto;font:13px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#6E6C66}
+.mono{font-family:'IBM Plex Mono',monospace}
+.card{background:#141518;border-radius:14px;padding:28px 32px;display:flex;flex-direction:column;justify-content:space-between;min-width:0;box-sizing:border-box}
+.k{font:14px 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase}
+.big{font:800 180px/.8 'Barlow Condensed',sans-serif}
+.mid{font:800 110px/.85 'Barlow Condensed',sans-serif}
+.unit{font:700 44px 'Barlow Condensed',sans-serif}
+.sub{font:18px 'IBM Plex Mono',monospace;color:#C9C6BC}
+.chips{display:flex;flex-wrap:wrap;gap:10px}
+.chip{padding:8px 14px;border-radius:999px;border:1px solid #2C2F35;font:14px 'IBM Plex Mono',monospace;color:#C9C6BC}
+.chip.q{border-color:#4FE3E0;color:#4FE3E0}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px;flex-grow:1;min-height:0}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;flex-grow:1;min-height:0}
+.y{color:#FFC629}.q{color:#4FE3E0}.o{color:#FF6B3D}
+img.fig{max-width:100%;max-height:100%;border-radius:10px;display:block;margin:auto}
+</style></head><body><div class="s">__BODY__</div></body></html>"""
 
 
 def g(x, d=None):
     if x is None:
         return "-"
-    if d is None:
-        return f"{x:g}"
-    return f"{x:.{d}f}"
+    return f"{x:g}" if d is None else f"{x:.{d}f}"
 
 
-# ---------------------------------------------------------------- helpers
-def bg(slide):
-    f = slide.background.fill
-    f.solid()
-    f.fore_color.rgb = BG
+def sp(n):
+    return f"{int(round(n)):,}".replace(",", "\u202f")
 
 
-def text(slide, x, y, w, h, runs, size=18, color=TEXT, font=BODY, bold=False, align=PP_ALIGN.LEFT,
-         anchor=MSO_ANCHOR.TOP, spacing=None):
-    """runs: str o lista de párrafos; cada párrafo str o lista de (texto, {opciones})."""
-    tb = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
-    tf = tb.text_frame
-    tf.word_wrap = True
-    tf.vertical_anchor = anchor
-    tf.margin_left = tf.margin_right = Inches(0.02)
-    tf.margin_top = tf.margin_bottom = Inches(0.02)
-    paras = runs if isinstance(runs, list) else [runs]
-    for i, para in enumerate(paras):
-        p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-        p.alignment = align
-        if spacing:
-            p.space_after = Pt(spacing)
-        parts = para if isinstance(para, list) else [(para, {})]
-        for t, opt in parts:
-            r = p.add_run()
-            r.text = t
-            r.font.size = Pt(opt.get("size", size))
-            r.font.bold = opt.get("bold", bold)
-            r.font.name = opt.get("font", font)
-            r.font.color.rgb = opt.get("color", color)
-    return tb
+def pct(x, d=1):
+    return f"{100 * x:.{d}f}%"
 
 
-def box(slide, x, y, w, h, fill=SURF, line=LINE, radius=True):
-    shp = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE if radius else MSO_SHAPE.RECTANGLE,
-                                 Inches(x), Inches(y), Inches(w), Inches(h))
-    if radius:
-        shp.adjustments[0] = min(0.08, 0.12 / min(w, h))
-    shp.fill.solid()
-    shp.fill.fore_color.rgb = fill
-    if line is None:
-        shp.line.fill.background()
-    else:
-        shp.line.color.rgb = line
-        shp.line.width = Pt(1)
-    shp.shadow.inherit = False
-    return shp
+def head(no, title):
+    return (f'<div class="hd"><div class="no">{no}</div><h1>{html.escape(title)}</h1>'
+            f'<div class="brandk">QGATE</div></div>')
 
 
-def accent(slide, x, y, h, color=AMBER):
-    a = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(x), Inches(y), Inches(0.06), Inches(h))
-    a.fill.solid()
-    a.fill.fore_color.rgb = color
-    a.line.fill.background()
+def chips(items):
+    return '<div class="chips">' + "".join(
+        f'<div class="chip{" q" if q else ""}">{html.escape(t)}</div>' for t, q in items) + "</div>"
 
 
-def kpi(slide, x, y, w, h, value, label, color=AMBER, sub=None, vsize=40):
-    box(slide, x, y, w, h)
-    accent(slide, x, y + 0.12, h - 0.24, color)
-    text(slide, x + 0.25, y + 0.12, w - 0.35, 0.35, label.upper(), size=11, color=TEXT2, bold=True)
-    text(slide, x + 0.25, y + 0.42, w - 0.35, h - 0.55, value, size=vsize, color=color, font=MONO, bold=True)
-    if sub:
-        text(slide, x + 0.25, y + h - 0.45, w - 0.35, 0.35, sub, size=11, color=MUTED)
+def slides(R, team, img):
+    meta, data = R["meta"], R["data"]
+    ref, N = meta["reference_optimum"], meta["N"]
+    val = {v["n"]: v for v in R["validation"]}
+    C = {c["method"]: c for c in R["classical"]}
+    Q = {q["id"]: q for q in R["quantum"]}
+    H = {h["method"]: h for h in R["hybrid"]}
+    hq, hq8, hr8 = H["qgate_lns_qaoa"], H.get("qgate_lns_qaoa_s8"), H.get("qgate_lns_random_s8")
+    rnd = next(a for a in R["assignments"] if a["label"] == "Aleatoria")
+    seeds = R.get("hybrid_seeds", {})
+    out = []
+
+    # 1 · portada (Slide.dc.html)
+    names = "".join(f"<div>{html.escape(n)}</div>" for n in team["integrantes"])
+    out.append((f"""<div style="display:flex;height:100%">
+  <div style="flex:1;padding:56px 56px 44px;display:flex;flex-direction:column;justify-content:space-between">
+    <div class="mono" style="font-size:14px;letter-spacing:.16em;color:#9A9890">IBM QUANTUM HACKATHON 2026 · RETO NTT DATA QAP10</div>
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="position:relative;width:120px;height:158px;background:#1E2024;border-radius:10px;display:flex;align-items:center;justify-content:center;font:800 136px/1 'Barlow Condensed';color:#FFC629">Q<div style="position:absolute;left:0;right:0;top:78px;height:3px;background:#0B0B0C"></div></div>
+        <div style="font:800 184px/.82 'Barlow Condensed';letter-spacing:.01em">GATE</div>
+      </div>
+      <div style="font-size:36px;font-weight:500">Vuelos → puertas con QAOA híbrido</div>
+    </div>
+    <div class="mono" style="display:flex;gap:28px;font-size:15px;color:#C9C6BC;flex-wrap:wrap">{names}</div>
+  </div>
+  <div style="width:380px;background:#FFC629;color:#0B0B0C;padding:48px 40px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between">
+    {PLANE.format(s=96)}
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <div style="font:800 88px/.85 'Barlow Condensed'">P01–P{N:02d}</div>
+      <div style="display:flex;align-items:center;gap:12px;font:700 40px 'Barlow Condensed'">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#0B0B0C" stroke-width="2.4" stroke-linecap="square"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg>Categoría Industria</div>
+    </div>
+    <div class="mono" style="font-size:13px;letter-spacing:.12em">TRACK A · AEROPUERTO</div>
+  </div></div>""",
+                "Somos QGate. Asignamos vuelos de conexión a puertas de embarque usando QAOA de Qiskit como pieza "
+                "dentro de una búsqueda clásica."))
+
+    # 2 · problema
+    out.append((f"""<div class="c" style="height:100%">{head("01", "El problema")}
+  <div style="display:grid;grid-template-columns:400px minmax(0,1fr);gap:28px;flex-grow:1;min-height:0">
+    <div class="card" style="border-top:6px solid #FFC629">
+      <div class="k y">{N} vuelos · {N} puertas</div>
+      <div><div class="mid" style="font-size:92px">{sp(math.factorial(N))}</div><div class="unit" style="margin-top:8px">asignaciones</div></div>
+      <div class="sub">C = Σ pasajeros × distancia<br>cada par se cuenta una vez</div>
+    </div>
+    <div class="card" style="padding:18px;justify-content:center"><img class="fig" src="{img('mapa_puertas.png')}"></div>
+  </div>
+  {chips([("qap10 (MIPLIB) · unidades supuestas", False), (f"al azar: costo {g(rnd['cost'])}", False), (f"QGate: costo {g(hq['final_cost'])}", True)])}
+</div>""",
+                f"Diez vuelos de conexión, diez puertas: {sp(math.factorial(N))} asignaciones posibles. El costo suma "
+                f"pasajeros por distancia. A la izquierda una asignación al azar, costo {g(rnd['cost'])}; a la derecha "
+                f"la de QGate, {g(hq['final_cost'])}. Los datos son el benchmark qap10: las unidades son supuestos."))
+
+    # 3 · datos verificados
+    tiles = "".join(
+        f"""<div class="card" style="border-top:6px solid #FFC629;align-items:flex-start">
+      <div class="k" style="color:#9A9890">N = {n}</div>
+      <div class="big y">{g(val[n]['optimum'])}</div>
+      <div class="sub">{'✓ esperado ' + g(val[n]['expected']) if val[n]['ok'] else '✗'}</div></div>"""
+        for n in (3, 4, N))
+    mr = data["mps_report"]
+    out.append((f"""<div class="c" style="height:100%">{head("02", "Datos verificados")}
+  <div class="g3">{tiles}</div>
+  {chips([(f"MPS: {sp(mr['n_cols'])} variables", False), (f"{sp(mr['n_rows'])} restricciones", False),
+          (f"residuo F·D = {g(data['factorization_residual'])}", False), ("cada par una vez (no 48 · 64 · 680)", False),
+          ("340 solo para medir el gap", False)])}
+</div>""",
+                "El MPS viene linealizado. Las filas con lado derecho 1 identifican las x; cada variable y aparece junto "
+                "a dos x y su coeficiente es flujo por distancia. Factorizamos con residuo cero y la escala cuadra: "
+                f"{g(val[3]['optimum'])}, {g(val[4]['optimum'])} y {g(val[N]['optimum'])}."))
+
+    # 4 · qiskit
+    x4, xy4 = Q["N4-x-p1"], Q["N4-xy-p1"]
+    out.append((f"""<div class="c" style="height:100%">{head("03", "Qiskit: QAOA en 16 qubits")}
+  <div class="g2">
+    <div class="card" style="border-top:6px solid #4FE3E0">
+      <div class="k q">Mixer X · N = 4 · P(válida)</div>
+      <div style="display:flex;align-items:baseline;gap:16px"><div class="big q">×{x4['p_feasible'] / x4['random_feasible_baseline']:.0f}</div><div class="unit">vs azar</div></div>
+      <div class="sub">{pct(x4['p_feasible'])} frente a {pct(x4['random_feasible_baseline'], 2)}</div>
+    </div>
+    <div class="card" style="border-top:6px solid #4FE3E0">
+      <div class="k q">Mixer XY + estado W · P(válida)</div>
+      <div class="big q">{pct(xy4['p_feasible'], 0)}</div>
+      <div class="sub">azar con una puerta por vuelo: {pct(xy4['random_feasible_baseline'])}</div>
+    </div>
+  </div>
+  {chips([(f"{xy4['qubits']} qubits · {xy4['cx_count']} CX · p = 1", True), ("QUBO → Ising → QAOA", False),
+          ("Aer: statevector + shots", True), ("COBYLA clásico ajusta γ, β", False)])}
+</div>""",
+                "Pasamos el QUBO a Ising y corremos QAOA en Qiskit Aer. Con el mixer estándar X, QAOA muestrea "
+                f"asignaciones válidas {x4['p_feasible'] / x4['random_feasible_baseline']:.0f} veces más que el azar. "
+                f"Con el mixer XY y estado W, cada vuelo queda en una sola puerta y llegamos a {pct(xy4['p_feasible'], 0)} válidas."))
+
+    # 5 · límites (SlideContent.dc.html)
+    nxy = Q.get("N3-xy-p1-noise0.01")
+    lim_chips = [("λ elegida con barrido", False), ("crudo vs pulido, por separado", False)]
+    if nxy:
+        lim_chips.insert(1, (f"ruido 1%: XY {pct(nxy['p_feasible'], 0)} → {pct(nxy['feasible_fraction_shots'], 0)} válidas", False))
+    hw = R.get("hardware")
+    if hw and hw.get("backend"):
+        lim_chips.append((f"IBM Quantum real · {hw['backend']}", True))
+    out.append((f"""<div class="c" style="height:100%">{head("04", "Límites")}
+  <div class="g2">
+    <div class="card" style="border-top:6px solid #FF6B3D">
+      <div class="k o">QAOA directo · N = {N}</div>
+      <div style="display:flex;align-items:baseline;gap:16px"><div class="big" style="font-size:200px;text-decoration:line-through;text-decoration-color:#FF6B3D;text-decoration-thickness:10px">{N * N}</div><div class="unit">qubits</div></div>
+      <div class="sub">2<sup>{N * N}</sup> amplitudes · imposible de simular</div>
+    </div>
+    <div class="card" style="border-top:6px solid #4FE3E0">
+      <div class="k q">QGate · cualquier N</div>
+      <div style="display:flex;align-items:baseline;gap:16px"><div class="big q" style="font-size:200px">9</div><div class="unit">qubits</div></div>
+      <div class="sub">por subproblema · siempre</div>
+    </div>
+  </div>
+  {chips(lim_chips)}
+</div>""",
+                f"Simular el problema completo exige {N * N} qubits: imposible. QGate usa siempre piezas de 9. Elegimos "
+                "lambda con un criterio analítico y lo validamos con un barrido. Medimos el ruido: con 1% el mixer XY "
+                "pierde casi toda su ventaja de factibilidad. Todo es simulador."))
+
+    # 6 · híbrido
+    abl = []
+    if hq8 and hr8:
+        abl = [(f"con 8 shots: QAOA resuelve {pct(hq8['sub_success_rate'], 0)} de las piezas · azar {pct(hr8['sub_success_rate'], 0)}", True)]
+    out.append((f"""<div class="c" style="height:100%">{head("05", "QAOA como subrutina")}
+  <div style="display:grid;grid-template-columns:400px minmax(0,1fr);gap:28px;flex-grow:1;min-height:0">
+    <div style="display:flex;flex-direction:column;gap:20px;min-height:0">
+      <div class="card" style="border-top:6px solid #FFC629;flex:1">
+        <div class="k y">QGate · N = {N} · {hq['shots']} shots</div>
+        <div class="mid y" style="font-size:130px">{g(hq['final_cost'])}</div>
+        <div class="sub">gap {g(hq['gap_pct'], 1)}% · {hq['iters']} iteraciones</div>
+      </div>
+      <div class="card" style="border-top:6px solid #4FE3E0;flex:1">
+        <div class="k q">P(óptimo) por pieza</div>
+        <div class="mid q" style="font-size:90px">{g(hq['qaoa_p_optimal_mean'], 3)}</div>
+        <div class="sub">azar: {g(hq['random_p_optimal_mean'], 3)}</div>
+      </div>
+    </div>
+    <div class="card" style="padding:18px;justify-content:center"><img class="fig" src="{img('hibrido_convergencia.png')}"></div>
+  </div>
+  {chips(abl + [(f"{len(seeds.get('seeds', []))} semillas: llega a {g(ref)} en {seeds.get('hits_ref')}", False)])}
+</div>""",
+                f"QGate elige 3 vuelos, arma una pieza de 9 qubits con el resto fijo y la resuelve con QAOA. Con nuestra "
+                f"semilla llega a {g(hq['final_cost'])}. Con 512 muestras hasta el azar resuelve piezas tan chicas, por eso "
+                "medimos con 8: " + (f"QAOA resuelve {pct(hq8['sub_success_rate'], 0)} de las piezas y el azar "
+                                     f"{pct(hr8['sub_success_rate'], 0)}. " if hq8 and hr8 else "")
+                + f"En {len(seeds.get('seeds', []))} semillas llega a {g(ref)} en {seeds.get('hits_ref')}: el límite es la búsqueda."))
+
+    # 7 · escala
+    sc = R.get("scaling", [])
+    ns = sorted({r["N"] for r in sc})
+    big = ns[-1]
+    sa_b = next(r for r in sc if r["N"] == big and r["method"] == "simulated_annealing")
+    q_b = next(r for r in sc if r["N"] == big and r["method"] == "qgate_lns_qaoa")
+    mem = max(r["peak_mem_mb"] for r in sc if r["method"] == "qgate_lns_qaoa")
+    out.append((f"""<div class="c" style="height:100%">{head("06", "Escala")}
+  <div style="display:grid;grid-template-columns:340px minmax(0,1fr);gap:28px;flex-grow:1;min-height:0">
+    <div class="card" style="border-top:6px solid #4FE3E0">
+      <div class="k q">N = {ns[0]} → {big}</div>
+      <div style="display:flex;align-items:baseline;gap:12px"><div class="big q">9</div><div class="unit">qubits</div></div>
+      <div class="sub">QUBO directo N = {big}: {big * big} qubits<br>memoria pico QGate {g(mem, 1)} MB</div>
+    </div>
+    <div class="card" style="padding:18px;justify-content:center"><img class="fig" src="{img('escalabilidad.png')}"></div>
+  </div>
+  {chips([("N > 10 sintéticas · gap contra cota Gilmore-Lawler", False),
+          (f"N = {big}: SA {g(sa_b['gap_vs_bound_pct'], 0)}% · QGate {g(q_b['gap_vs_bound_pct'], 0)}% sobre la cota", False),
+          ("SA gana en calidad y tiempo", False)])}
+</div>""",
+                f"Al crecer hasta N={big} la parte cuántica sigue en 9 qubits y la memoria no crece. Sin óptimo conocido "
+                "medimos contra una cota inferior. Lo decimos claro: en simulador, simulated annealing gana en calidad y tiempo."))
+
+    # 8 · cierre
+    bf, sa = C["brute_force"], C["simulated_annealing"]
+    cols = [("Hoy", "#4FE3E0", ["XY + estado W: reglas por construcción", "QAOA concentra probabilidad en el óptimo",
+                                 "Pieza cuántica de tamaño fijo"]),
+            ("Límites", "#FF6B3D", ["Simulador más lento que SA", "El ruido borra la ventaja de XY",
+                                    "Con muchos shots el azar también llega"]),
+            ("Siguiente", "#FFC629", ["Hardware IBM real (9 qubits)", "Piezas de 4 vuelos (16 qubits)",
+                                      "Mitigación de errores"])]
+    colh = "".join(f"""<div class="card" style="border-top:6px solid {c};justify-content:flex-start;gap:18px">
+      <div class="k" style="color:{c}">{t}</div>{''.join(f'<div style="font-size:24px;line-height:1.25">{html.escape(i)}</div>' for i in items)}</div>"""
+                   for t, c, items in cols)
+    out.append((f"""<div class="c" style="height:100%">{head("07", "Qué aporta lo cuántico hoy")}
+  <div class="g3">{colh}</div>
+  <div class="mono" style="font-size:22px;color:#C9C6BC">Exacto <b class="y">{g(bf['cost'])}</b> · SA <b class="y">{g(sa['cost'])}</b> · QGate <b class="q">{g(hq['final_cost'])}</b> · azar <b>{g(rnd['cost'])}</b></div>
+  <div class="mono" style="font-size:12px;letter-spacing:.12em;color:#6E6C66">QISKIT · QISKIT AER · NUMPY · SCIPY · MIPLIB 2017 (QAP10) · {html.escape(team['repo'].replace('https://', '').upper())}</div>
+</div>""",
+                "Hoy lo cuántico aporta estructura y concentración de probabilidad en piezas pequeñas, no velocidad en "
+                "simulador, y lo mostramos con números. El siguiente paso es hardware IBM real, piezas más grandes y "
+                "mitigación de errores. Gracias."))
+    return out
 
 
-def header(slide, idx, title, sub=None):
-    text(slide, 0.6, 0.38, 1.0, 0.4, idx, size=14, color=AMBER, font=MONO, bold=True)
-    text(slide, 0.6, 0.68, 12.0, 0.8, title, size=34, color=TEXT, font=HEAD, bold=True)
-    if sub:
-        text(slide, 0.6, 1.38, 12.0, 0.45, sub, size=16, color=TEXT2)
+def find_browser():
+    for b in BROWSERS:
+        if os.path.exists(b):
+            return b
+    return shutil.which("chrome") or shutil.which("msedge") or shutil.which("chromium")
 
 
-def image(slide, path, x, y, w=None, h=None):
-    if not os.path.exists(path):
-        return None
-    kw = {}
-    if w:
-        kw["width"] = Inches(w)
-    if h:
-        kw["height"] = Inches(h)
-    return slide.shapes.add_picture(path, Inches(x), Inches(y), **kw)
-
-
-def footer(slide, txt):
-    text(slide, 0.6, 7.0, 12.2, 0.35, txt, size=10, color=MUTED)
-
-
-def notes(slide, txt):
-    slide.notes_slide.notes_text_frame.text = txt
-
-
-def human_bytes(b):
-    if b >= 1024 ** 5:
-        e = int(math.floor(math.log10(b)))
-        return f"{b / 10 ** e:.1f}·10^{e} B"
-    for u in ("B", "KiB", "MiB", "GiB", "TiB"):
-        if b < 1024:
-            return f"{b:g} {u}"
-        b /= 1024
-    return f"{b:g} PiB"
-
-
-# ------------------------------------------------------------------ slides
 def build(results_path, out_path):
     with open(results_path, encoding="utf-8") as fh:
         R = json.load(fh)
     with open(os.path.join(HERE, "equipo.json"), encoding="utf-8") as fh:
         team = json.load(fh)
     img_dir = os.path.dirname(os.path.abspath(results_path))
-    img = lambda n: os.path.join(img_dir, n)  # noqa: E731
-
-    meta, data = R["meta"], R["data"]
-    ref = meta["reference_optimum"]
-    N = meta["N"]
-    val = {v["n"]: v for v in R["validation"]}
-    bf = next(c for c in R["classical"] if c["method"] == "brute_force")
-    sa = next(c for c in R["classical"] if c["method"] == "simulated_annealing")
-    glb = next(c for c in R["classical"] if c["method"] == "gilmore_lawler_bound")
-    Q = {q["id"]: q for q in R["quantum"]}
-    hq = next(h for h in R["hybrid"] if h["method"] == "qgate_lns_qaoa")
-    he = next(h for h in R["hybrid"] if h["method"] == "qgate_lns_exact")
-    seeds = R.get("hybrid_seeds", {})
-    mr = data["mps_report"]
-    rnd = next(a for a in R["assignments"] if a["label"] == "Aleatoria")
-    vers = meta["versions"]
-
+    img = lambda n: "file:///" + os.path.join(img_dir, n).replace("\\", "/")  # noqa: E731
+    browser = find_browser()
+    if not browser:
+        sys.exit("Se necesita Chrome o Edge para renderizar las slides.")
+    png_dir = os.path.join(HERE, "slides")
+    os.makedirs(png_dir, exist_ok=True)
+    tmp = tempfile.mkdtemp(prefix="qgate_slides_")
     prs = Presentation()
     prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)
-    blank = prs.slide_layouts[6]
-
-    # 1 · portada
-    s = prs.slides.add_slide(blank)
-    bg(s)
-    text(s, 0.8, 0.7, 8, 0.4, "IBM QUANTUM HACKATHON 2026 · RETO NTT DATA QAP10", size=13, color=AMBER,
-         font=MONO, bold=True)
-    text(s, 0.8, 1.5, 9, 1.8, [[("Q", {"color": TEXT}), ("Gate", {"color": AMBER})]], size=96, font=HEAD,
-         bold=True)
-    text(s, 0.8, 3.15, 10, 0.7, [[("Vuelos ", {}), ("→", {"color": AMBER}), (" puertas con QAOA híbrido", {})]],
-         size=30, color=TEXT2, font=HEAD)
-    text(s, 0.8, 4.1, 10, 0.5, "Track A · Aeropuerto · Qiskit " + str(vers.get("qiskit")) + " + Aer",
-         size=16, color=CYAN, font=MONO)
-    text(s, 0.8, 5.35, 11, 0.5, "   ·   ".join(team["integrantes"]), size=18, color=TEXT)
-    text(s, 0.8, 5.85, 11, 0.4, f"Equipo {team['equipo']}", size=13, color=MUTED)
-    footer(s, f"{team['repo']}   ·   demo: {team['demo']}")
-    notes(s, "Somos QGate. Asignamos vuelos de conexión a puertas de embarque con un método híbrido: "
-             "QAOA en Qiskit resuelve piezas pequeñas dentro de una búsqueda clásica.")
-
-    # 2 · problema
-    s = prs.slides.add_slide(blank)
-    bg(s)
-    header(s, "01", "El problema", "Pasajeros en conexión caminan entre puertas")
-    kpi(s, 0.6, 2.1, 2.9, 1.5, f"{N} × {N}", "vuelos × puertas", AMBER)
-    kpi(s, 0.6, 3.8, 2.9, 1.5, f"{math.factorial(N) / 1e6:.1f} M", f"asignaciones ({N}!)", AMBER, vsize=36)
-    box(s, 0.6, 5.5, 2.9, 1.25)
-    text(s, 0.8, 5.6, 2.6, 1.1, [[("C = Σ", {"font": MONO, "color": AMBER, "bold": True}),
-                                  ("i<k", {"size": 11, "font": MONO, "color": AMBER}),
-                                  (" F·D", {"font": MONO, "color": AMBER, "bold": True})],
-                                 [("pasajeros × distancia, cada par una vez", {"size": 11, "color": TEXT2})]],
-         size=20)
-    image(s, img("mapa_puertas.png"), 3.8, 2.05, w=9.0)
-    footer(s, "qap10 (MIPLIB) es un benchmark matemático: pasajeros y distancias son supuestos de negocio.")
-    notes(s, f"Un aeropuerto asigna {N} vuelos de conexión a {N} puertas. Si dos vuelos comparten muchos "
-             f"pasajeros y sus puertas quedan lejos, la gente camina más. Hay {math.factorial(N):,} asignaciones. "
-             f"A la izquierda una asignación aleatoria (costo {g(rnd['cost'])}), a la derecha la de QGate.")
-
-    # 3 · datos
-    s = prs.slides.add_slide(blank)
-    bg(s)
-    header(s, "02", "Datos: del MPS al modelo", "Verificamos la escala con los óptimos de control")
-    steps = [("4150", "variables = 100 x + 4050 y"), (str(mr["n_rows"]), "restricciones de igualdad"),
-             ("y ↔ (x_ij , x_kl)", "coeficiente = F_ik · D_jl"),
-             (g(data.get("factorization_residual")), "residuo SVD (F, D exactos)")]
-    for i, (v, l) in enumerate(steps):
-        y = 2.05 + i * 1.18
-        box(s, 0.6, y, 5.6, 1.0)
-        text(s, 0.85, y + 0.12, 5.2, 0.5, v, size=22, color=CYAN, font=MONO, bold=True)
-        text(s, 0.85, y + 0.58, 5.2, 0.35, l, size=12, color=TEXT2)
-    for i, n in enumerate((3, 4, N)):
-        v = val[n]
-        x = 6.8 + i * 2.05
-        box(s, x, 2.05, 1.85, 2.3)
-        text(s, x, 2.2, 1.85, 0.4, f"N = {n}", size=14, color=TEXT2, font=MONO, align=PP_ALIGN.CENTER)
-        text(s, x, 2.65, 1.85, 0.9, g(v["optimum"]), size=40, color=AMBER, font=MONO, bold=True,
-             align=PP_ALIGN.CENTER)
-        text(s, x, 3.6, 1.85, 0.4, "✓ esperado " + g(v["expected"]) if v["ok"] else "✗",
-             size=12, color=OK if v["ok"] else AMBER, font=MONO, align=PP_ALIGN.CENTER)
-    text(s, 6.8, 4.65, 6.0, 2.2,
-         [[("Cómo: ", {"bold": True, "color": TEXT}),
-           ("las filas de asignación (rhs 1) identifican las x; cada y aparece junto a dos x y su costo es F·D. "
-            "Armamos T, lo factorizamos en F y D y probamos el orden de índices hasta reproducir 24 y 32.", {})],
-          [("Si se duplicaran pares saldría 48 · 64 · 680.", {"color": MUTED})]],
-         size=14, color=TEXT2, spacing=8)
-    footer(s, f"Fuerza bruta N={N}: {math.factorial(N):,} permutaciones en {g(bf['time_s'], 1)} s · "
-              f"{bf.get('n_optimal_perms', 1)} óptimo · el 340 solo se usa para medir el gap")
-    notes(s, "El MPS está linealizado. Reconstruimos el costo sin depender de nombres: las filas de asignación "
-             "dan las 100 x, y cada variable y une dos x con coeficiente F por D. Factorizamos con residuo cero y "
-             f"validamos: N=3 da {g(val[3]['optimum'])}, N=4 da {g(val[4]['optimum'])} y la instancia completa "
-             f"{g(val[N]['optimum'])}. La escala es correcta.")
-
-    # 4 · qiskit
-    s = prs.slides.add_slide(blank)
-    bg(s)
-    header(s, "03", "Qiskit: QUBO → Ising → QAOA", "Mixer X (todo penalizado) vs mixer XY + estado W (filas válidas)")
-    image(s, img("qaoa_vs_azar.png"), 0.6, 2.0, w=8.0)
-    q4x, q4xy = Q.get("N4-x-p1"), Q.get("N4-xy-p1")
-    y = 2.0
-    if q4x:
-        kpi(s, 8.95, y, 3.8, 1.55, f"×{q4x['p_feasible'] / q4x['random_feasible_baseline']:.0f}",
-            "N=4 · mixer X vs azar", CYAN,
-            sub=f"P(válida) {q4x['p_feasible']:.3f} vs {q4x['random_feasible_baseline']:.4f}")
-        y += 1.75
-    if q4xy:
-        kpi(s, 8.95, y, 3.8, 1.55, f"{q4xy['p_feasible']:.2f}", "N=4 · mixer XY P(válida)", CYAN,
-            sub=f"azar con filas válidas {q4xy['random_feasible_baseline']:.3f}")
-        y += 1.75
-        kpi(s, 8.95, y, 3.8, 1.3, f"{q4xy['qubits']} q · {q4xy['cx_count']} CX", "circuito N=4, p=1", CYAN,
-            vsize=26)
-    footer(s, "Qiskit construye el circuito, simula (Aer statevector + shots) y transpila. "
-              "Lo clásico: leer MPS, QUBO, λ, COBYLA, búsqueda.")
-    notes(s, "Pasamos el QUBO a un Hamiltoniano de Ising y lo resolvemos con QAOA en Qiskit Aer. Comparamos dos "
-             "ansatz: el estándar con mixer X, donde todo es penalidad, y el de operador alternante con mixer XY y "
-             "estado W, que mantiene una puerta por vuelo. QAOA siempre supera al azar en asignaciones válidas.")
-
-    # 5 · límites
-    s = prs.slides.add_slide(blank)
-    bg(s)
-    header(s, "04", "Límites y cómo los manejamos", "Memoria, penalidad λ y ruido")
-    box(s, 0.6, 2.0, 4.3, 3.6)
-    text(s, 0.85, 2.12, 3.9, 0.4, "STATEVECTOR", size=11, color=TEXT2, bold=True)
-    rows = [m for m in meta.get("statevector_memory", []) if m["N"] in (4, 5, 10, 14)]
-    for i, m in enumerate(rows):
-        yy = 2.6 + i * 0.7
-        text(s, 0.85, yy, 1.2, 0.5, f"N={m['N']}", size=18, color=TEXT2, font=MONO)
-        text(s, 1.95, yy, 1.2, 0.5, f"{m['qubits']} q", size=18, color=CYAN, font=MONO)
-        text(s, 3.0, yy, 1.85, 0.5, human_bytes(m["bytes"]), size=18,
-             color=AMBER if m["N"] >= 10 else TEXT, font=MONO, bold=m["N"] >= 10)
-    text(s, 0.85, 5.15, 3.9, 0.4, "→ subproblemas de 9 qubits", size=14, color=AMBER, bold=True)
-    image(s, img("ruido.png"), 5.15, 2.0, h=3.6)
-    nx, nxy = Q.get("N3-x-p1-noise0.01"), Q.get("N3-xy-p1-noise0.01")
-    if nxy:
-        text(s, 0.6, 5.85, 12.2, 1.0,
-             [[("Ruido 1%: ", {"bold": True, "color": AMBER}),
-               (f"XY {nxy['p_feasible']:.2f} → {nxy['feasible_fraction_shots']:.2f} válidas "
-                f"(azar {nxy['random_feasible_baseline']:.2f})", {}),
-               (f"   ·   X {nx['p_feasible']:.2f} → {nx['feasible_fraction_shots']:.3f}" if nx else "", {})]],
-             size=18, color=TEXT2)
-    footer(s, "λ0 = mayor aporte posible de una asignación, validado con barrido λ/λ0 (dashboard). "
-              "Simulador con ruido despolarizante; no es hardware real.")
-    notes(s, "Simular N=10 completo exige 100 qubits: imposible en memoria. Por eso usamos piezas de 9 qubits. "
-             "Elegimos lambda como el mayor aporte posible de una asignación y lo validamos con un barrido. Y "
-             "medimos ruido: el mixer XY pierde casi toda su ventaja de factibilidad con 1% de ruido.")
-
-    # 6 · híbrido
-    s = prs.slides.add_slide(blank)
-    bg(s)
-    header(s, "05", "QGate: QAOA como subrutina", "Búsqueda clásica por vecindarios · 3 vuelos = 9 qubits por paso")
-    loop = ["Elegir 3 vuelos", "Subproblema 9 qubits", "QAOA (Aer)", "Aceptar si mejora", "Perturbar si se estanca"]
-    for i, st in enumerate(loop):
-        yy = 2.0 + i * 0.78
-        box(s, 0.6, yy, 3.6, 0.62, fill=SURF, line=CYAN if "QAOA" in st or "qubits" in st else LINE)
-        text(s, 0.8, yy + 0.08, 3.3, 0.46, f"{i + 1}  {st}", size=15,
-             color=CYAN if "QAOA" in st or "qubits" in st else TEXT, anchor=MSO_ANCHOR.MIDDLE)
-    image(s, img("hibrido_convergencia.png"), 4.5, 1.95, w=5.6)
-    hs8 = next((h for h in R["hybrid"] if h["method"] == "qgate_lns_qaoa_s8"), None)
-    rs8 = next((h for h in R["hybrid"] if h["method"] == "qgate_lns_random_s8"), None)
-    kpi(s, 10.35, 1.95, 2.45, 1.5, f"{hq['qaoa_p_optimal_mean']:.2f}", "P(óptimo) por pieza", CYAN,
-        sub=f"azar {hq['random_p_optimal_mean']:.3f}", vsize=34)
-    kpi(s, 10.35, 3.6, 2.45, 1.5, g(hq["final_cost"]), f"QGate · {hq['shots']} shots", CYAN,
-        sub=f"gap {g(hq['gap_pct'], 1)} % · {hq['iters']} iter", vsize=34)
-    if hs8 and rs8:
-        kpi(s, 10.35, 5.25, 2.45, 1.5, f"{100 * hs8['sub_success_rate']:.0f}% · {100 * rs8['sub_success_rate']:.0f}%",
-            "8 shots: QAOA · azar", CYAN, sub=f"costo {g(hs8['final_cost'])} vs {g(rs8['final_cost'])}", vsize=24)
-    if seeds:
-        text(s, 0.6, 6.05, 3.9, 0.9,
-             [[(f"{len(seeds['seeds'])} semillas (exacto): ", {"bold": True, "color": TEXT}),
-               (f"media {g(seeds['mean'], 1)}, llega a {g(ref)} en {seeds['hits_ref']}/{len(seeds['seeds'])}", {})]],
-             size=13, color=TEXT2)
-    footer(s, f"Con {hq['shots']} shots el azar también resuelve piezas de 3 vuelos (6 opciones). "
-              "Con 8 shots se ve lo que aporta QAOA: concentra probabilidad en el óptimo.")
-    notes(s, f"QGate elige 3 vuelos, arma un subproblema de 9 qubits con el resto fijo y lo resuelve con QAOA. "
-             f"Con la semilla del bench llega a {g(hq['final_cost'])}, gap {g(hq['gap_pct'], 1)}%. Fuimos honestos: con "
-             f"{hq['shots']} muestras hasta el azar resuelve piezas tan chicas. Por eso medimos con 8 muestras: QAOA "
-             + (f"resuelve {100 * hs8['sub_success_rate']:.0f}% de las piezas y el azar {100 * rs8['sub_success_rate']:.0f}%. "
-                if hs8 and rs8 else "") +
-             f"En varias semillas el marco llega a {g(ref)} en {seeds.get('hits_ref')} de {len(seeds.get('seeds', []))}.")
-
-    # 7 · escala
-    s = prs.slides.add_slide(blank)
-    bg(s)
-    sc = R.get("scaling", [])
-    ns = sorted({r["N"] for r in sc})
-    header(s, "06", "Escalabilidad", f"N = {', '.join(map(str, ns))} · qubits constantes")
-    image(s, img("escalabilidad.png"), 0.6, 2.0, w=9.3)
-    big = max(ns) if ns else N
-    kpi(s, 10.2, 2.0, 2.6, 1.5, "9", "qubits en todo N", CYAN, vsize=40)
-    kpi(s, 10.2, 3.7, 2.6, 1.5, f"{big * big}", f"qubits QUBO N={big}", AMBER, vsize=40)
-    qrows = [r for r in sc if r["method"] == "qgate_lns_qaoa"]
-    if qrows:
-        mem = max(r["peak_mem_mb"] for r in qrows)
-        kpi(s, 10.2, 5.4, 2.6, 1.4, f"{mem:.1f} MB", "memoria pico QGate", CYAN, vsize=28)
-    footer(s, f"N > {N}: sintéticas sin óptimo conocido, gap contra la cota Gilmore-Lawler (N={N}: cota {g(glb['bound'])}). "
-              "SA gana en calidad y tiempo; lo que no crece es la parte cuántica.")
-    notes(s, "Al crecer N el subproblema cuántico sigue siendo de 9 qubits y la memoria no crece. Sin óptimo "
-             "conocido en N mayores, medimos contra una cota inferior. La búsqueda es más lenta que simulated "
-             "annealing en simulador: eso es honesto y es lo que esperamos mejorar con hardware.")
-
-    # 8 · cierre
-    s = prs.slides.add_slide(blank)
-    bg(s)
-    header(s, "07", "Qué aporta lo cuántico hoy")
-    cols = [("HOY", CYAN, ["XY + estado W: factibilidad por construcción",
-                           "QAOA concentra probabilidad en el óptimo de cada pieza",
-                           "Memoria constante al crecer N"]),
-            ("LÍMITES", AMBER, ["Simulador más lento que SA",
-                                "Ruido borra la ventaja de XY",
-                                "Piezas de 3 vuelos: el azar con muchos shots también llega"]),
-            ("SIGUIENTE", TEXT, ["Hardware IBM real (N=3, 9 qubits)",
-                                 "Vecindarios k=4 (16 qubits)",
-                                 "Warm start y mitigación de errores"])]
-    for i, (t, col, items) in enumerate(cols):
-        x = 0.6 + i * 4.15
-        box(s, x, 1.75, 3.95, 3.9)
-        accent(s, x, 1.9, 3.6, col)
-        text(s, x + 0.3, 1.95, 3.5, 0.4, t, size=13, color=col, font=MONO, bold=True)
-        text(s, x + 0.3, 2.5, 3.5, 3.0, items, size=17, color=TEXT, spacing=14)
-    text(s, 0.6, 5.95, 12.2, 0.5,
-         [[("Exacto ", {"color": TEXT2}), (g(bf["cost"]), {"color": AMBER, "bold": True, "font": MONO}),
-           ("   ·   SA ", {"color": TEXT2}), (g(sa["cost"]), {"color": AMBER, "bold": True, "font": MONO}),
-           ("   ·   QGate ", {"color": TEXT2}), (g(hq["final_cost"]), {"color": CYAN, "bold": True, "font": MONO}),
-           ("   ·   aleatoria ", {"color": TEXT2}), (g(rnd["cost"]), {"color": MUTED, "bold": True, "font": MONO})]],
-         size=18)
-    footer(s, "Qiskit · Qiskit Aer · NumPy · SciPy · Matplotlib · MIPLIB 2017 (qap10) · " + team["repo"])
-    notes(s, "Lo cuántico hoy aporta estructura: el mixer XY respeta las restricciones y QAOA resuelve bien piezas "
-             "pequeñas. No tiene ventaja de tiempo frente al clásico en simulador, y lo decimos con números. "
-             "El siguiente paso es hardware IBM real, vecindarios más grandes y mitigación de errores.")
-
+    for i, (body, note) in enumerate(slides(R, team, img), 1):
+        hp = os.path.join(tmp, f"s{i}.html")
+        with open(hp, "w", encoding="utf-8") as fh:
+            fh.write(BASE.replace("__BODY__", body))
+        png = os.path.join(png_dir, f"slide{i:02d}.png")
+        subprocess.run([browser, "--headless=new", "--disable-gpu", "--hide-scrollbars",
+                        "--allow-file-access-from-files", "--force-device-scale-factor=2",
+                        "--virtual-time-budget=6000", "--window-size=1280,720",
+                        f"--user-data-dir={os.path.join(tmp, 'profile')}",
+                        f"--screenshot={png}", "file:///" + hp.replace("\\", "/")],
+                       check=True, capture_output=True, timeout=120)
+        s = prs.slides.add_slide(prs.slide_layouts[6])
+        s.shapes.add_picture(png, 0, 0, width=prs.slide_width, height=prs.slide_height)
+        s.notes_slide.notes_text_frame.text = note
     prs.save(out_path)
+    shutil.rmtree(tmp, ignore_errors=True)
     return out_path
 
 

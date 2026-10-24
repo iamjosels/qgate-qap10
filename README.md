@@ -230,5 +230,5 @@ examples/     corrida sobre un MPS sintético (no es qap10)
 ## 9. Créditos
 
 [Qiskit](https://github.com/Qiskit/qiskit) y [Qiskit Aer](https://github.com/Qiskit/qiskit-aer) (IBM),
-NumPy, SciPy, Matplotlib, python-pptx, Chart.js. Datos: [MIPLIB 2017, instancia qap10](https://miplib.zib.de/instance_details_qap10.html).
+NumPy, SciPy, Matplotlib, python-pptx; slides renderizadas con Chrome headless. Identidad visual en `design/` (BRAND.md). Datos: [MIPLIB 2017, instancia qap10](https://miplib.zib.de/instance_details_qap10.html).
 Reto: NTT DATA. Organizan Quantum Hub Perú, IEEE Computer Society PUCP y NTT DATA.

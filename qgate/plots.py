@@ -7,19 +7,21 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-BG, FG, AMBER, CYAN, GREY, RED = "#0a101c", "#e6edf7", "#f5b700", "#22d3ee", "#64748b", "#f87171"
+# paleta de design/BRAND.md: pista, papel, señal, qubit, gris, inválido
+BG, FG, AMBER, CYAN, GREY, RED = "#0B0B0C", "#F4F1E8", "#FFC629", "#4FE3E0", "#9A9890", "#FF6B3D"
+BOARD, LINE = "#141518", "#2C2F35"
 
 
 def _style(ax, title):
     ax.set_facecolor(BG)
     ax.figure.set_facecolor(BG)
     for s in ax.spines.values():
-        s.set_color(GREY)
+        s.set_color(LINE)
     ax.tick_params(colors=FG)
     ax.yaxis.label.set_color(FG)
     ax.xaxis.label.set_color(FG)
     ax.set_title(title, color=FG, fontsize=14, loc="left", fontweight="bold")
-    ax.grid(color=GREY, alpha=0.2)
+    ax.grid(color=LINE, alpha=0.9)
 
 
 def make_all(R: dict, out: str) -> None:
@@ -35,7 +37,7 @@ def make_all(R: dict, out: str) -> None:
         ax.set_xticks(list(x), ids, rotation=20)
         ax.set_ylabel("P(asignación válida)")
         _style(ax, "QAOA vs azar")
-        ax.legend(facecolor=BG, labelcolor=FG, edgecolor=GREY)
+        ax.legend(facecolor=BG, labelcolor=FG, edgecolor=LINE)
         fig.tight_layout()
         fig.savefig(os.path.join(out, "qaoa_vs_azar.png"), dpi=160)
         plt.close(fig)
@@ -53,7 +55,7 @@ def make_all(R: dict, out: str) -> None:
         ax.set_xscale("log", base=2)
         ax.set_xlabel("λ / λ0")
         _style(ax, "Barrido de λ (N=3)")
-        ax.legend(facecolor=BG, labelcolor=FG, edgecolor=GREY, fontsize=8)
+        ax.legend(facecolor=BG, labelcolor=FG, edgecolor=LINE, fontsize=8)
         fig.tight_layout()
         fig.savefig(os.path.join(out, "barrido_lambda.png"), dpi=160)
         plt.close(fig)
@@ -63,21 +65,21 @@ def make_all(R: dict, out: str) -> None:
     if hy:
         fig, ax = plt.subplots(figsize=(8, 4.2))
         style = {"qgate_lns_qaoa": dict(color=CYAN, lw=5, alpha=0.85, zorder=2),
-                 "qgate_lns_exact": dict(color=AMBER, lw=2, ls="--", zorder=3),
+                 "qgate_lns_exact": dict(color=FG, lw=1.5, ls="--", zorder=3),
                  "qgate_lns_random": dict(color=GREY, lw=1.5, ls=":", zorder=3),
-                 "qgate_lns_qaoa_s8": dict(color="#7fd3e6", lw=2, zorder=2),
-                 "qgate_lns_random_s8": dict(color=RED, lw=2, zorder=2)}
+                 "qgate_lns_qaoa_s8": dict(color="#A7F1EF", lw=2, zorder=2),
+                 "qgate_lns_random_s8": dict(color=GREY, lw=2, zorder=2)}
         for h in sorted(hy, key=lambda h: h["method"] != "qgate_lns_qaoa"):
             hist = h["history"]
             ax.step([p["iter"] for p in hist], [p["best"] for p in hist], where="post",
                     label=h.get("label", h["method"]), **style.get(h["method"], dict(color=FG)))
         ref = R.get("meta", {}).get("reference_optimum")
         if ref:
-            ax.axhline(ref, color=RED, ls=":", label=f"Óptimo {ref:g} (solo referencia)")
+            ax.axhline(ref, color=AMBER, ls=":", label=f"Óptimo {ref:g} (solo referencia)")
         ax.set_xlabel("iteración")
         ax.set_ylabel("mejor costo")
         _style(ax, "Convergencia N completo")
-        ax.legend(facecolor=BG, labelcolor=FG, edgecolor=GREY, fontsize=8)
+        ax.legend(facecolor=BG, labelcolor=FG, edgecolor=LINE, fontsize=8)
         fig.tight_layout()
         fig.savefig(os.path.join(out, "hibrido_convergencia.png"), dpi=160)
         plt.close(fig)
@@ -93,12 +95,12 @@ def make_all(R: dict, out: str) -> None:
             rnd.append(q["random_feasible_baseline"])
         x = range(len(labels))
         ax.bar([i - 0.27 for i in x], ideal, 0.27, color=CYAN, label="sin ruido")
-        ax.bar(list(x), shots, 0.27, color=AMBER, label=noisy[0]["noise"].replace("depolarizing", "con ruido"))
+        ax.bar(list(x), shots, 0.27, color="#2A8C8A", label=noisy[0]["noise"].replace("depolarizing", "con ruido"))
         ax.bar([i + 0.27 for i in x], rnd, 0.27, color=GREY, label="azar")
         ax.set_xticks(list(x), labels)
         ax.set_ylabel("fracción válida (N=3)")
         _style(ax, "Efecto del ruido")
-        ax.legend(facecolor=BG, labelcolor=FG, edgecolor=GREY, fontsize=9)
+        ax.legend(facecolor=BG, labelcolor=FG, edgecolor=LINE, fontsize=9)
         fig.tight_layout()
         fig.savefig(os.path.join(out, "ruido.png"), dpi=160)
         plt.close(fig)
@@ -126,7 +128,7 @@ def make_all(R: dict, out: str) -> None:
             a.set_xlabel("N  (* sintética)")
         _style(axs[0], "Calidad vs N")
         _style(axs[1], "Tiempo vs N")
-        axs[0].legend(facecolor=BG, labelcolor=FG, edgecolor=GREY, fontsize=8)
+        axs[0].legend(facecolor=BG, labelcolor=FG, edgecolor=LINE, fontsize=8)
         fig.tight_layout()
         fig.savefig(os.path.join(out, "escalabilidad.png"), dpi=160)
         plt.close(fig)
@@ -142,7 +144,10 @@ def _gate_map(R: dict, out: str) -> None:
     if any(m is None or len(m) == 0 for m in (xy, F, D)) or len(pick) < 2:
         return
     import numpy as np
-    P, F, D = np.array(xy), np.array(F), np.array(D)
+    from .instance import manhattan_grid
+    F, D = np.array(F), np.array(D)
+    grid = manhattan_grid(D)
+    P = np.array(xy) if grid is None else grid * np.array([1.0, -1.0])   # fila 0 arriba
     n = len(P)
     fmax = F.max() or 1
     cmax = max(F[i, k] * D[a["perm"][i], a["perm"][k]] for a in pick
@@ -156,13 +161,19 @@ def _gate_map(R: dict, out: str) -> None:
                     continue
                 p1, p2 = P[perm[i]], P[perm[k]]
                 c = F[i, k] * D[perm[i], perm[k]]
-                ax.plot([p1[0], p2[0]], [p1[1], p2[1]], color=AMBER, lw=0.6 + 6 * F[i, k] / fmax,
+                t = np.linspace(0, 1, 30)
+                mid = (p1 + p2) / 2 + 0.18 * np.array([-(p2 - p1)[1], (p2 - p1)[0]])
+                cx = (1 - t) ** 2 * p1[0] + 2 * (1 - t) * t * mid[0] + t ** 2 * p2[0]
+                cy = (1 - t) ** 2 * p1[1] + 2 * (1 - t) * t * mid[1] + t ** 2 * p2[1]
+                ax.plot(cx, cy, color=AMBER, lw=0.6 + 6 * F[i, k] / fmax,
                         alpha=0.12 + 0.85 * c / cmax, solid_capstyle="round", zorder=1)
         inv = {g: i for i, g in enumerate(perm)}
         for g, (x, y) in enumerate(P):
-            ax.scatter([x], [y], s=620, color="#17233a", edgecolors=GREY, linewidths=1.5, zorder=2)
-            ax.text(x, y, f"V{inv[g] + 1}", color=AMBER, ha="center", va="center", fontsize=10,
+            ax.scatter([x], [y], s=700, color="#1E2024", edgecolors=LINE, linewidths=1.5, zorder=2, marker="s")
+            ax.text(x, y, f"V{inv[g] + 1:02d}", color=FG, ha="center", va="center", fontsize=9,
                     fontweight="bold", zorder=3)
+            ax.text(x, y + 0.32, f"P{g + 1:02d}", color=BG, ha="center", va="center", fontsize=8, fontweight="bold",
+                    zorder=3, bbox=dict(boxstyle="round,pad=0.25", fc=AMBER, ec="none"))
         _style(ax, f"{a['label']} · costo {a['cost']:g}")
         ax.set_xticks([]), ax.set_yticks([])
         ax.grid(False)

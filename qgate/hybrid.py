@@ -85,6 +85,8 @@ def qgate_lns(inst: QAPInstance, k: int = 3, iters: int = 120, solver: str = "qa
     cur = inst.cost(perm)
     start_cost = cur
     history = [{"iter": 0, "t": 0.0, "current": cur, "best": cur}]
+    # eventos para animar el tablero: asignación completa tras cada movimiento o perturbación
+    events = [{"iter": 0, "type": "start", "perm": perm.tolist(), "cost": float(cur)}]
     stats = {"subproblems": 0, "improvements": 0, "qaoa_found_sub_opt": 0,
              "no_feasible_sample": 0, "sampler_found_sub_opt": 0}
     p_opt_acc, p_rand_opt_acc, p_feas_acc = 0.0, 0.0, 0.0   # P(óptimo) del subproblema: QAOA vs azar
@@ -106,6 +108,7 @@ def qgate_lns(inst: QAPInstance, k: int = 3, iters: int = 120, solver: str = "qa
             cur = inst.cost(perm)
             stall = 0
             stats["kicks"] += 1
+            events.append({"iter": it, "type": "kick", "perm": perm.tolist(), "cost": float(cur)})
         if time_limit and time.perf_counter() - t0 > time_limit:
             break
         # selección: aleatoria o sesgada a elementos con mayor contribución
@@ -152,6 +155,8 @@ def qgate_lns(inst: QAPInstance, k: int = 3, iters: int = 120, solver: str = "qa
             for a, e in enumerate(elems):
                 perm[e] = locs[new_sub[a]]
             cur = inst.cost(perm)
+            events.append({"iter": it, "type": "move", "elems": [int(e) for e in elems],
+                           "perm": perm.tolist(), "cost": float(cur), "best": float(min(cur, best_cost))})
             if new_sub_cost < cur_sub - 1e-9:
                 stats["improvements"] += 1
         if cur < best_cost - 1e-9:
@@ -173,7 +178,7 @@ def qgate_lns(inst: QAPInstance, k: int = 3, iters: int = 120, solver: str = "qa
         "N": n, "k": k, "qubits_per_subproblem": k * k if solver == "qaoa" else 0,
         "p": p if solver == "qaoa" else None, "iters": len(history) - 1,
         "start_cost": float(start_cost), "final_cost": float(raw_cost), "final_perm": raw_perm,
-        "time_s": time.perf_counter() - t0, "history": history, **stats,
+        "time_s": time.perf_counter() - t0, "history": history, "events": events, **stats,
         "qaoa_sub_success_rate": (stats["qaoa_found_sub_opt"] / max(stats["subproblems"]
                                   - stats["no_feasible_sample"], 1)) if solver == "qaoa" else None,
         # éxito sobre todos los subproblemas (sin muestra válida cuenta como fallo)

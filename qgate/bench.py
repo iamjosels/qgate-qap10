@@ -180,7 +180,8 @@ def main(argv=None):
         for n, mixer, p, noise in exps:
             s = inst.subinstance(n)
             r = run_qaoa(s, p=p, mixer=mixer, restarts=rs, maxiter=mi, shots=4096,
-                         seed=args.seed, noise=noise, optimum=sub_opt.get(n))
+                         seed=args.seed, noise=noise, optimum=sub_opt.get(n),
+                         trace=(n == 4 and p == 1 and not noise))   # frames del modo demo
             R["quantum"].append(r)
             log(f"QAOA {r['id']}: P(fact)={r['p_feasible']:.4f} ideal, {r['feasible_fraction_shots']:.4f} shots "
                 f"vs azar {r['random_feasible_baseline']:.4f} | "
