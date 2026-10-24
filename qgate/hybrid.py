@@ -74,7 +74,7 @@ def qgate_lns(inst: QAPInstance, k: int = 3, iters: int = 120, solver: str = "qa
               time_limit: float | None = None, shots: int = 512, maxiter: int = 40,
               polish: bool = True, label: str | None = None, stall_limit: int = 10,
               kick_swaps: int = 3, adaptive_kick: bool = True, sideways: bool = False,
-              warm_start: bool = False) -> dict:
+              warm_start: bool = False, piece_log: list | None = None) -> dict:
     from .quantum import solve_subproblem_qaoa   # import diferido (Qiskit)
 
     rng = np.random.default_rng(seed)
@@ -121,6 +121,8 @@ def qgate_lns(inst: QAPInstance, k: int = 3, iters: int = 120, solver: str = "qa
             elems = sorted(rng.choice(n, k, replace=False, p=w / w.sum()).tolist())
         sub = build_subproblem(inst, perm, elems)
         sub_opt_cost, sub_opt_perm, n_opt = _exact_sub(sub)   # k! = 6: solo para medir
+        if piece_log is not None:                             # análisis posterior; no altera la búsqueda
+            piece_log.append({"iter": it, "elems": [int(e) for e in elems], "n_opt": int(n_opt)})
         cur_sub = sub.cost(list(range(k)))                    # asignación actual = identidad
         stats["subproblems"] += 1
         p_rand_opt_acc += n_opt / k ** k                      # azar sobre el espacio del estado W

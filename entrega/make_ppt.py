@@ -217,7 +217,9 @@ def slides(R, team, img):
     # 6 · híbrido
     abl = []
     if hq8 and hr8:
-        abl = [(f"con 8 shots: QAOA resuelve {pct(hq8['sub_success_rate'], 0)} de las piezas · azar {pct(hr8['sub_success_rate'], 0)}", True)]
+        bv = (R.get("extra") or {}).get("baselines_qaoa_s8")
+        abl = [(f"8 shots: QAOA {pct(hq8['sub_success_rate'], 0)} · azar 27 estados {pct(hr8['sub_success_rate'], 0)}"
+                + (f" · azar 6 válidas {pct(bv['hit_k8_random_valid_6'], 0)} · enumerar 100%" if bv else ""), True)]
     out.append((f"""<div class="c" style="height:100%">{head("05", "QAOA como subrutina")}
   <div style="display:grid;grid-template-columns:400px minmax(0,1fr);gap:28px;flex-grow:1;min-height:0">
     <div style="display:flex;flex-direction:column;gap:20px;min-height:0">
@@ -238,8 +240,11 @@ def slides(R, team, img):
 </div>""",
                 f"QGate elige 3 vuelos, arma una pieza de 9 qubits con el resto fijo y la resuelve con QAOA. Con nuestra "
                 f"semilla llega a {g(hq['final_cost'])}. Con 512 muestras hasta el azar resuelve piezas tan chicas, por eso "
-                "medimos con 8: " + (f"QAOA resuelve {pct(hq8['sub_success_rate'], 0)} de las piezas y el azar "
+                "medimos con 8: " + (f"QAOA resuelve {pct(hq8['sub_success_rate'], 0)} de las piezas y el azar sobre los 27 estados de su espacio "
                                      f"{pct(hr8['sub_success_rate'], 0)}. " if hq8 and hr8 else "")
+                + (f"Pero el azar sobre las 6 permutaciones válidas llegaría a {pct((R.get('extra') or {})['baselines_qaoa_s8']['hit_k8_random_valid_6'], 0)} y enumerar las 6 opciones, a 100%: "
+                   "QAOA concentra probabilidad respecto a su espacio de partida, pero en piezas de 3 vuelos aún no supera a esas alternativas. "
+                   if (R.get("extra") or {}).get("baselines_qaoa_s8") else "")
                 + f"En {len(seeds.get('seeds', []))} semillas llega a {g(ref)} en {seeds.get('hits_ref')}: el límite es la búsqueda."))
 
     # 7 · escala
@@ -303,6 +308,10 @@ def build(results_path, out_path):
         R = json.load(fh)
     with open(os.path.join(HERE, "equipo.json"), encoding="utf-8") as fh:
         team = json.load(fh)
+    exp = os.path.join(os.path.dirname(os.path.abspath(results_path)), "extra.json")
+    if os.path.exists(exp):
+        with open(exp, encoding="utf-8") as fh:
+            R["extra"] = json.load(fh)
     hwp = os.path.join(os.path.dirname(os.path.abspath(results_path)), "hardware.json")
     if os.path.exists(hwp):
         with open(hwp, encoding="utf-8") as fh:

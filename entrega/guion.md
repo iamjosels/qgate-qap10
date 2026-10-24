@@ -10,7 +10,7 @@ Una slide por bloque. Hablar con números, sin leer la pantalla. Todos los núme
 | 0:40 a 1:05 | 3 Datos | Integrante 2 | "El MPS viene linealizado: 4150 variables. Reconstruimos flujos y distancias sin depender de nombres y verificamos la escala: N=3 da 24, N=4 da 32 y la instancia completa 340, como pide el reto. El 340 solo lo usamos para medir el gap." |
 | 1:05 a 1:30 | 4 Qiskit | Integrante 3 | "Pasamos a QUBO, luego a Ising, y corremos QAOA en Qiskit Aer. Comparamos dos ansatz: mixer X, donde todo es penalidad, y mixer XY con estado W, que deja cada vuelo en una sola puerta. En N=4, QAOA con mixer X muestrea asignaciones válidas 112 veces más que el azar." |
 | 1:30 a 1:50 | 5 Límites | Integrante 3 | "N=10 completo serían 100 qubits: imposible de simular. Justificamos λ y lo validamos con un barrido. Y medimos el ruido: con 1% de ruido el mixer XY pierde casi toda su ventaja de factibilidad." |
-| 1:50 a 2:25 | 6 Híbrido | Integrante 4 | "Por eso QGate usa QAOA como subrutina: elige 3 vuelos, 9 qubits, y el resto queda fijo. Llega a 340 con nuestra semilla. Y somos honestos: con 512 muestras hasta el azar resuelve piezas tan chicas. Con 8 muestras QAOA resuelve el 59% de las piezas y el azar el 29%. Eso es lo que aporta lo cuántico aquí." |
+| 1:50 a 2:25 | 6 Híbrido | Integrante 4 | "Por eso QGate usa QAOA como subrutina: elige 3 vuelos, 9 qubits, y el resto queda fijo. Llega a 340 con nuestra semilla. Y somos honestos: con 512 muestras hasta el azar resuelve piezas tan chicas. Con 8 muestras QAOA resuelve el 59% de las piezas, contra 29% del azar sobre los 27 estados de su espacio. Pero el azar sobre las 6 permutaciones válidas llegaría a 78% y enumerar las 6 opciones, a 100%: QAOA concentra probabilidad respecto a su espacio de partida, pero en piezas de 3 vuelos aún no supera a esas alternativas." |
 | 2:25 a 2:40 | 7 Escala | Integrante 4 | "Al crecer a N=16 seguimos con 9 qubits y memoria constante; medimos contra una cota inferior porque no hay óptimo conocido." |
 | 2:40 a 3:00 | 8 Cierre | Integrante 2 | "Hoy lo cuántico aporta estructura y concentración de probabilidad en piezas pequeñas, no velocidad. Lo medimos en el simulador Qiskit Aer y en una corrida en ibm_kingston de IBM Quantum: en N=3 con mixer XY salieron 25% de asignaciones válidas, contra 79% ideal y 22% al azar. El siguiente paso es mitigación de errores y piezas de 16 qubits. Gracias." |
 
@@ -36,10 +36,16 @@ QPU, con los ángulos optimizados en el simulador. Mixer XY: 25.4% válidas (ide
 como mucho en λ0 y viola una restricción, así que ninguna inválida le gana a la mejor válida. Lo
 validamos con un barrido de λ/λ0 entre 0.25 y 4.
 
-**¿QAOA realmente aporta en el híbrido?**
-Con 512 muestras, no se distingue del azar: piezas de 3 vuelos tienen solo 6 asignaciones. Lo medimos
-con una ablación: con 8 muestras QAOA resuelve muchas más piezas que el azar y llega a mejor costo.
-P(óptimo) por pieza también es mayor que la del azar.
+**¿QAOA realmente aporta en el híbrido? / ¿Por qué QAOA si enumerar gana? / ¿Qué azar?**
+Hay que decir qué azar. Frente a los 27 estados que genera su estado inicial (una puerta por vuelo), QAOA concentra
+probabilidad: P(óptimo) por pieza 0.094 contra 0.039, y con 8 muestras resuelve 59% de las piezas contra 29%. Frente a
+muestrear las 6 permutaciones válidas (78% con 8 muestras) o enumerarlas (100%), todavía no gana:
+las piezas de 3 vuelos son tan chicas que enumerar es trivial. Medimos QAOA ahí para ver cuánto concentra con un
+circuito que cabe en hardware, no porque esperemos que gane (SIMULADOR, N=10, `results/extra.json`).
+
+**¿Qué usó la IA?**
+Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equipo; parte del motor se preparó antes de
+la jornada; los cuatro integrantes pueden explicar su funcionamiento.
 
 **¿Por qué el híbrido no siempre llega a 340?**
 El límite es el vecindario de 3 vuelos, no QAOA: con el solver exacto en el mismo marco, en varias

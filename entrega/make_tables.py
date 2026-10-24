@@ -178,12 +178,16 @@ def findings(R: dict) -> str:
                     f"{g(hr['final_cost'])}: con piezas de 3 vuelos (6 asignaciones) y {hq['shots']} muestras, el azar también "
                     f"encuentra el óptimo de cada pieza.")
         out.append(txt)
-        out.append(f"5. **Qué aporta QAOA.** P(óptimo) medio por subproblema: {fp(hq['qaoa_p_optimal_mean'])} con QAOA p={hq['p']} "
-                   f"frente a {fp(hq['random_p_optimal_mean'])} del azar "
-                   f"({hq['qaoa_p_optimal_mean'] / hq['random_p_optimal_mean']:.1f} veces)."
-                   + (f" Con solo 8 shots, QAOA resuelve el {g(100 * hq8['sub_success_rate'], 0)}% de los subproblemas y el azar el "
-                      f"{g(100 * hr8['sub_success_rate'], 0)}%; el costo final es {g(hq8['final_cost'])} frente a {g(hr8['final_cost'])}."
-                      if hq8 and hr8 else ""))
+        bv = (R.get("extra") or {}).get("baselines_qaoa_s8")
+        out.append(f"5. **Qué aporta QAOA (SIMULADOR, piezas de 3 vuelos en N=10).** P(óptimo) medio por pieza: {fp(hq['qaoa_p_optimal_mean'])} con QAOA p={hq['p']} "
+                   f"frente a {fp(hq['random_p_optimal_mean'])} del azar sobre los 27 estados con una puerta por vuelo "
+                   f"({hq['qaoa_p_optimal_mean'] / hq['random_p_optimal_mean']:.1f} veces)"
+                   + (f" y {fp(bv['p_opt_random_valid_6'])} del azar sobre las 6 permutaciones válidas" if bv else "") + "."
+                   + (f" Con 8 shots, QAOA resuelve el {g(100 * hq8['sub_success_rate'], 0)}% de las piezas; el azar sobre 27 estados, el "
+                      f"{g(100 * hr8['sub_success_rate'], 0)}%" + (f"; el azar sobre las 6 permutaciones válidas, el {g(100 * bv['hit_k8_random_valid_6'], 0)}% "
+                      f"(calculado sobre las {bv['pieces']} piezas de esa corrida, `results/extra.json`); la enumeración exacta, el 100%" if bv else "")
+                      + f". Costo final: QAOA {g(hq8['final_cost'])}, azar sobre 27 estados {g(hr8['final_cost'])}."
+                      if hq8 and hr8 else "") + " QAOA concentra probabilidad respecto a su espacio de partida; en piezas de 3 vuelos aún no supera a muestrear permutaciones válidas ni a enumerar las 6 opciones.")
     S = R.get("hybrid_seeds")
     if S:
         out.append(f"6. **Robustez.** En {len(S['seeds'])} semillas y arranques, el mismo marco con solver exacto (equivale a QAOA "
@@ -228,6 +232,10 @@ def main():
             H = json.load(fh)
         if not H.get("fake"):
             R["hardware"] = H
+    exp = os.path.join(os.path.dirname(os.path.abspath(src)), "extra.json")
+    if os.path.exists(exp):
+        with open(exp, encoding="utf-8") as fh:
+            R["extra"] = json.load(fh)
     with open(readme, encoding="utf-8") as fh:
         txt = fh.read()
     i, j = txt.index(START), txt.index(END)

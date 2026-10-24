@@ -93,6 +93,13 @@ def main():
     add(f"QGate tiempo N={big}", t1(rw(big, "qgate_lns_qaoa")["time_s"]))
     add("memoria pico QGate", t1(max(r["peak_mem_mb"] for r in sc if r["method"] == "qgate_lns_qaoa")))
     add("shots", "4096")
+    k = int(round(hq["qubits_per_subproblem"] ** 0.5))
+    add("estados de una pieza (k^k)", str(k ** k)); add("permutaciones de una pieza (k!)", str(math.factorial(k)))
+    ex = R.get("extra") or (json.load(open(os.path.join(os.path.dirname(os.path.abspath(res)), "extra.json"), encoding="utf-8"))
+                            if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(res)), "extra.json")) else {})
+    if ex.get("baselines_qaoa_s8"):
+        add("azar 6 permutaciones válidas, 8 muestras", p0(ex["baselines_qaoa_s8"]["hit_k8_random_valid_6"]))
+        add("enumeración exacta", "100")
     add("qubits de los métodos clásicos (scaling)", str(rw(N, "simulated_annealing")["qubits"]))
     add("shots de la corrida de 8 muestras", str(hq8["shots"]))
     # literales estructurales del método (no son resultados): intercambio de 2 vuelos, piezas de 3 vuelos

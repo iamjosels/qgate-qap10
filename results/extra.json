@@ -1,0 +1,69 @@
+{
+ "baselines_qaoa_s8": {
+  "method": "qgate_lns_qaoa_s8",
+  "shots_qaoa": 8,
+  "pieces": 300,
+  "history_matches_results_json": true,
+  "n_opt_mean": 1.08,
+  "p_opt_random_valid_6": 0.18,
+  "p_opt_random_states_27": 0.04,
+  "qaoa_sub_success_rate_reported": 0.5933333333333334,
+  "qaoa_p_optimal_mean_reported": 0.09564381262699903,
+  "enumeration_success": 1.0,
+  "hit_k8_random_valid_6": 0.7829159284026823,
+  "hit_k8_random_states_27": 0.2765348369515668,
+  "hit_k512_random_valid_6": 1.0,
+  "hit_k512_random_states_27": 0.999999996268403
+ },
+ "hardware_random_p_optimal": {
+  "backend": "ibm_kingston",
+  "job_id": "dbefhdom94ac738rnc00",
+  "N": 3,
+  "rows": [
+   {
+    "id": "N3-x-p1",
+    "mixer": "x",
+    "n_opt": 2,
+    "random_p_optimal": 0.00390625,
+    "hardware_p_optimal": 0.021484375,
+    "ratio_hw_vs_random": 5.5
+   },
+   {
+    "id": "N3-xy-p1",
+    "mixer": "xy",
+    "n_opt": 2,
+    "random_p_optimal": 0.07407407407407407,
+    "hardware_p_optimal": 0.08740234375,
+    "ratio_hw_vs_random": 1.179931640625
+   }
+  ]
+ },
+ "meta_baselines": {
+  "seed": 7,
+  "versions": {
+   "python": "3.14.7",
+   "numpy": "2.5.4",
+   "scipy": "1.18.1",
+   "qiskit": "2.6.1",
+   "qiskit_aer": "0.18.0"
+  },
+  "generated_at": "2026-10-24T15:08:02",
+  "command": "python analysis/baselines.py --mps data/qap10.mps.gz"
+ },
+ "baselines_qaoa": {
+  "method": "qgate_lns_qaoa",
+  "shots_qaoa": 512,
+  "pieces": 300,
+  "history_matches_results_json": true,
+  "n_opt_mean": 1.0533333333333332,
+  "p_opt_random_valid_6": 0.17555555555555558,
+  "p_opt_random_states_27": 0.03901234567901235,
+  "qaoa_sub_success_rate_reported": 1.0,
+  "qaoa_p_optimal_mean_reported": 0.09417322192263315,
+  "enumeration_success": 1.0,
+  "hit_k8_random_valid_6": 0.7777546058146624,
+  "hit_k8_random_states_27": 0.2712247998922491,
+  "hit_k512_random_valid_6": 1.0,
+  "hit_k512_random_states_27": 0.9999999961602407
+ }
+}

@@ -143,9 +143,11 @@ def render(R: dict) -> str:
             f"×{ratio:.0f}" if ratio else None, "más válidas que el azar · N=4 mixer X" if ratio else "", q_extra, "qaoa"))
     if hq:
         h_extra = []
+        bv = (R.get("extra") or {}).get("baselines_qaoa_s8")
         if hq8 and hr8:
-            h_extra.append(f"Con 8 muestras QAOA acierta <b>{e(pct(hq8['sub_success_rate'], 0))}</b> de las piezas vs "
-                           f"{e(pct(hr8['sub_success_rate'], 0))} al azar (costo {e(num(hq8['final_cost']))} vs {e(num(hr8['final_cost']))})")
+            h_extra.append(f"Con 8 muestras QAOA acierta <b>{e(pct(hq8['sub_success_rate'], 0))}</b> de las piezas; azar (27 estados) "
+                           f"{e(pct(hr8['sub_success_rate'], 0))}" + (f"; azar (6 permutaciones válidas) <b>{e(pct(bv['hit_k8_random_valid_6'], 0))}</b>; enumeración 100%" if bv else "")
+                           + f" (costo QAOA {e(num(hq8['final_cost']))} vs azar 27 estados {e(num(hr8['final_cost']))})")
         if seeds.get("seeds"):
             h_extra.append(f"Llega a {e(num(ref))} en <b>{e(seeds['hits_ref'])} de {e(len(seeds['seeds']))}</b> semillas")
         if ns:
@@ -207,7 +209,7 @@ def render(R: dict) -> str:
     ratio = x4["p_feasible"] / x4["random_feasible_baseline"] if x4 else None
     rows.append(("Ventaja principal",
                  cell("ok", f"exacto y rápido en N={N}: {num(bf['cost'])} en {sec(bf['time_s'])}") if bf else cell("ok", None),
-                 cell("ok", f"concentra probabilidad: ×{ratio:.0f} el azar (N=4, mixer X)") if ratio else cell("ok", None),
+                 cell("ok", f"concentra probabilidad: ×{ratio:.0f} el azar de su espacio (N=4, mixer X)") if ratio else cell("ok", None),
                  cell("ok", f"qubits constantes: {hq.get('qubits_per_subproblem')} de N={ns[0]} a N={big}") if hq and ns else cell("ok", None)))
     rows.append(("Desventaja principal",
                  cell("no", f"fuerza bruta explota: {big}! = {sci(fact(big))} en N={big}") if big else cell("no", None),
@@ -218,5 +220,6 @@ def render(R: dict) -> str:
   <th>{chip('classic')}<div class="th-s">Clásico</div></th><th>{chip('quantum')}<div class="th-s">Cuántico (QAOA directo)</div></th>
   <th>{chip('hybrid')}<div class="th-s">Híbrido (QGate)</div></th></tr></thead><tbody>{body}</tbody></table>
   <div class="legend cmp-leg"><span><b class="m-ok">✓</b> ventaja</span><span><b class="m-no">✗</b> desventaja</span><span><b class="m-mid">~</b> parcial</span></div></div>
-<p class="verdict">Hoy gana el clásico en N={ns[0] if ns else N} a {big or N}. QAOA concentra la probabilidad muy por encima del azar, incluso en hardware real con el circuito corto. El híbrido escala en memoria, todavía no en calidad.</p>""")
+<p class="verdict">Hoy gana el clásico en N={ns[0] if ns else N} a {big or N}. QAOA concentra la probabilidad muy por encima del azar, incluso en hardware real con el circuito corto. El híbrido escala en memoria, todavía no en calidad.</p>
+<p class="verdict" style="border-left-color:var(--mute)">QAOA concentra probabilidad respecto a su espacio de partida; en piezas de 3 vuelos aún no supera a muestrear permutaciones válidas ni a enumerar las 6 opciones.</p>""")
     return "<!--PANO:START-->" + "\n".join(out) + "<!--PANO:END-->"
