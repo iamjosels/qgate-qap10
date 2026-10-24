@@ -33,7 +33,7 @@ QPU, con los ángulos optimizados en el simulador. Mixer XY: 25.4% válidas (ide
 
 **¿Cómo eligieron λ?**
 λ0 es el mayor aporte posible de una sola asignación. Quitar o duplicar una asignación cambia el costo
-como mucho en λ0 y viola una restricción, así que ninguna inválida le gana a la mejor válida. Lo
+como mucho en λ0 y viola una restricción: es un criterio suficiente razonable, no una garantía. Lo
 validamos con un barrido de λ/λ0 entre 0.25 y 4.
 
 **¿QAOA realmente aporta en el híbrido? / ¿Por qué QAOA si enumerar gana? / ¿Qué azar?**
@@ -59,3 +59,11 @@ x y su coeficiente es F·D. Armamos el tensor, factorizamos por SVD con residuo 
 
 **¿Qué hizo cada uno?**
 Completar: modelo y lectura del MPS · QAOA y Qiskit · híbrido y escalamiento · dashboard, PPT y pitch.
+
+**Frase de respaldo.** "Con piezas de 3 vuelos, enumerar las 6 opciones o muestrear permutaciones válidas supera a
+QAOA, y lo medimos. Lo que aporta QAOA es concentrar probabilidad respecto a su espacio de partida; en hardware real
+el ruido borra casi toda la ventaja del mixer XY. El clásico gana en N=10 y escala mejor hoy; la memoria del
+componente cuántico sí es constante."
+
+**¿4 de 12 semillas es con QAOA?** No: con el solver exacto en cada vecindario, 4 de 12 semillas llegan a 340; el
+QAOA lo corrimos con la semilla 7. Cada corrida con QAOA tarda unos 186 s, así que 12 semillas serían unos 37 min.

@@ -8,8 +8,8 @@
 barrido de λ), 02 Aeropuerto (con la ablación del solver y el escalamiento) y 03 Resultado (con los datos validados y la
 reproducibilidad). Cada número sale de `results/results.json`, `results/hardware.json` o `results/extra.json`.
 
-> QAOA solo no llega a 100 qubits. Usado como subrutina de tamaño fijo (9 qubits) dentro de una búsqueda
-> clásica, sí escala, y medimos con números cuánto aporta cada parte. No buscamos demostrar ventaja
+> QAOA solo no llega a 100 qubits. Como subrutina de 9 qubits, la memoria no crece con N; la calidad
+> todavía no escala. Medimos cuánto aporta cada parte. No buscamos demostrar ventaja
 > cuántica: medimos qué funciona, qué no y por qué.
 
 ## 1. Problema (Track A)
@@ -81,8 +81,9 @@ Detalle en [`docs/DECISIONES.md`](docs/DECISIONES.md).
 | Resuelve cada subproblema de 9 qubits del híbrido | Fuerza bruta, SA y cota como referencias |
 
 **λ.** `λ0 = max_ij ( L_ij + Σ_{k≠i} max_{l≠j} T[i,j,k,l] )`, el mayor aporte posible de una asignación.
-Quitar o duplicar una asignación cambia el costo como mucho en λ0 y viola al menos una restricción, así
-que con λ ≥ λ0 ninguna asignación inválida le gana a la mejor válida. Se valida con un barrido λ/λ0.
+Quitar o duplicar una asignación cambia el costo como mucho en λ0 y viola al menos una restricción. Es un
+criterio suficiente razonable (el argumento cubre una violación; no lo demostramos para inválidas con varias),
+validado con un barrido λ/λ0.
 
 ## 5. Resultados
 
@@ -153,6 +154,8 @@ Robustez (solver exacto, 300 iteraciones, semillas 7 a 18): media 354.5 (gap med
 
 ### Escalamiento (N > 10 son instancias sintéticas)
 
+*150 iteraciones del híbrido por N: no comparable con la tabla de N=10 (300). La cota Gilmore-Lawler es débil: en N=10 SA está en el óptimo y aun así marca más de 10% contra la cota.*
+
 | N | Instancia | Método | Costo | Cota GL | Gap vs cota (%) | Tiempo (s) | Memoria pico (MB) | Qubits |
 |---|---|---|---|---|---|---|---|---|
 | 10 | qap10 | SA | 340 | 301 | 13.0 | 23.31 | 0.04 | 0 |
@@ -199,7 +202,7 @@ Un solo job, un solo backend. La simulación con 1% de ruido coincidió con el m
 2. **QAOA directo (N=4, 16 qubits).** Con mixer X, P(válida) = 0.041 frente a 0.00037 del azar (112 veces). Con mixer XY + estado W, 0.477 frente a 0.094 (azar sobre estados con una puerta por vuelo). El mejor costo muestreado es el óptimo (32) en ambos, pero P(óptimo) es baja (0.0035 y 0.042): QAOA p=1 concentra poco.
 3. **Ruido.** Con ruido despolarizante de 1%, la fracción válida del mixer XY cae de 0.789 a 0.250 (su azar es 0.222); la del mixer X, de 0.137 a 0.085. La ventaja estructural de XY es frágil al ruido.
 4. **Híbrido N=10.** Con la semilla 7, QGate con QAOA (512 shots) termina en **340** (gap 0.0%) en 186 s. El control exacto termina en 340 y el azar con las mismas 512 muestras en 340: con piezas de 3 vuelos (6 asignaciones) y 512 muestras, el azar también encuentra el óptimo de cada pieza.
-5. **Qué aporta QAOA (SIMULADOR, piezas de 3 vuelos en N=10).** P(óptimo) medio por pieza: 0.094 con QAOA p=2 frente a 0.039 del azar sobre los 27 estados con una puerta por vuelo (2.4 veces) y 0.180 del azar sobre las 6 permutaciones válidas. Con 8 shots, QAOA resuelve el 59% de las piezas; el azar sobre 27 estados, el 29%; el azar sobre las 6 permutaciones válidas, el 78% (calculado sobre las 300 piezas de esa corrida, `results/extra.json`); la enumeración exacta, el 100%. Costo final: QAOA 372, azar sobre 27 estados 390. QAOA concentra probabilidad respecto a su espacio de partida; en piezas de 3 vuelos aún no supera a muestrear permutaciones válidas ni a enumerar las 6 opciones.
+5. **Qué aporta QAOA (SIMULADOR, piezas de 3 vuelos en N=10).** P(óptimo) medio por pieza: 0.094 con QAOA p=2 frente a 0.039 del azar sobre los 27 estados con una puerta por vuelo (2.4 veces) y 0.180 del azar sobre las 6 permutaciones válidas. Con 8 shots, QAOA resuelve el 59% de las piezas; el azar sobre 27 estados, el 29%; el azar sobre las 6 permutaciones válidas, el 78% (calculado sobre las 300 piezas de esa corrida, `results/extra.json`); la enumeración exacta, el 100%. Costo final (una sola semilla, la 7): QAOA 372, azar sobre 27 estados 390. QAOA concentra probabilidad respecto a su espacio de partida; en piezas de 3 vuelos aún no supera a muestrear permutaciones válidas ni a enumerar las 6 opciones.
 6. **Robustez.** En 12 semillas y arranques, el mismo marco con solver exacto (equivale a QAOA cuando QAOA acierta) llega a 340 en 4 y su media es 354.5 (gap medio 4.3%). El límite es el vecindario de 3 vuelos, no el solver.
 7. **Tiempo.** En simulador, lo clásico gana: fuerza bruta 6.9 s y simulated annealing 13.7 s llegan a 340; el híbrido con QAOA tarda 186 s. No afirmamos ventaja cuántica.
 9. **Hardware real.** Una corrida N=3 (9 qubits) en ibm_kingston de IBM Quantum: N3-x-p1: 0.063 válidas (ideal 0.137, azar 0.012); N3-xy-p1: 0.254 válidas (ideal 0.789, azar 0.222).
@@ -212,8 +215,8 @@ Un solo job, un solo backend. La simulación con 1% de ruido coincidió con el m
 |---|---|
 | Simular 100 qubits es imposible (2^100 amplitudes) | Subproblemas de 9 qubits dentro de una búsqueda clásica: memoria constante |
 | Penalidades: λ chico deja ganar inválidas, λ grande aplana el paisaje | λ0 con justificación analítica + barrido; mixer XY elimina la mitad de las penalidades |
-| Ruido: con 1% despolarizante el mixer XY pierde casi toda su ventaja de factibilidad | Lo medimos y reportamos aparte (P(válida) ideal vs fracción válida en shots). En ibm_kingston (N=3) salió 25.4% válidas, en línea con el 25.0% simulado con ruido |
-| Tiempo: en simulador el híbrido es más lento que simulated annealing | Lo decimos con números; la ganancia esperable está en hardware, no en simulación |
+| Ruido: con 1% despolarizante el mixer XY pierde casi toda su ventaja de factibilidad | Lo medimos y reportamos aparte (P(válida) ideal vs fracción válida en shots). En ibm_kingston (N=3) salió 25.4% válidas, en línea con el 25.0% simulado con ruido; el mismo modelo sobreestimó el mixer X (8.5% vs 6.3%) |
+| Tiempo: en simulador el híbrido es más lento que simulated annealing | Lo decimos con números; en hardware no lo medimos |
 | El vecindario de 3 vuelos limita la calidad final | Control exacto y varias semillas para separar el efecto del solver del de la búsqueda |
 | Sin óptimo conocido para N > 10 | Comparación contra la cota Gilmore-Lawler; instancias sintéticas marcadas |
 | Unidades del aeropuerto | Supuestos de negocio: qap10 es un benchmark matemático |

@@ -110,8 +110,8 @@ def render(R: dict) -> str:
     if hq:
         cols.append(col("hybrid", "QAOA de 9 qubits dentro de búsqueda clásica", str(hq.get("qubits_per_subproblem")),
                         "qubits por pieza, en cualquier N",
-                        [f"8 muestras: QAOA <b>{e(pct(hq8['sub_success_rate'], 0))}</b> vs azar {e(pct(hr8['sub_success_rate'], 0))}" if hq8 and hr8 else None,
-                         f"{e(num(ref))} en <b>{e(seeds.get('hits_ref'))} de {e(len(seeds.get('seeds', [])))}</b> semillas" if seeds.get("seeds") else None],
+                        [f"8 muestras: QAOA <b>{e(pct(hq8['sub_success_rate'], 0))}</b> vs {e(pct(hr8['sub_success_rate'], 0))} azar de 27 estados" if hq8 and hr8 else None,
+                         f"solver exacto: {e(num(ref))} en <b>{e(seeds.get('hits_ref'))} de {e(len(seeds.get('seeds', [])))}</b> semillas" if seeds.get("seeds") else None],
                         "airport", ' title="azar sobre los 27 estados con una puerta por vuelo; detalle y otras líneas base en la sección 05"'))
     out.append('<div class="lanes">' + "".join(cols) + "</div>")
 
@@ -123,7 +123,7 @@ def render(R: dict) -> str:
 
     rows = [
         ("Calidad N=10", cell("ok", f"{num(bf['cost'])}, gap {pct(gap(bf['cost']) / 100)}") if bf else cell("ok", None),
-         cell("no", f"N={N}: {N * N} qubits"), cell("mid", f"{num(hq['final_cost'])} en {seeds.get('hits_ref')}/{len(seeds.get('seeds', []))} semillas") if hq and seeds else cell("mid", None)),
+         cell("no", f"N={N}: {N * N} qubits"), cell("mid", f"{num(hq['final_cost'])} (semilla {meta.get('seed')}); exacto {seeds.get('hits_ref')}/{len(seeds.get('seeds', []))} semillas") if hq and seeds else cell("mid", None)),
         ("Tiempo", cell("ok", sec(bf["time_s"])) if bf else cell("ok", None),
          cell("mid", f"{sec(xy4['time_s'])} (N=4)") if xy4 else cell("mid", None), cell("no", sec(hq["time_s"])) if hq else cell("no", None)),
         ("Qubits", cell("ok", "0"), cell("no", f"{N * N} (N={N})"), cell("ok", f"{hq.get('qubits_per_subproblem')}") if hq else cell("ok", None)),
@@ -134,7 +134,7 @@ def render(R: dict) -> str:
          cell("no", f"XY {pct(hxy['feasible_fraction'])} vs {pct(hxy['random_feasible_baseline'])} azar ({hw.get('backend')})") if hxy else cell("no", None),
          cell("mid", "no medido")),
         ("Garantiza óptimo", cell("ok", "sí (fuerza bruta)"), cell("no", f"P(óptimo) {pct(xy4['p_optimal'])}") if xy4 else cell("no", None),
-         cell("no", f"{seeds.get('hits_ref')}/{len(seeds.get('seeds', []))} semillas") if seeds.get("seeds") else cell("no", None)),
+         cell("no", f"exacto: {seeds.get('hits_ref')}/{len(seeds.get('seeds', []))} semillas") if seeds.get("seeds") else cell("no", None)),
     ]
     body = "".join(f"<tr><th scope='row'>{e(r[0])}</th>{r[1]}{r[2]}{r[3]}</tr>" for r in rows)
     out.append(f"""<div class="cmp-wrap"><table class="cmp"><thead><tr><th></th><th>{chip('classic')}</th><th>{chip('quantum')}</th>

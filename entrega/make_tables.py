@@ -115,6 +115,8 @@ def tables(R: dict) -> str:
     sc = R.get("scaling", [])
     if sc:
         out.append("\n### Escalamiento (N > 10 son instancias sintéticas)\n")
+        out.append(f"*{_scale_iters(meta)} iteraciones del híbrido por N: no comparable con la tabla de N=10 (300). "
+                   "La cota Gilmore-Lawler es débil: en N=10 SA está en el óptimo y aun así marca más de 10% contra la cota.*\n")
         out.append("| N | Instancia | Método | Costo | Cota GL | Gap vs cota (%) | Tiempo (s) | Memoria pico (MB) | Qubits |")
         out.append("|---|---|---|---|---|---|---|---|---|")
         names = {"simulated_annealing": "SA", "qgate_lns_exact": "QGate exacto", "qgate_lns_qaoa": "QGate QAOA"}
@@ -210,7 +212,7 @@ def findings(R: dict) -> str:
                    + (f" Con 8 shots, QAOA resuelve el {g(100 * hq8['sub_success_rate'], 0)}% de las piezas; el azar sobre 27 estados, el "
                       f"{g(100 * hr8['sub_success_rate'], 0)}%" + (f"; el azar sobre las 6 permutaciones válidas, el {g(100 * bv['hit_k8_random_valid_6'], 0)}% "
                       f"(calculado sobre las {bv['pieces']} piezas de esa corrida, `results/extra.json`); la enumeración exacta, el 100%" if bv else "")
-                      + f". Costo final: QAOA {g(hq8['final_cost'])}, azar sobre 27 estados {g(hr8['final_cost'])}."
+                      + f". Costo final (una sola semilla, la {meta['seed']}): QAOA {g(hq8['final_cost'])}, azar sobre 27 estados {g(hr8['final_cost'])}."
                       if hq8 and hr8 else "") + " QAOA concentra probabilidad respecto a su espacio de partida; en piezas de 3 vuelos aún no supera a muestrear permutaciones válidas ni a enumerar las 6 opciones.")
     S = R.get("hybrid_seeds")
     if S:

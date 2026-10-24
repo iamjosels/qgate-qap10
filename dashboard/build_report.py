@@ -474,7 +474,7 @@ footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40
 
   <section class="detail" id="d-ablation">
     <div class="sec-head"><span class="num-sign">05</span><h3>¿Cuánto aporta QAOA?</h3>
-      <p>El mismo híbrido con distintos solvers del subproblema, mismas iteraciones, semilla y arranque. Con muchas muestras el azar también resuelve piezas de 3 vuelos; con pocas se ve la concentración de QAOA.</p></div>
+      <p>El mismo híbrido con distintos solvers del subproblema, mismas iteraciones, semilla (una sola, la 7) y arranque. Con muchas muestras el azar también resuelve piezas de 3 vuelos; con pocas se ve la concentración de QAOA.</p></div>
     <div class="tbl"><table><thead><tr><th>SOLVER</th><th class="r">SHOTS</th><th class="r">COSTO FINAL</th><th class="r">GAP</th><th class="r">PIEZAS RESUELTAS</th><th class="r">P(ÓPTIMO) POR PIEZA</th><th class="r">AZAR (27 ESTADOS)</th><th class="r">TIEMPO</th></tr></thead>
       <tbody id="ablRows"></tbody></table></div>
     <p class="verdict" id="ablRead" style="margin-top:14px"></p>
@@ -491,13 +491,13 @@ footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40
 
   <section class="detail" id="d-lambda">
     <div class="sec-head"><span class="num-sign">06</span><h3>Barrido de λ</h3>
-      <p>λ0 es el mayor aporte posible de una asignación: con λ ≥ λ0 ninguna inválida le gana a la mejor válida. λ chico deja ganar inválidas; λ grande aplana el paisaje.</p></div>
+      <p>λ0 es el mayor aporte posible de una asignación: criterio suficiente razonable, validado con este barrido. λ chico deja ganar inválidas; λ grande aplana el paisaje.</p></div>
     <div class="panel"><div class="legend" id="lamLegend" style="margin-bottom:10px"></div><div class="chart" id="lamChart"></div></div>
   </section>
 
   <section class="detail" id="d-scale">
     <div class="sec-head"><span class="num-sign">07</span><h3>Escalamiento</h3>
-      <p>La parte cuántica no crece: 9 qubits por subproblema en todo N. Sin óptimo conocido en N &gt; 10 se mide contra la cota Gilmore-Lawler. * = instancia sintética.</p></div>
+      <p>La parte cuántica no crece: 9 qubits por subproblema en todo N. 150 iteraciones por N (no comparable con 02, que usa 300). La cota Gilmore-Lawler es débil: en N=10 SA está en el óptimo y aun así marca más de 10% contra ella. Sin óptimo conocido en N &gt; 10 se mide contra la cota Gilmore-Lawler. * = instancia sintética.</p></div>
     <div class="grid2">
       <div class="panel"><div class="kick" style="margin-bottom:8px">Gap vs cota inferior (%)</div><div class="legend" id="scLeg" style="margin-bottom:8px"></div><div class="chart" id="scGap"></div></div>
       <div class="panel"><div class="kick" style="margin-bottom:8px">Tiempo (s, escala log)</div><div class="legend" id="scLeg2" style="margin-bottom:8px"></div><div class="chart" id="scTime"></div></div>
@@ -732,7 +732,7 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
     let fact = 1; for (let i = 2; i <= n; i++) fact *= i;
     $("strip").textContent = `${n} VUELOS · ${n} PUERTAS · ${n}! = ${sp(fact)} ASIGNACIONES · SUBPROBLEMAS DE 3 VUELOS = 9 QUBITS · CADA PAR SE CUENTA UNA VEZ · DATOS QAP10 (MIPLIB) · UNIDADES SUPUESTAS`;
     const S0 = R.hybrid_seeds;
-    put("replayNote", hq ? `Repetición grabada, semilla ${meta.seed}; no es el caso típico (ver 05: ${S0 ? S0.hits_ref + " de " + S0.final_costs.length + " semillas llegan a " + f(REF) : "robustez"})` : null);
+    put("replayNote", hq ? `Repetición grabada, semilla ${meta.seed}; no es el caso típico (ver 05: con solver exacto, ${S0 ? S0.hits_ref + " de " + S0.final_costs.length + " semillas llegan a " + f(REF) : "robustez"})` : null);
     let ei = 0, prev = null;
     function draw() {
       const ev = evs ? evs[ei] : { perm: final, cost: hq ? hq.final_cost : best.cost, iter: hq ? hq.iters : null, type: "end" };
@@ -796,7 +796,7 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
     const hq = H.qgate_lns_qaoa;
     if (hq) out.push(pass({ kicker: `HÍBRIDO · N = ${N}`, tag: "QGATE", tagBg: "#FFC629", from: "AZAR", to: "QGATE", stubK: "QUBITS", stubV: String(hq.qubits_per_subproblem || 9),
       fields: (() => { const S = R.hybrid_seeds; return [[`SEMILLA ${meta.seed} · COSTO`, f(hq.final_cost)],
-               [S ? `${S.final_costs.length} SEMILLAS · LLEGAN A ${f(REF)}` : "SEMILLAS", S ? String(S.hits_ref) : null],
+               [S ? `${S.final_costs.length} SEMILLAS (SOLVER EXACTO) · LLEGAN A ${f(REF)}` : "SEMILLAS", S ? String(S.hits_ref) : null],
                ["MEDIA · MEJOR · PEOR", S ? `${f(S.mean, 1)} · ${f(S.best)} · ${f(S.worst)}` : null],
                ["GAP MEDIO", S && num(S.mean_gap_pct) ? S.mean_gap_pct.toFixed(1) + "%" : null]]; })() }));
     $("passes").innerHTML = out.join("");
