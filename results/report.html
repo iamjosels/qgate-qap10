@@ -35,7 +35,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--qubit); outline
 .brand b { font: 800 32px/1 var(--head); letter-spacing: .02em; }
 .brand .kick { margin-left: 6px; }
 @media (max-width: 760px) { .brand .kick { display: none; } .top { position: static; } }
-.tabs { display: flex; gap: 4px; overflow-x: auto; max-width: 100%; }
+.tabs { display: flex; gap: 4px; overflow-x: auto; max-width: 100%; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
 .tabs button { background: none; border: 0; border-bottom: 3px solid transparent; padding: 10px 14px; color: var(--mute);
   font: 13px var(--mono); letter-spacing: .08em; cursor: pointer; white-space: nowrap; }
 @media (max-width: 640px) { .tabs button { padding: 8px 8px; font-size: 12px; } }
@@ -51,7 +52,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--qubit); outline
 .seg button { height: 44px; padding: 0 14px; border: 0; background: var(--board); color: var(--mute); font: 13px var(--mono); cursor: pointer; }
 .seg button[aria-pressed="true"] { background: var(--qubit); color: var(--ink); font-weight: 600; }
 
-.stage { padding: 20px 0 28px; }
+.stage.wrap { padding: 20px 32px 28px; }
+@media (max-width: 640px) { .stage.wrap { padding: 16px 16px 24px; } .flanes { flex-direction: row; flex-wrap: wrap; } }
 .stage:fullscreen { background: var(--ink); overflow: auto; padding: 24px; max-width: none; }
 .scene { display: flex; flex-wrap: wrap; gap: 20px; }
 .panel { background: var(--board); border-radius: 12px; padding: 20px 22px; min-width: 0; }
@@ -194,7 +196,8 @@ td .ap { font-size: 10px; padding: 2px 7px; margin-right: 6px; }
 .kv span { color: var(--mute); } .kv b { font-weight: 600; text-align: right; }
 .goto { align-self: flex-start; height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--flap); color: var(--paper); font: 13px var(--mono); cursor: pointer; }
 .goto:hover { border-color: var(--signal); color: var(--signal); }
-.cmp-wrap { background: var(--board); border-radius: 12px; padding: 14px 16px; overflow-x: auto; }
+.cmp-wrap { position: relative; background: var(--board); border-radius: 12px; padding: 14px 16px; overflow-x: auto; }
+table.cmp td { position: relative; }
 table.cmp { min-width: 860px; font: 16px var(--sans); }
 table.cmp th { vertical-align: bottom; padding: 10px 12px; } table.cmp thead th { white-space: normal; }
 .th-s { font: 600 14px var(--sans); color: var(--paper); letter-spacing: 0; margin-top: 6px; text-transform: none; }
