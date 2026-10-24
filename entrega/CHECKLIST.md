@@ -15,8 +15,8 @@ La entrega en el portal la hace una persona del equipo. Completar antes de las 1
 
 ## Verificación
 
-- [ ] El repo abre en una ventana de incógnito y el README se ve bien
-- [ ] El link de demo abre en incógnito y carga los gráficos
+- [x] El repo es público (verificado 24/10 12:45) y el README está en la raíz
+- [x] El link de demo responde sin sesión y carga las 3 escenas (verificado 24/10 12:45)
 - [ ] Los 4 nombres están en el PPT (portada) y en el portal
 - [ ] El PPT abre y las imágenes se ven
 - [ ] Los 4 integrantes estarán en la presentación (15:00 a 16:40)
