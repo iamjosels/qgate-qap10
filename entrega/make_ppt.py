@@ -222,7 +222,7 @@ def slides(R, team, img):
     abl = []
     if hq8 and hr8:
         bv = (R.get("extra") or {}).get("baselines_qaoa_s8")
-        abl = [(f"8 shots: QAOA {pct(hq8['sub_success_rate'], 0)} · azar 27 estados {pct(hr8['sub_success_rate'], 0)}"
+        abl = [(f"8 shots, semilla {meta['seed']}: QAOA {pct(hq8['sub_success_rate'], 0)} · azar 27 estados {pct(hr8['sub_success_rate'], 0)}"
                 + (f" · azar 6 válidas {pct(bv['hit_k8_random_valid_6'], 0)} · enumerar 100%" if bv else ""), True)]
     out.append((f"""<div class="c" style="height:100%">{head("05", "QAOA como subrutina")}
   <div style="display:grid;grid-template-columns:400px minmax(0,1fr);gap:28px;flex-grow:1;min-height:0">
@@ -240,7 +240,7 @@ def slides(R, team, img):
     </div>
     <div class="card" style="padding:18px;justify-content:center"><img class="fig" src="{img('hibrido_convergencia.png')}"></div>
   </div>
-  {chips(abl + [(f"{len(seeds.get('seeds', []))} semillas: llega a {g(ref)} en {seeds.get('hits_ref')}", False)])}
+  {chips(abl + [(f"solver exacto, {len(seeds.get('seeds', []))} semillas: {g(ref)} en {seeds.get('hits_ref')}", False)])}
 </div>""",
                 f"QGate elige 3 vuelos, arma una pieza de 9 qubits con el resto fijo y la resuelve con QAOA. Con nuestra "
                 f"semilla llega a {g(hq['final_cost'])}. Con 512 muestras hasta el azar resuelve piezas tan chicas, por eso "
@@ -249,7 +249,7 @@ def slides(R, team, img):
                 + (f"Pero el azar sobre las 6 permutaciones válidas llegaría a {pct((R.get('extra') or {})['baselines_qaoa_s8']['hit_k8_random_valid_6'], 0)} y enumerar las 6 opciones, a 100%: "
                    "QAOA concentra probabilidad respecto a su espacio de partida, pero en piezas de 3 vuelos aún no supera a esas alternativas. "
                    if (R.get("extra") or {}).get("baselines_qaoa_s8") else "")
-                + f"En {len(seeds.get('seeds', []))} semillas llega a {g(ref)} en {seeds.get('hits_ref')}: el límite es la búsqueda."))
+                + f"Con el solver exacto en cada vecindario, {seeds.get('hits_ref')} de {len(seeds.get('seeds', []))} semillas llegan a {g(ref)}; el QAOA lo corrimos con la semilla {meta['seed']}: el límite es la búsqueda."))
 
     # 7 · escala
     sc = R.get("scaling", [])
