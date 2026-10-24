@@ -620,7 +620,7 @@ QGate · IBM Quantum Hackathon 2026 · Reto NTT DATA QAP10 · Track A Aeropuerto
     const hw = R.hardware;
     if (hw && has(hw.experiments)) hw.experiments.forEach((e) => row(`QAOA mixer ${String(e.mixer).toUpperCase()} · hardware`, e.N, String(e.qubits),
       e.best_feasible_cost === null || e.best_feasible_cost === undefined ? null : f(e.best_feasible_cost), num(e.best_feasible_cost) ? gap(e.best_feasible_cost, e.optimum) : null,
-      num(hw.usage_quantum_seconds) ? f(hw.usage_quantum_seconds) + " s QPU" : null, "IBM Quantum · " + hw.backend, "var(--qubit)"));
+      num(hw.usage_quantum_seconds) ? f(hw.usage_quantum_seconds) + " s QPU (job)" : null, "IBM Quantum · " + hw.backend, "var(--qubit)"));
     if (hq) row("QGate híbrido", N, "9 / subproblema", f(hq.final_cost), gap(hq.final_cost), tm(hq.time_s, 0), "Qiskit Aer + CPU", "var(--signal)");
     const h8 = H.qgate_lns_qaoa_s8, r8 = H.qgate_lns_random_s8;
     if (h8) row("QGate híbrido · 8 shots", N, "9 / subproblema", f(h8.final_cost), gap(h8.final_cost), tm(h8.time_s, 0), "Qiskit Aer + CPU", "var(--signal)");
