@@ -5,7 +5,7 @@ La entrega en el portal la hace una persona del equipo. Completar antes de las 1
 | Campo | Valor |
 |---|---|
 | Nombre del equipo | **COMPLETAR** (proyecto: QGate) |
-| Integrantes | **COMPLETAR** los 4 nombres (también en `entrega/equipo.json`, luego `python entrega/publicar.py` y commit) |
+| Integrantes | Jose Giovanni Laura Silvera · Alex Mauricio Vargas Tapia · Stephie Zorrilla Delgado · Mayra Dayanne Saravia Camacuari |
 | Categoría | 5.1 Industria · Reto NTT DATA QAP10 · Track A Aeropuerto |
 | Repositorio GitHub | https://github.com/iamjosels/qgate-qap10 |
 | Demo funcional | https://iamjosels.github.io/qgate-qap10/ |
