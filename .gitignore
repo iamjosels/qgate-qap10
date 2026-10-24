@@ -9,3 +9,10 @@ results_smoke/
 docs/*.pdf
 CLAUDE.md
 results/hardware_fake.json
+
+# credenciales: nunca al repo
+.env
+*.env
+*.token
+qiskit-ibm.json
+.qiskit/
