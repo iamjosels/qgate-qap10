@@ -37,6 +37,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("runs", nargs="?", default="results/final_runs.json.gz")
     ap.add_argument("--compare")
+    ap.add_argument("--out", help="guarda el resumen en este JSON")
     a = ap.parse_args()
     for s_ in (sys.stdout, sys.stderr):
         try:
@@ -66,6 +67,9 @@ def main():
         if not r.get("feasible"):
             bad.append((r, "feasible=false con permutación válida"))
     print(f"Corridas: {n} · discrepancias: {len(bad)} · no factibles: {len(infeasible)}")
+    res = {"fecha": __import__("datetime").datetime.now().isoformat(timespec="seconds"), "comando": "python " + " ".join(sys.argv),
+           "archivo": a.runs, "corridas": n, "discrepancias": len(bad), "no_factibles": len(infeasible),
+           "semillas": sorted({r["seed"] for r in d["runs"]})}
     for r, why in bad[:10]:
         print(f"  {r['instance']} {r['solver']}/{r.get('select')} semilla {r['seed']}: {why}")
 
@@ -95,6 +99,12 @@ def main():
             if old and new and (statistics.median(new), min(new), max(new)) == (statistics.median(old), min(old), max(old)):
                 same += 1
         print(f"Mediana y rango por método e instancia en las semillas {seeds[0]} a {seeds[-1]}: {same} de {len(groups)} grupos iguales")
+        res["comparacion"] = {"contra": a.compare, "corridas_mismo_costo": eq, "corridas_distintas": diff, "sin_par_publicado": miss,
+                              "grupos_mediana_y_rango_iguales": same, "grupos": len(groups),
+                              "diferencias": [{"instancia": k[0], "metodo": k[1], "selector": k[2], "semilla": k[3], "publicado": x, "nuevo": y}
+                                              for k, x, y in diffs]}
+    if a.out:
+        json.dump(res, open(a.out, "w", encoding="utf-8"), indent=1, ensure_ascii=False)
     sys.exit(1 if bad or infeasible else 0)
 
 
