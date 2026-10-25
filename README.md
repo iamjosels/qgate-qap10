@@ -129,7 +129,7 @@ Control de escala (`analysis/scale_check.py`): la asignación óptima cuesta 340
 
 *Éxito = el solver devolvió el óptimo del subproblema (sin muestra válida cuenta como fallo). Azar P(óptimo) = muestras uniformes sobre los 27 estados con una puerta por vuelo (el espacio del estado W). Las filas de azar sobre las 6 permutaciones válidas salen de `analysis/baselines.py` (`results/extra.json`): P(acierto con k muestras) = 1 - (1 - n_óptimos/6)^k, promediado sobre las piezas. Control · subproblema exacto = enumeración de las 6 opciones.*
 
-Robustez (solver exacto, 300 iteraciones, semillas 7 a 18): media 354.5 (gap medio 4.3%), mejor 340, peor 374, llega a 340 en 4 de 12.
+Robustez del híbrido del día 1 (solver exacto, 300 iteraciones, semillas 7 a 18): media 354.5 (gap medio 4.3%), mejor 340, peor 374, llega a 340 en 4 de 12.
 
 ### QAOA en subinstancias (Qiskit Aer)
 
@@ -207,7 +207,7 @@ Un solo job, un solo backend. La simulación con 1% de ruido coincidió con el m
 3. **Ruido.** Con ruido despolarizante de 1%, la fracción válida del mixer XY cae de 0.789 a 0.250 (su azar es 0.222); la del mixer X, de 0.137 a 0.085. La ventaja estructural de XY es frágil al ruido.
 4. **Híbrido N=10.** Con la semilla 7, QGate con QAOA (512 shots) termina en **340** (gap 0.0%) en 186 s. El control exacto termina en 340 y el azar con las mismas 512 muestras en 340: con piezas de 3 vuelos (6 asignaciones) y 512 muestras, el azar también encuentra el óptimo de cada pieza.
 5. **Qué aporta QAOA (SIMULADOR, piezas de 3 vuelos en N=10).** P(óptimo) medio por pieza: 0.094 con QAOA p=2 frente a 0.039 del azar sobre los 27 estados con una puerta por vuelo (2.4 veces) y 0.180 del azar sobre las 6 permutaciones válidas. Con 8 shots, QAOA resuelve el 59% de las piezas; el azar sobre 27 estados, el 29%; el azar sobre las 6 permutaciones válidas, el 78% (calculado sobre las 300 piezas de esa corrida, `results/extra.json`); la enumeración exacta, el 100%. Costo final (una sola semilla, la 7): QAOA 372, azar sobre 27 estados 390. QAOA concentra probabilidad respecto a su espacio de partida; en piezas de 3 vuelos aún no supera a muestrear permutaciones válidas ni a enumerar las 6 opciones.
-6. **Robustez.** En 12 semillas y arranques, el mismo marco con solver exacto (equivale a QAOA cuando QAOA acierta) llega a 340 en 4 y su media es 354.5 (gap medio 4.3%). El límite es el vecindario de 3 vuelos, no el solver.
+6. **Robustez (híbrido del día 1).** En 12 semillas y arranques, el mismo marco con solver exacto (equivale a QAOA cuando QAOA acierta) llega a 340 en 4 y su media es 354.5 (gap medio 4.3%). El límite es el vecindario de 3 vuelos, no el solver.
 7. **Tiempo.** En simulador, lo clásico gana: fuerza bruta 6.9 s y simulated annealing 13.7 s llegan a 340; el híbrido con QAOA tarda 186 s. No afirmamos ventaja cuántica.
 9. **Hardware real.** Una corrida N=3 (9 qubits) en ibm_kingston de IBM Quantum: N3-x-p1: 0.063 válidas (ideal 0.137, azar 0.012); N3-xy-p1: 0.254 válidas (ideal 0.789, azar 0.222).
 8. **Escala.** De N=10 a N=16 el subproblema cuántico sigue en 9 qubits y la memoria pico de QGate no pasa de 0.8 MB; un QUBO directo de N=16 serían 256 qubits. Con 150 iteraciones, en N=16 el híbrido queda a 39.3% de la cota y SA a 28.8%: con N grande, 3 vuelos por paso es un vecindario chico. Las diferencias entre QAOA y el control exacto en esta tabla vienen de empates entre permutaciones óptimas del subproblema y de mejoras no óptimas que cambian la trayectoria; no son ventaja de QAOA. Esa comparación es de una sola semilla; en la etapa 3 (sección 5b, 10 semillas, N=10 a 20) ninguna diferencia entre métodos es distinguible y los bloques QAOA no aportaron reducción de costo.
@@ -311,6 +311,27 @@ SIMULADOR (Qiskit Aer) y CPU. 10 semillas (7 a 16), B=100 iteraciones externas p
 
 **Ángulos reutilizados** (synthetic-20, 40 bloques, 8 shots): evaluaciones por bloque 40.0 en frío y 40.0 reutilizando (COBYLA agota el máximo de 40 en ambos); P(óptimo) del bloque 0.093 en frío y 0.128 reutilizando; tiempo por bloque 0.24 s y 0.24 s.
 <!-- FINAL:END -->
+
+## 5c. Revisión externa del organizador (25/10)
+
+Un organizador (QuantumHub Perú) revisó el código y reportó seis puntos. Los reprodujimos el 25/10 a las 9:15
+antes de tocar nada. La tanda de correcciones llegó a las 9:07, después del límite para lanzar una corrida de
+verificación (8:45) y a minutos del congelamiento de código (9:15): **ningún punto se declara corregido**. Lo que
+sigue es el estado real, con la evidencia.
+
+| # | Punto reportado | Reproducción | Estado |
+|---|---|---|---|
+| 1 | `dashboard/build_report.py` (líneas 82 a 105) incorpora `hardware.json`, `extra.json` y `final.json` sin verificar que sean de la misma instancia o corrida | Confirmado: con un coeficiente de F cambiado, el build los incluye sin aviso. `python analysis/repro_fail_closed.py` sale hoy con código 1 | Pendiente (huella de instancia y `MANIFEST.json`) |
+| 2 | `qgate/final.py` (líneas 56 y 57) descarta `best_perm` e historial; SA tampoco guarda la permutación | Confirmado: ninguna de las 440 corridas de `results/final.json` trae permutación | Pendiente. Las cifras de la etapa 3 quedan publicadas tal cual, pero `feasible` y el costo no son auditables desde el archivo: sus permutaciones no se conservaron |
+| 3 | `tests/test_core.py` línea 31 compara una expresión consigo misma | Confirmado | Pendiente |
+| 4 | `tests/test_quantum.py` y `tests/test_hybrid.py` imprimen métricas sin afirmar factibilidad ni coherencia de costos | Confirmado: `test_quantum.py` no tiene aserciones; `test_hybrid.py` tiene dos, solo sobre el costo del subproblema | Pendiente |
+| 5 | `requirements.txt` con versiones abiertas | Parcial: `qiskit` y `qiskit-aer` están fijos; `numpy`, `scipy`, `matplotlib` y `qiskit-ibm-runtime` no | Pendiente (versiones exactas de `results.json` meta y lockfile) |
+| 6 | `build_report.py` mezcla datos, estilos y lógica de interfaz | Confirmado | Limitación declarada: no se separa antes de la final para no arriesgar el HTML publicado |
+
+Qué sí se puede verificar hoy: `python dashboard/check_panorama.py` (cada número del Panorama contra los JSON),
+los cuatro tests de `tests/` y el build del dashboard. Las cifras de la etapa 3 (sección 5b) se mantienen como
+resultado de una corrida cuyas permutaciones no se guardaron; una corrida de verificación con permutaciones y un
+verificador independiente del costo quedan como el siguiente paso.
 
 ## 6. Limitaciones y cómo las manejamos
 

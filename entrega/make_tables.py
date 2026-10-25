@@ -85,7 +85,7 @@ def tables(R: dict) -> str:
                    "Control · subproblema exacto = enumeración de las 6 opciones.*")
     S = R.get("hybrid_seeds")
     if S:
-        out.append(f"\nRobustez (solver exacto, {S['iters']} iteraciones, semillas {S['seeds'][0]} a {S['seeds'][-1]}): "
+        out.append(f"\nRobustez del híbrido del día 1 (solver exacto, {S['iters']} iteraciones, semillas {S['seeds'][0]} a {S['seeds'][-1]}): "
                    f"media {g(S['mean'], 1)} (gap medio {g(S['mean_gap_pct'], 1)}%), mejor {g(S['best'])}, peor {g(S['worst'])}, "
                    f"llega a {g(ref)} en {S['hits_ref']} de {len(S['seeds'])}.")
 
@@ -231,7 +231,7 @@ def findings(R: dict) -> str:
                       if hq8 and hr8 else "") + " QAOA concentra probabilidad respecto a su espacio de partida; en piezas de 3 vuelos aún no supera a muestrear permutaciones válidas ni a enumerar las 6 opciones.")
     S = R.get("hybrid_seeds")
     if S:
-        out.append(f"6. **Robustez.** En {len(S['seeds'])} semillas y arranques, el mismo marco con solver exacto (equivale a QAOA "
+        out.append(f"6. **Robustez (híbrido del día 1).** En {len(S['seeds'])} semillas y arranques, el mismo marco con solver exacto (equivale a QAOA "
                    f"cuando QAOA acierta) llega a {g(ref)} en {S['hits_ref']} y su media es {g(S['mean'], 1)} "
                    f"(gap medio {g(S['mean_gap_pct'], 1)}%). El límite es el vecindario de 3 vuelos, no el solver.")
     bf, sa = C.get("brute_force"), C.get("simulated_annealing")

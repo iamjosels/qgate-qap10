@@ -133,3 +133,16 @@ Windows usa cp1252: el bench fuerza UTF-8 en stdout para poder imprimir λ.
   los demás; si no, "no distinguible".
 - **Tiempos.** Se miden con varios procesos en paralelo (una corrida por proceso, Aer con un hilo); son comparables
   entre métodos de la misma corrida, no con tiempos de otras máquinas.
+
+## 10. Revisión externa del organizador (25/10)
+
+- Se reprodujeron los seis puntos antes de cambiar código (25/10, 9:15); el detalle y la evidencia están en la
+  sección 5c del README.
+- La tanda de correcciones llegó a las 9:07, después del límite de lanzamiento de la corrida de verificación
+  (8:45) y del congelamiento de código (9:15). Decisión: no lanzar una corrida que no termina antes del plazo
+  (9:40), no declarar nada corregido y documentar el estado real de cada punto.
+- Las cifras de `results/final.json` quedan publicadas sin cambios, con la nota visible de que sus permutaciones
+  no se conservaron (README 5c y pestaña 04 del dashboard).
+- `analysis/repro_fail_closed.py` queda como evidencia del punto 1: hoy sale con código 1 y debe pasar cuando
+  exista la verificación de procedencia.
+
