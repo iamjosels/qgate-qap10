@@ -79,11 +79,35 @@ def _grid_layout(D):
     return [[p[0] - mx, p[1] - my] for p in pos]
 
 
-def build(json_path: str, out_path: str) -> str:
+def _provenance(json_path: str, R: dict) -> tuple[dict, list]:
+    """Revisión externa, punto 1: un JSON auxiliar vale solo si MANIFEST.json lo atesta para esta instancia."""
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from qgate.provenance import file_sha256, instance_fingerprint, load_manifest
+    rd = os.path.dirname(os.path.abspath(json_path))
+    man = load_manifest(rd)
+    d = R.get("data", {})
+    fp = instance_fingerprint(d["F"], d["D"])["sha256"] if d.get("F") and d.get("D") else None
+    ok, warn = {}, []
+    for f in ("hardware.json", "extra.json", "final.json"):
+        path = os.path.join(rd, f)
+        if not os.path.exists(path):
+            continue
+        e = (man or {}).get("files", {}).get(f)
+        good = bool(man and e and fp and man["instance"]["sha256"] == fp and e["instance_sha256"] == fp
+                    and e["sha256"] == file_sha256(path))
+        ok[f] = good
+        if not good:
+            warn.append(f"{f} no corresponde a esta corrida" + ("" if man else " (falta results/MANIFEST.json)"))
+    return ok, warn
+
+
+def build(json_path: str, out_path: str, allow_mismatch: bool = False) -> str:
     with open(json_path, encoding="utf-8") as fh:
         R = json.load(fh)
+    prov_ok, prov_warn = _provenance(json_path, R)
+    use = lambda f: prov_ok.get(f) or allow_mismatch  # noqa: E731
     hw = os.path.join(os.path.dirname(os.path.abspath(json_path)), "hardware.json")
-    if os.path.exists(hw):
+    if os.path.exists(hw) and use("hardware.json"):
         with open(hw, encoding="utf-8") as fh:
             H = json.load(fh)
         if not H.get("fake"):                      # un resultado fake nunca se muestra como hardware
@@ -93,11 +117,11 @@ def build(json_path: str, out_path: str) -> str:
                 (f"Simulador Qiskit Aer y una corrida N={H.get('N')} en {H.get('backend')} de IBM Quantum "
                  f"(job {H.get('job_id')}); el resto es simulación") if "hardware real" in l else l for l in lim]
     ex = os.path.join(os.path.dirname(os.path.abspath(json_path)), "extra.json")
-    if os.path.exists(ex):                         # cifras nuevas de analysis/baselines.py
+    if os.path.exists(ex) and use("extra.json"):   # cifras nuevas de analysis/baselines.py
         with open(ex, encoding="utf-8") as fh:
             R["extra"] = json.load(fh)
     fin = os.path.join(os.path.dirname(os.path.abspath(json_path)), "final.json")
-    if os.path.exists(fin):                        # etapa 3 (final): python -m qgate.final
+    if os.path.exists(fin) and use("final.json"):  # etapa 3 (final): python -m qgate.final
         with open(fin, encoding="utf-8") as fh:
             Fj = json.load(fh)
         Fj["perm_saved"] = any("best_perm" in r for r in Fj.get("runs", []))   # revisión externa, punto 2
@@ -110,10 +134,22 @@ def build(json_path: str, out_path: str) -> str:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import panorama
     html = TEMPLATE.replace("__DATA__", payload).replace("__PANORAMA__", panorama.render(R))
+    if prov_warn:                                  # aviso visible; con --allow-mismatch el dato se muestra como no verificado
+        msg = "; ".join(prov_warn) + (": se muestra como NO VERIFICADO" if allow_mismatch else ": no se incluye")
+        html = html.replace("<main>", '<main><div role="alert" style="margin:12px auto;max-width:1200px;padding:10px 14px;'
+                            'border:1px solid #FF6B3D;color:#FF6B3D;font:600 14px sans-serif">' + _esc(msg) + "</div>", 1)
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as fh:
         fh.write(html)
+    if prov_warn:
+        print("PROCEDENCIA: " + "; ".join(prov_warn), file=sys.stderr)
+        if not allow_mismatch:
+            raise SystemExit(2)
     return out_path
+
+
+def _esc(t: str) -> str:
+    return t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 TEMPLATE = r"""<!doctype html>
@@ -1102,6 +1138,8 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
 
 
 if __name__ == "__main__":
-    src = sys.argv[1] if len(sys.argv) > 1 else "results/results.json"
-    dst = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(src), "report.html")
-    print(build(src, dst))
+    allow = "--allow-mismatch" in sys.argv
+    pos = [x for x in sys.argv[1:] if x != "--allow-mismatch"]
+    src = pos[0] if len(pos) > 0 else "results/results.json"
+    dst = pos[1] if len(pos) > 1 else os.path.join(os.path.dirname(src), "report.html")
+    print(build(src, dst, allow_mismatch=allow))
