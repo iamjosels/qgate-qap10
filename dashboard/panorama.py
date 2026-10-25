@@ -17,11 +17,18 @@ ICON = {
     "quantum": ('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
                 'stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="9" ry="3.5"/>'
                 '<path d="M12 12 16 6"/><circle cx="16" cy="6" r="1.3" fill="currentColor"/></svg>'),
-    "hybrid": ('<svg width="18" height="18" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="10" fill="currentColor"/>'
-               '<circle cx="29" cy="29" r="15" fill="none" stroke="#0B0B0C" stroke-width="7"/>'
-               '<path d="M38 38 L48 48" stroke="#0B0B0C" stroke-width="7" stroke-linecap="square"/>'
-               '<polygon points="55,55 55,40 40,55" fill="#0B0B0C"/></svg>'),
+    "hybrid": None,                                   # isotipo de design/logo/, se carga abajo
 }
+def _logo_img(px: int = 18) -> str:
+    import base64
+    import os
+    p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "design", "logo", "qgate_icono_36.png")
+    with open(p, "rb") as fh:
+        b64 = base64.b64encode(fh.read()).decode("ascii")
+    return f'<img src="data:image/png;base64,{b64}" width="{px}" height="{px}" alt="" aria-hidden="true" style="border-radius:3px">'
+
+
+ICON["hybrid"] = _logo_img()
 NAME = {"classic": "CLÁSICO", "quantum": "CUÁNTICO", "hybrid": "HÍBRIDO"}
 WHERE = {"classic": "CPU (NumPy/SciPy)", "quantum": "Qiskit Aer + IBM ibm_kingston", "hybrid": "QAOA de 9 qubits + búsqueda clásica"}
 MARK = {"ok": ("✓", "ventaja"), "no": ("✗", "desventaja"), "mid": ("~", "parcial")}
