@@ -43,8 +43,24 @@ las secciones de detalle de su enfoque, para que cada dato aparezca una sola vez
 
 ## 00 · Panorama ("Tres enfoques, un problema")
 
-Vista de una pantalla para presentar. Se genera en Python (`dashboard/panorama.py`) y no en JavaScript,
-para que `check_panorama.py` pueda verificar cada número.
+Vista para presentar. Se genera en Python (`dashboard/panorama.py`) y no en JavaScript, para que
+`check_panorama.py` pueda verificar cada número.
+
+- **Banner de la pregunta del reto** (arriba de todo): "¿Hasta dónde ayuda lo cuántico cuando los recursos son
+  limitados?" y tres tarjetas "lo que medimos", cada una con su etiqueta de origen (entorno SIMULADOR en gris o
+  HARDWARE ibm_kingston en violeta, tipo medido o derivado, sección, N y archivo):
+  - Memoria: 9 qubits por bloque en cualquier N; un circuito completo serían N² qubits (400 en N=20). `final.json`.
+  - Calidad: "no distinguible": ningún método se distingue entre 10 semillas en 4 instancias; los bloques QAOA
+    aportan 0% de la reducción de costo (derivado: reducción por bloques / reducción por swap y bloques, sumada en
+    las 4 instancias). `final.json`.
+  - Hardware real: XY 25.4% vs 22.2% del azar de su espacio; X 6.3% vs 1.2%. `hardware.json`.
+  - Respuesta corta, calculada: "lo cuántico no mejora hoy la calidad; escala en memoria, no en calidad" (solo si
+    ningún veredicto es distinguible y los bloques aportan 0%).
+- **Conclusión operativa** (debajo de la frase final, sin cifras): búsqueda local clásica en segundos; lo cuántico
+  no se justifica todavía por calidad ni por tiempo; supuestos de un benchmark matemático; falta medir bloques
+  mayores y hardware de más calidad.
+- **Fila "Escala"**: además de gap y tiempo, el rango de costo entre semillas [mín, máx] de la referencia
+  clásica (2-swap) y del híbrido, y la nota "cota Gilmore-Lawler débil".
 
 - **Flujo de arriba.** MPS qap10 → F y D (con los óptimos de control 24 · 32 · 340) → los tres enfoques →
   comparación.
@@ -305,6 +321,15 @@ costo válido" es el costo C de una asignación válida, no la energía penaliza
 - **Qiskit hace / Clásico hace.** Qué parte del método corre en Qiskit y qué parte es clásica.
 
 ### Detalle 08 · Reproducibilidad y límites
+
+- **Verificación independiente.** Insignia "✓ VERIFICADO" solo si existen `results/verify_final.json` y
+  `results/final_runs.json.gz`, el sha256 del segundo coincide con `MANIFEST.json` y hay 0 discrepancias y 0 no
+  factibles. Hoy: 220 corridas recalculadas desde su permutación, 0 discrepancias, 220 de 220 con el mismo costo
+  que lo publicado (corrida de verificación reducida, semillas 7 a 11), con fecha, sha256 abreviado y comando. Si
+  falta la evidencia dice "✗ Verificación pendiente"; si hay discrepancias, su número.
+- **Revisión externa del organizador.** Los seis puntos con su estado derivado en el build de la evidencia del
+  repo (manifiesto y comprobación de procedencia, archivo de corridas, test sin la tautología, número de
+  aserciones, versiones fijas y lockfile); el punto 6 dice "se separará después de la final".
 
 - **Entorno.** Versiones de Python, NumPy, SciPy, Qiskit y Qiskit Aer; semilla 7, fecha y duración de la
   corrida (18.5 min); y que el hardware IBM se reporta aparte.
