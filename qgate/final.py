@@ -50,11 +50,11 @@ def _job(args):
         tracemalloc.stop()
         return {"instance": label, "origen": origen, "N": inst.N, "solver": "sa", "select": None, "seed": seed,
                 "best_cost": float(r["cost"]), "feasible": sorted(r["perm"]) == list(range(inst.N)),
+                "best_perm": [int(x) for x in r["perm"]],
                 "time_s": time.perf_counter() - t, "peak_mem_mb": peak / 1e6, "sa_iters": sa_iters, "sa_restarts": 3}
     from .twophase import two_phase
     r = two_phase(inst, solver=solver, select=select, B=B, seed=seed, start_perm=start, shots=shots)
-    r.pop("history", None)
-    r.pop("best_perm", None)
+    r.pop("history", None)                     # best_perm y traj se conservan (revisión externa, punto 2)
     return {"instance": label, "origen": origen, **r}
 
 
@@ -235,6 +235,20 @@ def main(argv=None):
            "instances": [{"instance": label, "origen": origen, "N": inst.N, "gl_bound": gl[label], "best_found": best_found[label]} for inst, label, origen in insts],
            "summary": summ, "verdict": verdict, "attribution": attr, "angle_reuse": ar, "runs": rows}
     os.makedirs(os.path.dirname(a.out) or ".", exist_ok=True)
+    # corridas completas (permutación y trayectoria) + F y D de cada instancia, para verificar de forma independiente
+    import gzip
+    import hashlib
+    runs_path = os.path.join(os.path.dirname(a.out) or ".", "final_runs.json.gz")
+    full = {"generated_at": out["meta"]["generated_at"], "command": out["meta"]["command"],
+            "instances": {label: {"N": inst.N, "origen": origen, "F": inst.F.tolist(), "D": inst.D.tolist(),
+                                  "generator": (f"QAPInstance.synthetic({inst.N}, seed={a.seed0 + inst.N})" if origen == "sintética" else a.mps)}
+                          for inst, label, origen in insts},
+            "runs": rows}
+    with gzip.open(runs_path, "wt", encoding="utf-8") as fh:
+        json.dump(full, fh, ensure_ascii=False, default=float)
+    out["meta"]["runs_file"] = runs_path.replace(os.sep, "/")
+    out["meta"]["runs_sha256"] = hashlib.sha256(open(runs_path, "rb").read()).hexdigest()
+    out["runs"] = [{k: v for k, v in r.items() if k not in ("best_perm", "traj")} for r in rows]
     json.dump(out, open(a.out, "w", encoding="utf-8"), indent=1, ensure_ascii=False, default=float)
     print(f"Guardado {a.out} en {time.perf_counter() - t0:.0f} s")
 
