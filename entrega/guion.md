@@ -18,7 +18,7 @@ y `results/final.json` (etapa 3: escalamiento con 10 semillas, simulador).
 ## Preguntas probables del jurado
 
 **¿Por qué usar cuántico si la fuerza bruta resuelve N=10 en segundos?**
-No buscamos ventaja cuántica en N=10. Usamos N=10 porque tiene óptimo conocido para medir con rigor
+No buscamos demostrar que lo cuántico supere a lo clásico en N=10. Usamos N=10 porque tiene óptimo conocido para medir con rigor
 qué aporta cada parte. Lo que no crece con N es la memoria cuántica, porque el subproblema es de tamaño fijo; la
 calidad todavía no escala (etapa 3).
 
@@ -75,6 +75,17 @@ reinicios), o más qubits (k=4, 16 qubits).
 Las filas con rhs 1 y coeficientes 1 son de asignación y dan las x. Cada variable y aparece junto a dos
 x y su coeficiente es F·D. Armamos el tensor, factorizamos por SVD con residuo 0 y elegimos el orden de
 índices que reproduce 24 y 32.
+
+**¿Llegaron a N ≥ 14?**
+Sí, hasta N=20, en instancias sintéticas (no hubo instancia oficial de ese tamaño): qap10 (N=10) y N=14, 16 y
+20, con 10 semillas, 440 corridas en simulador, todas con asignaciones válidas. La memoria cuántica sigue en 9
+qubits; la calidad no se distingue entre métodos.
+
+**¿Cómo saben que los números son correctos?**
+Una revisión externa nos marcó que las permutaciones no se guardaban. Ahora se guardan: repetimos la matriz con
+5 semillas y un verificador independiente recalculó el costo de las 220 corridas desde su permutación, con 0
+discrepancias; las 220 dieron el mismo costo que lo publicado. Además, `results/MANIFEST.json` impide que el
+dashboard mezcle archivos de otra instancia.
 
 **¿Qué hizo cada uno?**
 Completar: modelo y lectura del MPS · QAOA y Qiskit · híbrido y escalamiento · dashboard, PPT y pitch.

@@ -238,7 +238,7 @@ def findings(R: dict) -> str:
     if bf and sa and hq:
         out.append(f"7. **Tiempo.** En simulador, lo clásico gana: fuerza bruta {g(bf['time_s'], 1)} s y simulated annealing "
                    f"{g(sa['time_s'], 1)} s llegan a {g(bf['cost'])}; el híbrido con QAOA tarda {g(hq['time_s'], 0)} s. "
-                   f"No afirmamos ventaja cuántica.")
+                   f"No afirmamos superioridad de lo cuántico.")
     hw = R.get("hardware")
     if hw and hw.get("experiments"):
         parts = [f"{e['id']}: {fp(e['feasible_fraction'])} válidas (ideal {fp(e['sim_ideal_p_feasible'])}, azar {fp(e['random_feasible_baseline'])})"

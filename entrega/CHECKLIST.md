@@ -35,3 +35,14 @@ La entrega en el portal la hace una persona del equipo. Completar antes de las 1
 - [x] README sección 5b, DECISIONES §9, guion (bloque 7 y preguntas "¿Cuánto es cuántico?" y "¿Qué tiene de nuevo?")
 - [x] PPT `entrega/QGate_final.pptx`: slide "Escala (etapa 3)" y límite de la etapa 3 en el cierre
 - [ ] Repartir de nuevo el bloque 7 del guion y las respuestas nuevas entre los 4 integrantes
+
+## Revisión externa, logos y documentos (25/10)
+
+- [x] Seis puntos del organizador reproducidos; estado en README 5c
+- [x] `results/MANIFEST.json` y dashboard fail-closed (`analysis/repro_fail_closed.py` pasa)
+- [x] Corrida de verificación reducida: `analysis/verify_final.py` con 220 corridas y 0 discrepancias
+- [x] Tests con aserciones reales; `requirements.txt` con versiones exactas y `requirements.lock`
+- [x] Logos nuevos en dashboard, `QGate.pptx` y encabezados de `QGate_final.pptx`
+- [x] Dashboard vigente: versión con logos (las variantes v3 y v4 se revirtieron)
+- [x] Resumen de cambios para el jurado en `entrega/CAMBIOS.md`
+- [ ] Pendiente: separar `build_report.py` y probar la instalación en un clon limpio
