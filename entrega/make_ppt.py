@@ -252,27 +252,75 @@ def slides(R, team, img):
                 + f"Con el solver exacto en cada vecindario, {seeds.get('hits_ref')} de {len(seeds.get('seeds', []))} semillas llegan a {g(ref)}; el QAOA lo corrimos con la semilla {meta['seed']}: el límite es la búsqueda."))
 
     # 7 · escala
-    sc = R.get("scaling", [])
-    ns = sorted({r["N"] for r in sc})
-    big = ns[-1]
-    sa_b = next(r for r in sc if r["N"] == big and r["method"] == "simulated_annealing")
-    q_b = next(r for r in sc if r["N"] == big and r["method"] == "qgate_lns_qaoa")
-    mem = max(r["peak_mem_mb"] for r in sc if r["method"] == "qgate_lns_qaoa")
-    out.append((f"""<div class="c" style="height:100%">{head("06", "Escala")}
-  <div style="display:grid;grid-template-columns:340px minmax(0,1fr);gap:28px;flex-grow:1;min-height:0">
-    <div class="card" style="border-top:6px solid #4FE3E0">
-      <div class="k q">N = {ns[0]} → {big}</div>
-      <div style="display:flex;align-items:baseline;gap:12px"><div class="big q">9</div><div class="unit">qubits</div></div>
-      <div class="sub">QUBO directo N = {big}: {big * big} qubits<br>memoria pico QGate {g(mem, 1)} MB</div>
-    </div>
-    <div class="card" style="padding:18px;justify-content:center"><img class="fig" src="{img('escalabilidad.png')}"></div>
-  </div>
-  {chips([("N > 10 sintéticas · gap contra cota Gilmore-Lawler", False),
-          (f"N = {big}: SA {g(sa_b['gap_vs_bound_pct'], 0)}% · QGate {g(q_b['gap_vs_bound_pct'], 0)}% sobre la cota", False),
-          ("SA gana en calidad y tiempo", False)])}
+    Fn = R.get("final")
+    HUMAN = {"sa": "SA", "ls": "2-swap con reinicios", "exact": "bloque enumeración", "random_valid": "bloque azar válido",
+             "exact_rand": "bloque enumeración + desempate", "qaoa": "bloque QAOA"}
+
+    def _human(key):
+        sv, _, sel = key.partition("/")
+        return HUMAN.get(sv, sv) + ("" if sel in ("", "None") or sv in ("sa", "ls") else f" · {sel}")
+    if Fn:
+        S = {(x["instance"], x["solver"], x["select"]): x for x in Fn["summary"]}
+        rows_html = ""
+        for i in Fn["instances"]:
+            sa_ = S.get((i["instance"], "sa", None))
+            q_ = S.get((i["instance"], "qaoa", "tension"))
+            v = Fn["verdict"].get(i["instance"], {})
+            a = Fn["attribution"].get(i["instance"], {})
+            rd = a.get("cost_reduction_at_best_by_origin", {})
+            if not (sa_ and q_):
+                continue
+            rows_html += (f"<tr><td>{html.escape(i['instance'])}<br><span style='font-size:12px;color:#9A9890'>{html.escape(i['origen'])}</span></td>"
+                          f"<td>{g(sa_['cost_median'])} [{g(sa_['cost_min'])}, {g(sa_['cost_max'])}]<br><span style='font-size:12px;color:#9A9890'>{g(sa_['time_median_s'], 0)} s</span></td>"
+                          f"<td>{g(q_['cost_median'])} [{g(q_['cost_min'])}, {g(q_['cost_max'])}]<br><span style='font-size:12px;color:#9A9890'>{g(q_['time_median_s'], 0)} s</span></td>"
+                          f"<td>{100 * a.get('variables_quantum_frac', 0):.1f}%</td><td>{g(rd.get('block'))} de {g(sum(rd.values()))}</td>"
+                          f"<td>{100 * a.get('frac_wall_in_qaoa_mean', 0):.0f}%</td>"
+                          f"<td>{html.escape(_human(v.get('best_median', '-')))}{'' if v.get('distinguible') else ' (no distinguible)'}</td></tr>")
+        m_ = Fn["meta"]
+        synth = [i["instance"] for i in Fn["instances"] if i["origen"] == "sintética"]
+        bests = [Fn["verdict"][i]["best_median"].split("/")[0] for i in synth if i in Fn["verdict"]]
+        dist = any(Fn["verdict"][i]["distinguible"] for i in synth if i in Fn["verdict"])
+        if bests and all(b == "sa" for b in bests):
+            fin_tail = "SA gana en N>10."
+        elif bests and all(b != "qaoa" for b in bests):
+            fin_tail = "Mejor mediana: búsqueda clásica" + ("." if dist else "; nada distinguible entre semillas.")
+        else:
+            fin_tail = ""
+        if all(Fn["attribution"].get(i, {}).get("cost_reduction_at_best_by_origin", {}).get("block", 1) == 0 for i in synth):
+            fin_tail += " Bloques QAOA: 0 de reducción de costo."
+        out.append((f"""<div class="c" style="height:100%">{head("06", "Escala (etapa 3)")}
+  <div style="font:600 22px 'IBM Plex Sans';color:#F4F1E8;border-left:4px solid #FFC629;padding-left:14px">La memoria cuántica no crece con N; la calidad todavía no escala. {html.escape(fin_tail)}</div>
+  <div class="card" style="padding:16px 20px;justify-content:flex-start">
+  <table style="width:100%;border-collapse:collapse;font:15px 'IBM Plex Mono';color:#F4F1E8">
+  <tr style="color:#9A9890;font-size:12px;letter-spacing:.1em;text-align:left"><th>INSTANCIA</th><th>SA mediana [mín, máx]</th><th>QGATE QAOA · TENSIÓN</th><th>VARIABLES CUÁNTICAS</th><th>REDUCCIÓN POR BLOQUES QAOA</th><th>% TIEMPO EN QAOA</th><th>MEJOR MEDIANA</th></tr>
+  {rows_html}</table></div>
+  {chips([(f"SIMULADOR · {len(m_['seeds'])} semillas · B={m_['blocks_B']} · {m_['shots']} shots", False), ("N > 10 sintéticas", False), ("fuente: results/final.json", False)])}
 </div>""",
-                f"Al crecer hasta N={big} la parte cuántica sigue en 9 qubits y la memoria no crece. Sin óptimo conocido "
-                "medimos contra una cota inferior. Lo decimos claro: en simulador, simulated annealing gana en calidad y tiempo."))
+                    "Para la final medimos N de 10 a 20 con 10 semillas y el mismo presupuesto para todos. La memoria cuántica no crece: "
+                    "siempre 9 qubits. La calidad todavía no escala: la tabla muestra la mediana y el rango entre semillas de SA y del híbrido "
+                    "con QAOA, cuánto de la reducción de costo vino de los bloques QAOA y qué fracción del tiempo se fue en QAOA."))
+    sc = R.get("scaling", []) if not Fn else []
+    if not Fn:
+        ns = sorted({r["N"] for r in sc})
+        big = ns[-1]
+        sa_b = next(r for r in sc if r["N"] == big and r["method"] == "simulated_annealing")
+        q_b = next(r for r in sc if r["N"] == big and r["method"] == "qgate_lns_qaoa")
+        mem = max(r["peak_mem_mb"] for r in sc if r["method"] == "qgate_lns_qaoa")
+        out.append((f"""<div class="c" style="height:100%">{head("06", "Escala")}
+      <div style="display:grid;grid-template-columns:340px minmax(0,1fr);gap:28px;flex-grow:1;min-height:0">
+        <div class="card" style="border-top:6px solid #4FE3E0">
+          <div class="k q">N = {ns[0]} → {big}</div>
+          <div style="display:flex;align-items:baseline;gap:12px"><div class="big q">9</div><div class="unit">qubits</div></div>
+          <div class="sub">QUBO directo N = {big}: {big * big} qubits<br>memoria pico QGate {g(mem, 1)} MB</div>
+        </div>
+        <div class="card" style="padding:18px;justify-content:center"><img class="fig" src="{img('escalabilidad.png')}"></div>
+      </div>
+      {chips([("N > 10 sintéticas · gap contra cota Gilmore-Lawler", False),
+              (f"N = {big}: SA {g(sa_b['gap_vs_bound_pct'], 0)}% · QGate {g(q_b['gap_vs_bound_pct'], 0)}% sobre la cota", False),
+              ("SA gana en calidad y tiempo", False)])}
+    </div>""",
+                    f"Al crecer hasta N={big} la parte cuántica sigue en 9 qubits y la memoria no crece. Sin óptimo conocido "
+                    "medimos contra una cota inferior. Lo decimos claro: en simulador, simulated annealing gana en calidad y tiempo."))
 
     # 8 · cierre
     bf, sa = C["brute_force"], C["simulated_annealing"]
@@ -317,6 +365,10 @@ def build(results_path, out_path):
     if os.path.exists(exp):
         with open(exp, encoding="utf-8") as fh:
             R["extra"] = json.load(fh)
+    finp = os.path.join(os.path.dirname(os.path.abspath(results_path)), "final.json")
+    if os.path.exists(finp):
+        with open(finp, encoding="utf-8") as fh:
+            R["final"] = json.load(fh)
     hwp = os.path.join(os.path.dirname(os.path.abspath(results_path)), "hardware.json")
     if os.path.exists(hwp):
         with open(hwp, encoding="utf-8") as fh:
