@@ -146,13 +146,3 @@ Windows usa cp1252: el bench fuerza UTF-8 en stdout para poder imprimir λ.
 - Procedencia: un JSON auxiliar entra al dashboard solo si `results/MANIFEST.json` lo atesta para la misma instancia.
   Para los archivos ya publicados la atestación es a posteriori (calculada el 25/10, sin modificar su contenido).
 - El refactor de `build_report.py` (punto 6) queda pendiente a propósito.
-
-## 11. Dashboard v3 (25/10)
-
-- El Panorama abre con la pregunta del reto y tres tarjetas "lo que medimos" (memoria, calidad, hardware real),
-  cada una con su origen. La respuesta corta se calcula; si los veredictos cambian, cambia el texto.
-- La insignia de verificación de la sección 08 exige la evidencia (resumen del verificador y sha256 del archivo de
-  corridas igual al del manifiesto); sin ella muestra "pendiente".
-- El estado de la revisión externa en el dashboard se deriva de artefactos del repo en el build. "Corregido y
-  verificado" solo se usa para la procedencia, que el propio build comprueba; los tests se ejecutan aparte.
-

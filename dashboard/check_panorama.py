@@ -108,8 +108,6 @@ def main():
     # literales estructurales del método (no son resultados): intercambio de 2 vuelos, piezas de 3 vuelos
     add("literal: intercambio de 2 vuelos / piezas de 3 vuelos", "2"); add("literal: piezas de 3 vuelos", "3")
     add("literal: día 1", "1")
-    for sec_ in ("04", "05"):                       # etiquetas de origen: sección de detalle (04, 05b)
-        add("literal: sección de detalle", sec_)
 
     fmust = []
     if Fn:
@@ -135,12 +133,6 @@ def main():
         add("etapa 3 qap10 corridas en el mejor", str(sum(1 for r in runs if r["instance"] == f10["instance"] and r["solver"] == "qaoa"
                                                              and r["select"] == "tension" and abs(r["best_cost"] - f10["best_found"]) < 1e-9)))
         add("movimientos de bloque aceptados qap10", str(Fn["attribution"][f10["instance"]]["moves_at_best_by_origin"]["block"]))
-        for v in (cl["cost_min"], cl["cost_max"], q_f["cost_min"], q_f["cost_max"]):
-            add(f"rango de costo entre semillas {b}", i0(v))
-        add("instancias de la etapa 3", str(len(fi)))
-        red = [Fn["attribution"][i["instance"]]["cost_reduction_at_best_by_origin"] for i in fi]
-        pos = sum(max(r["swap"], 0) + max(r["block"], 0) for r in red)
-        add("% de la reducción aportada por bloques QAOA", f"{100 * sum(max(r['block'], 0) for r in red) / pos:.0f}")
 
     found = re.findall(r"\d+(?:\.\d+)?", text)
     bad = [t for t in found if t not in E]

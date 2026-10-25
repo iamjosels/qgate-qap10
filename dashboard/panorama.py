@@ -108,38 +108,6 @@ def render(R: dict) -> str:
     f_cl = min((x for x in Fn.get("summary", []) if fbig and x["instance"] == fbig["instance"] and x["solver"] != "qaoa"),
                key=lambda x: (x["cost_median"], order.index(x["solver"]) if x["solver"] in order else 9), default=None)
     out = []
-    # P0.1 banner: la pregunta del reto y lo que medimos (cada cifra con su origen)
-    if fbig and f_q and hq:
-        names = [i["instance"] for i in finst]
-        ns_ = len(Fn["meta"]["seeds"])
-        dist_ = any((Fn.get("verdict", {}).get(i) or {}).get("distinguible") for i in names)
-        red = [Fn.get("attribution", {}).get(i, {}).get("cost_reduction_at_best_by_origin", {}) for i in names]
-        pos = sum(max(r.get("swap", 0), 0) + max(r.get("block", 0), 0) for r in red)
-        share = 100 * sum(max(r.get("block", 0), 0) for r in red) / pos if pos else None
-        kq = hq.get("qubits_per_subproblem")
-        def src(kind, sec_, n_, file_):
-            return ('<div class="q-src q-' + kind + '"><b>' + ("HARDWARE ibm_kingston" if kind == "hw" else "SIMULADOR") + "</b> · "
-                    + e(sec_) + " · " + e(n_) + " · " + e(file_) + "</div>")
-        rng_n = "N=" + str(finst[0]["N"]) + " a " + str(fbig["N"])
-        cards = ['<article class="q-card"><div class="q-k">Memoria</div><div class="q-big">' + e(kq) + " qubits</div>"
-                 + '<div class="q-t">por bloque en cualquier N; un circuito completo serían N² qubits ('
-                 + str(fbig["N"] ** 2) + " en N=" + str(fbig["N"]) + ")</div>" + src("sim", "medido y derivado · 04", rng_n, "final.json") + "</article>"]
-        qual = "no distinguible" if not dist_ else "distinguible en alguna N"
-        cards.append('<article class="q-card"><div class="q-k">Calidad</div><div class="q-big">' + e(qual) + '</div><div class="q-t">'
-                     + ("Ningún método se distingue" if not dist_ else "Hay métodos que se distinguen")
-                     + " en calidad entre " + str(ns_) + " semillas en " + str(len(names)) + " instancias"
-                     + ("; los bloques QAOA aportan " + format(share, ".0f") + "% de la reducción de costo" if share is not None else "")
-                     + "</div>" + src("sim", "medido y derivado · 04", rng_n, "final.json") + "</article>")
-        if hxy and hx:
-            cards.append('<article class="q-card"><div class="q-k">Hardware real</div><div class="q-big">' + e(pct(hxy["feasible_fraction"]))
-                         + ' <span class="q-vs">vs ' + e(pct(hxy["random_feasible_baseline"])) + "</span></div>"
-                         + '<div class="q-t">' + e(hw.get("backend")) + ", N=" + e(hxy["N"]) + ", un job: mixer XY válidas vs el azar de su espacio, casi igual; mixer X "
-                         + e(pct(hx["feasible_fraction"])) + " vs " + e(pct(hx["random_feasible_baseline"])) + "</div>"
-                         + src("hw", "medido · 05b", "N=" + str(hxy["N"]), "hardware.json") + "</article>")
-        short = ("Respuesta corta: lo cuántico no mejora hoy la calidad; escala en memoria, no en calidad."
-                 if not dist_ and share == 0 else "Respuesta corta: ver la pestaña 04 para el veredicto por instancia.")
-        out.append('<section class="qban"><h2 class="q-question">¿Hasta dónde ayuda lo cuántico cuando los recursos son limitados?</h2>'
-                   + '<div class="q-cards">' + "".join(cards) + '</div><p class="q-short">' + e(short) + "</p></section>")
     val = " · ".join(num(V[n]["optimum"]) for n in sorted(V) if V[n].get("ok"))
     out.append(f"""<div class="flow">
   <div class="fbox"><b>MPS qap10</b></div><div class="farr" aria-hidden="true">→</div>
@@ -187,12 +155,11 @@ def render(R: dict) -> str:
         ("Tiempo", cell("ok", sec(bf["time_s"])) if bf else cell("ok", None),
          cell("mid", f"{sec(xy4['time_s'])} (N=4)") if xy4 else cell("mid", None), cell("no", sec(hq["time_s"])) if hq else cell("no", None)),
         ("Qubits", cell("ok", "0"), cell("no", f"{N * N} (N={N})"), cell("ok", f"{hq.get('qubits_per_subproblem')}") if hq else cell("ok", None)),
-        (f"Escala N={fbig['N']}, {len(Fn['meta']['seeds'])} semillas (cota Gilmore-Lawler débil)",
-         cell("ok", f"{SHORTN.get(f_cl['solver'], f_cl['solver'])} {num(f_cl['gap_vs_gl_median_pct'], 1)}% sobre la cota, {num(f_cl['time_median_s'])} s, "
-              f"costo [{num(f_cl['cost_min'])}, {num(f_cl['cost_max'])}]"
+        (f"Escala N={fbig['N']}, {len(Fn['meta']['seeds'])} semillas",
+         cell("ok", f"{SHORTN.get(f_cl['solver'], f_cl['solver'])} {num(f_cl['gap_vs_gl_median_pct'], 1)}% sobre la cota, {num(f_cl['time_median_s'])} s"
               + (f"; SA {num(f_sa['gap_vs_gl_median_pct'], 1)}%" if f_cl['solver'] != 'sa' else "")),
          cell("no", f"{fbig['N'] ** 2} qubits"),
-         cell("mid", f"{num(f_q['gap_vs_gl_median_pct'], 1)}% sobre la cota, {num(f_q['time_median_s'])} s, costo [{num(f_q['cost_min'])}, {num(f_q['cost_max'])}]"
+         cell("mid", f"{num(f_q['gap_vs_gl_median_pct'], 1)}% sobre la cota, {num(f_q['time_median_s'])} s"
               + ("" if (Fn.get("verdict", {}).get(fbig["instance"]) or {}).get("distinguible") else "; no distinguible")))
         if f_sa and f_q else
         (f"Escala N={big}", cell("ok", f"SA {num(sa_big['gap_vs_bound_pct'], 1)}% sobre la cota") if sa_big else cell("ok", None),
@@ -220,6 +187,5 @@ def render(R: dict) -> str:
     body = "".join(f"<tr><th scope='row'>{e(r[0])}</th>{r[1]}{r[2]}{r[3]}</tr>" for r in rows)
     out.append(f"""<div class="cmp-wrap"><table class="cmp"><thead><tr><th></th><th>{chip('classic')}</th><th>{chip('quantum')}</th>
   <th>{chip('hybrid')}</th></tr></thead><tbody>{body}</tbody></table></div>
-<p class="verdict">{e(verdict)}</p>
-<p class="q-op"><b>Conclusión operativa.</b> Para este tamaño, una búsqueda local clásica llega a asignaciones de bajo costo en segundos; el componente cuántico no se justifica todavía por calidad ni por tiempo. Pasajeros, distancias y unidades son supuestos de un benchmark matemático (qap10), no mediciones de un aeropuerto. Falta medir bloques mayores y hardware de más calidad.</p>""")
+<p class="verdict">{e(verdict)}</p>""")
     return "<!--PANO:START-->" + "\n".join(out) + "<!--PANO:END-->"
