@@ -147,7 +147,8 @@ def build(json_path: str, out_path: str, allow_mismatch: bool = False) -> str:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import panorama
     html = (TEMPLATE.replace("__DATA__", payload).replace("__PANORAMA__", panorama.render(R))
-            .replace("__LOGO96__", _logo("qgate_icono_96.png")).replace("__LOGO64__", _logo("qgate_icono_64.png")))
+            .replace("__LOGO96__", _logo("qgate_icono_96.png")).replace("__LOGO64__", _logo("qgate_icono_64.png"))
+            .replace("__AUDIT__", _audit(json_path, R, prov_warn)))
     if prov_warn:                                  # aviso visible; con --allow-mismatch el dato se muestra como no verificado
         msg = "; ".join(prov_warn) + (": se muestra como NO VERIFICADO" if allow_mismatch else ": no se incluye")
         html = html.replace("<main>", '<main><div role="alert" style="margin:12px auto;max-width:1200px;padding:10px 14px;'
@@ -160,6 +161,53 @@ def build(json_path: str, out_path: str, allow_mismatch: bool = False) -> str:
         if not allow_mismatch:
             raise SystemExit(2)
     return out_path
+
+
+def _audit(json_path: str, R: dict, prov_warn: list) -> str:
+    """P1.4 insignia de verificación y P1.5 revisión externa, con el estado derivado de la evidencia del repo."""
+    import gzip  # noqa: F401
+    import hashlib
+    rd = os.path.dirname(os.path.abspath(json_path))
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    vp, gp, mp = (os.path.join(rd, f) for f in ("verify_final.json", "final_runs.json.gz", "MANIFEST.json"))
+    out = ['<div class="panel" style="margin-top:20px"><div class="kick" style="margin-bottom:10px">Verificación independiente</div>']
+    V = json.load(open(vp, encoding="utf-8")) if os.path.exists(vp) else None
+    sha = hashlib.sha256(open(gp, "rb").read()).hexdigest() if os.path.exists(gp) else None
+    man = json.load(open(mp, encoding="utf-8")) if os.path.exists(mp) else {}
+    sha_ok = bool(sha and man.get("files", {}).get("final_runs.json.gz", {}).get("sha256") == sha)
+    if V and sha_ok and V.get("discrepancias") == 0 and V.get("no_factibles") == 0:
+        c = V.get("comparacion") or {}
+        out.append(f'<div class="badge badge-ok">✓ VERIFICADO · {V["corridas"]} corridas recalculadas desde su permutación, '
+                   f'{V["discrepancias"]} discrepancias'
+                   + (f'; {c["corridas_mismo_costo"]} de {c["corridas_mismo_costo"] + c["corridas_distintas"]} con el mismo costo que lo publicado' if c else "")
+                   + f'</div><p class="mono" style="font-size:16px;color:var(--soft);overflow-wrap:anywhere">corrida de verificación reducida, semillas {V["semillas"][0]} a {V["semillas"][-1]} · '
+                   f'{_esc(V["fecha"])} · final_runs.json.gz sha256 {sha[:12]} · python analysis/verify_final.py results/final_runs.json.gz --compare results/final.json</p>')
+    elif V:
+        out.append(f'<div class="badge badge-no">✗ {V.get("discrepancias")} discrepancias, {V.get("no_factibles")} no factibles</div>')
+    else:
+        out.append('<div class="badge badge-no">✗ Verificación pendiente</div>')
+    out.append("</div>")
+    tc = open(os.path.join(root, "tests", "test_core.py"), encoding="utf-8").read()
+    nq = sum(open(os.path.join(root, "tests", f), encoding="utf-8").read().count("assert ") for f in ("test_quantum.py", "test_hybrid.py"))
+    req = open(os.path.join(root, "requirements.txt"), encoding="utf-8").read()
+    pinned = ">=" not in req and os.path.exists(os.path.join(root, "requirements.lock"))
+    Fj = R.get("final") or {}
+    rows = [
+        ("Procedencia de los JSON auxiliares", "corregido y verificado" if man and not prov_warn else "pendiente",
+         "MANIFEST.json con huella de instancia; este build la comprobó" if man and not prov_warn else "sin manifiesto o con desajuste"),
+        ("Permutaciones no guardadas", "parcial" if sha_ok and Fj.get("perm_saved") is False else ("corregido" if sha_ok else "pendiente"),
+         "la corrida de verificación guarda best_perm; las corridas publicadas no las conservaron" if Fj.get("perm_saved") is False else ""),
+        ("Test tautológico", "corregido" if "np.outer(c.F[np.triu_indices(10,1)], 1), np.outer" not in tc else "pendiente", "python tests/test_core.py"),
+        ("Tests que solo imprimen", "corregido" if nq >= 10 else "pendiente", f"{nq} aserciones en test_quantum y test_hybrid"),
+        ("Versiones abiertas", "parcial" if pinned else "pendiente", "versiones exactas y requirements.lock; falta instalar en un clon limpio" if pinned else ""),
+        ("Responsabilidades en build_report.py", "pendiente", "se separará después de la final"),
+    ]
+    icon = {"corregido y verificado": "✓", "corregido": "✓", "parcial": "~", "pendiente": "✗"}
+    out.append('<div class="panel" style="margin-top:20px"><div class="kick" style="margin-bottom:10px">Revisión externa del organizador · estado derivado de la evidencia del repo</div>'
+               '<div class="tbl"><table class="audit"><thead><tr><th>PUNTO</th><th>ESTADO</th><th>EVIDENCIA</th></tr></thead><tbody>'
+               + "".join(f"<tr><td>{_esc(a)}</td><td>{icon[b]} {_esc(b)}</td><td>{_esc(c)}</td></tr>" for a, b, c in rows)
+               + "</tbody></table></div></div>")
+    return "\n".join(out)
 
 
 def _esc(t: str) -> str:
@@ -385,6 +433,22 @@ table.cmp td { white-space: normal; vertical-align: top; line-height: 1.35; }
 .m-ok .mk, b.m-ok { color: var(--paper); } .m-no .mk, b.m-no { color: var(--invalid); } .m-mid .mk, b.m-mid { color: var(--mute); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .cmp-leg { margin-top: 10px; }
+.qban { display: flex; flex-direction: column; gap: 14px; margin-bottom: 18px; }
+.q-question { margin: 0; font: 800 clamp(30px, 3.4vw, 46px)/1.05 'Barlow Condensed', sans-serif; text-transform: uppercase; letter-spacing: .01em; }
+.q-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 1000px) { .q-cards { grid-template-columns: minmax(0, 1fr); } }
+.q-card { background: #141518; border: 1px solid #2A2C31; border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.q-k { font: 600 16px var(--mono, monospace); letter-spacing: .12em; text-transform: uppercase; color: #9A9890; }
+.q-big { font: 800 40px/1.05 'Barlow Condensed', sans-serif; }
+.q-vs { font-size: 20px; color: #9A9890; }
+.q-t { font-size: 16px; line-height: 1.4; }
+.q-src { margin-top: auto; font: 16px/1.35 var(--mono, monospace); color: #9A9890; border-left: 3px solid #6E6C66; padding-left: 8px; }
+.q-src.q-hw { border-left-color: #B79CFF; color: #CDBBFF; }
+.q-short { margin: 0; font: 700 clamp(18px, 2vw, 22px)/1.35 var(--sans); }
+.q-op { margin: 10px 0 0; font-size: 16px; line-height: 1.5; color: #C9C6BC; }
+.audit td, .audit th { font-size: 16px; vertical-align: top; white-space: normal; }
+.badge-ok { border: 1px solid #4FE3E0; color: #4FE3E0; } .badge-no { border: 1px solid #FF6B3D; color: #FF6B3D; }
+.badge { display: inline-block; padding: 8px 12px; border-radius: 8px; font-size: 16px; line-height: 1.4; }
 .verdict { margin: 0; font: 600 clamp(18px, 2vw, 22px)/1.35 var(--sans); border-left: 4px solid var(--signal); padding: 4px 0 4px 14px; }
 footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40px; font: 12px var(--mono); letter-spacing: .08em; color: var(--mute); }
 @media (prefers-reduced-motion: reduce) { .hist .bar, .gchip { transition: none; } }
@@ -591,6 +655,7 @@ footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40
         <pre class="mono" id="cmd" style="white-space:pre-wrap;color:var(--soft);font-size:13px;margin:14px 0 0"></pre></div>
       <div class="panel"><div class="kick" style="margin-bottom:10px">Limitaciones</div><ul class="lim" id="limits"></ul></div>
     </div>
+    __AUDIT__
   </section>
 </div>
 </main>
