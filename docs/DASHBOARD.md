@@ -1,28 +1,31 @@
 # Qué muestra el dashboard de QGate
 
-> **Actualización (24/10, 15:30).** Este documento describe la primera versión. Cambios posteriores:
-> nueva pestaña **00 Panorama** (los tres enfoques en columnas y un cuadro comparativo de 6 filas), y las
-> secciones de detalle ya no se repiten bajo todas las pestañas: 01 QAOA muestra IBM Quantum real y el
-> barrido de λ; 02 Aeropuerto, "¿Cuánto aporta QAOA?" y el escalamiento; 03 Resultado, los datos validados
-> y la reproducibilidad. La sección 05 suma la línea base sobre las 6 permutaciones válidas
-> (`results/extra.json`) y 05b, el azar de P(óptimo) del hardware.
->
-> **Actualización (etapa 3, final).** Nueva pestaña **04 Escala**, que lee `results/final.json` (ver la
-> sección "Pestaña 04" al final). La fila "Escala" y la frase final del Panorama ahora salen de
-> `final.json` (10 semillas); la sección de detalle 07 se rotula "Escalamiento · día 1" (una semilla, híbrido
-> anterior) y remite a la pestaña 04, que es la medición vigente.
+Demo: https://iamjosels.github.io/qgate-qap10/ (archivo `docs/index.html`, copia de `results/report.html`,
+generado por `python dashboard/build_report.py results/results.json results/report.html`).
 
-Demo: https://iamjosels.github.io/qgate-qap10/ (archivo `docs/index.html`, generado por
-`dashboard/build_report.py`).
+**De dónde salen los datos.** Cada número sale de uno de estos cuatro archivos:
 
-**De dónde salen los datos.** Todo número sale de `results/results.json` (corrida completa en el
-simulador Qiskit Aer, semilla 7). Lo único que no es simulador es lo que viene de
-`results/hardware.json`: una corrida en ibm_kingston de IBM Quantum, que siempre aparece rotulada como
-hardware. Los valores citados abajo son los de la corrida actual. Si en el JSON falta un dato, el
-elemento que lo usa se oculta: el dashboard nunca muestra un valor de relleno.
+| Archivo | Qué contiene | Dónde se usa |
+|---|---|---|
+| `results/results.json` | Corrida completa del día 1 en el simulador Qiskit Aer (semilla 7, 18.5 min) | Pestañas 00 a 03 y secciones de detalle 04 a 08 |
+| `results/hardware.json` | Un job en ibm_kingston de IBM Quantum (N = 3), siempre rotulado como hardware | Panorama, sección 05b y dos filas de la tabla de 03 |
+| `results/extra.json` | Líneas base (azar sobre las 6 permutaciones válidas, azar de P(óptimo) del hardware) y control de escala del MPS | Secciones 04, 05 y 05b |
+| `results/final.json` | Etapa 3: escalamiento con 10 semillas, híbrido en dos fases (simulador) | Pestaña 04 y fila "Escala" y frase final del Panorama |
 
-La página tiene una barra superior, tres escenas animadas (pestañas 01, 02 y 03) y, debajo, secciones
-de detalle numeradas del 04 al 08.
+Si en un JSON falta un dato, el elemento que lo usa se oculta: el dashboard nunca muestra un valor de
+relleno. `python dashboard/check_panorama.py` verifica que cada número del Panorama esté respaldado por
+`results.json`, `hardware.json` o `final.json`. Todo es simulador salvo lo que viene de `hardware.json`.
+
+**Estructura.** Una barra superior con cinco pestañas. Cada pestaña muestra una escena y, debajo, solo
+las secciones de detalle de su enfoque, para que cada dato aparezca una sola vez:
+
+| Pestaña | Escena | Secciones de detalle debajo |
+|---|---|---|
+| 00 PANORAMA | Tres enfoques, un problema | (ninguna) |
+| 01 QAOA | QAOA aprende a respetar las reglas | 05b IBM Quantum real · 06 Barrido de λ |
+| 02 AEROPUERTO | Terminal Q · Muelle A | 05 ¿Cuánto aporta QAOA? · 07 Escalamiento · día 1 |
+| 03 RESULTADO | Tres tarjetas de embarque | 04 Datos validados · 08 Reproducibilidad y límites |
+| 04 ESCALA | Etapa 3 · escalamiento | (todo está en la escena) |
 
 ---
 
@@ -30,16 +33,51 @@ de detalle numeradas del 04 al 08.
 
 | Elemento | Qué es |
 |---|---|
-| Logo y "QGATE" | Isotipo de `design/BRAND.md`. El texto gris de al lado indica la escena activa. |
-| Pestañas 01 QAOA · 02 AEROPUERTO · 03 RESULTADO | Cambian de escena. Al entrar a una escena con animación, empieza a reproducirse sola (salvo que el navegador pida movimiento reducido). |
-| Botón play / pausa | Reproduce o detiene la animación de la escena actual. Se oculta en la escena 03, que es estática. |
-| x2 | Duplica la velocidad de la animación. |
-| MIXER X / MIXER XY | Solo en la escena 01: cambia el experimento QAOA que se muestra. |
-| Pantalla completa | Pone las escenas en pantalla completa, para presentar. |
+| Logo y "QGATE" | Isotipo de `design/BRAND.md`. El texto gris de al lado indica el modo de la escena (por ejemplo "MODO DEMO · TRACK A AEROPUERTO"). |
+| Pestañas 00 a 04 | Cambian de escena. Al entrar a una escena con animación (01 y 02), empieza a reproducirse sola, salvo que el navegador pida movimiento reducido. |
+| Botón play / pausa y x2 | Reproducen, detienen o duplican la velocidad de la animación. Solo aparecen en 01 y 02. |
+| MIXER X / MIXER XY | Solo en 01: cambia el experimento QAOA que se muestra. |
+| Pantalla completa | Pone la escena en pantalla completa, para presentar. |
 
 ---
 
-## Escena 01 · QAOA ("QAOA aprende a respetar las reglas")
+## 00 · Panorama ("Tres enfoques, un problema")
+
+Vista de una pantalla para presentar. Se genera en Python (`dashboard/panorama.py`) y no en JavaScript,
+para que `check_panorama.py` pueda verificar cada número.
+
+- **Flujo de arriba.** MPS qap10 → F y D (con los óptimos de control 24 · 32 · 340) → los tres enfoques →
+  comparación.
+- **Tres columnas**, cada una con un número grande, dos líneas de apoyo y un botón "Ver detalle →":
+
+| Columna | Número grande | Líneas | Botón lleva a |
+|---|---|---|---|
+| CLÁSICO | 340: óptimo exacto en 6.9 s | SA 340 en 13.7 s; cota 301 (Gilmore-Lawler) | 03 Resultado |
+| CUÁNTICO | ×112: más asignaciones válidas que el azar (QAOA mixer X, N = 4) | XY 47.7% vs 9.4% azar; ibm_kingston N = 3: X 6.3% vs 1.2% azar | 01 QAOA |
+| HÍBRIDO | 9: qubits por pieza, en cualquier N | 8 muestras: QAOA 59% vs 29% azar de 27 estados; solver exacto: 340 en 4 de 12 semillas | 02 Aeropuerto |
+
+- **Cuadro comparativo.** Seis filas por tres enfoques. Cada celda lleva una marca: ✓ ventaja, ✗ desventaja,
+  ~ parcial.
+
+| Fila | Clásico | Cuántico | Híbrido | Fuente |
+|---|---|---|---|---|
+| Calidad N=10 | ✓ 340, gap 0.0% | ✗ N=10: 100 qubits | ~ 340 (semilla 7); exacto 4/12 semillas | results.json |
+| Tiempo | ✓ 6.9 s | ~ 19.3 s (N=4) | ✗ 186.0 s | results.json |
+| Qubits | ✓ 0 | ✗ 100 (N=10) | ✓ 9 | results.json |
+| Escala N=20, 10 semillas | ✓ SA 32.8% sobre la cota, 47 s | ✗ 400 qubits | ~ 31.6% sobre la cota, 223 s; no distinguible | final.json |
+| Ruido | ✓ no aplica | ✗ XY 25.4% vs 22.2% azar (ibm_kingston) | ~ no medido | hardware.json |
+| Garantiza óptimo | ✓ sí (fuerza bruta) | ✗ P(óptimo) 4.2% | ✗ exacto: 4/12 semillas | results.json |
+
+  En la fila "Escala", los porcentajes son la mediana entre 10 semillas del gap contra la cota
+  Gilmore-Lawler en la instancia sintética de N = 20; la columna híbrida es el híbrido en dos fases con QAOA
+  y selector por tensión. "No distinguible": los rangos entre semillas se solapan.
+- **Frase final.** Se calcula desde `final.json`: "De N=10 a 20: el clásico es más rápido y ninguna
+  diferencia de calidad es distinguible entre semillas; los bloques QAOA no aportaron reducción de costo;
+  QAOA concentra probabilidad sobre el azar; el híbrido escala en memoria, no en calidad."
+
+---
+
+## 01 · QAOA ("QAOA aprende a respetar las reglas")
 
 **Qué experimento es.** QAOA sobre la subinstancia N = 4 de qap10 (primeras 4 filas y columnas de F y D),
 con 16 qubits (`x_ij`, 4 vuelos × 4 puertas), p = 1 y sin ruido. Son las entradas `N4-xy-p1` y
@@ -84,14 +122,52 @@ con 16 qubits (`x_ij`, 4 vuelos × 4 puertas), p = 1 y sin ruido. Son las entrad
 | **Una fila del circuito** | Esquema, no el circuito literal: los 4 qubits del vuelo V01 (uno por puerta) y las capas que les aplica QAOA. Con XY: preparación del estado W, capa de costo (γ), mixer XY (β) y medición. Con X: Hadamard, costo (γ), rotación X (β) y medición. |
 | Ondas cian | Motivo visual de la marca (lo cuántico va en cian); no representan datos. |
 
+### Detalle 05b · IBM Quantum real
+
+Aparece solo si existe `results/hardware.json` real; un resultado `fake` se ignora.
+
+- **Texto de arriba.** Un solo job en un solo backend (ibm_kingston, job `dbefhdom94ac738rnc00`, 5 s de QPU),
+  N = 3 (9 qubits), con los ángulos ya optimizados en el simulador. La simulación con 1% de ruido coincidió
+  con el mixer XY (25.0% vs 25.4%) y sobreestimó el mixer X (8.5% vs 6.3%). XY queda casi en su línea base
+  de P(válida) (25.4% vs 22.2%); X queda 5.35 veces sobre la suya (6.3% vs 1.2%).
+- **Tabla.** 4 096 shots por circuito.
+
+| Columna | Qué es | Mixer X | Mixer XY |
+|---|---|---|---|
+| VÁLIDAS EN HARDWARE | Fracción de muestras del hardware que son asignaciones válidas. | 6.3% | 25.4% |
+| IDEAL (AER) | La misma probabilidad sin ruido, en el simulador. | 13.7% | 78.9% |
+| AER CON RUIDO 1% | Predicción del simulador con ruido despolarizante. | 8.5% | 25.0% |
+| AZAR P(VÁLIDA) | Muestreo uniforme en el espacio de cada mixer. | 1.2% | 22.2% |
+| P(ÓPTIMO) | Fracción de muestras con costo 24. | 2.1% | 8.7% |
+| AZAR P(ÓPTIMO) · RAZÓN | P(óptimo) del azar en el mismo espacio y cuántas veces lo supera el hardware (`extra.json`). | 0.39% (5.50×) | 7.41% (1.18×) |
+| MEJOR COSTO | Mejor asignación válida medida. | 24 (ópt 24) | 24 (ópt 24) |
+| PROFUNDIDAD / COMPUERTAS 2Q | Del circuito ya ruteado para el chip real (mucho mayores que en el simulador). | 246 / 132 | 302 / 161 |
+
+- **Lectura.** El hardware muestrea el óptimo, pero el ruido real borra casi toda la ventaja del mixer XY,
+  como predijo el simulador con 1% de ruido.
+
+### Detalle 06 · Barrido de λ
+
+- **Experimento.** Subinstancia N = 3, QAOA p = 1, para cada factor λ/λ0 ∈ {0.25, 0.5, 1, 2, 4}, con
+  λ0 = 32 en N = 3. λ0 es el mayor aporte posible de una asignación: criterio suficiente razonable,
+  validado con este barrido.
+- **Eje x.** El factor λ/λ0. **Eje y.** Probabilidad, de 0 a 100%.
+- **Líneas.** Continua: P(válida). Punteada: P(óptimo). Cian: mixer XY. Amarillo: mixer X. Al pasar el
+  mouse por un punto se ve su valor.
+- **Lectura.** Con XY, P(válida) es máxima justo en λ0 (79%): λ menor deja ganar asignaciones inválidas,
+  y λ mayor aplana el paisaje de costo.
+
 ---
 
-## Escena 02 · Aeropuerto ("Terminal Q · Muelle A")
+## 02 · Aeropuerto ("Terminal Q · Muelle A")
 
 **Qué se reproduce.** La corrida real del híbrido QGate con QAOA en N = 10 (qap10 completo):
 - semilla 7, 300 iteraciones, 512 shots por subproblema;
-- entrada `qgate_lns_qaoa` de `hybrid`;
+- entrada `qgate_lns_qaoa` de `hybrid` en `results.json`;
 - es una repetición grabada, no un cálculo en vivo.
+
+Un aviso arriba del mapa lo dice: "Repetición grabada, semilla 7; no es el caso típico (ver 05: con solver
+exacto, 4 de 12 semillas llegan a 340)".
 
 Se reproducen sus **135 eventos**, cada uno con la asignación completa en ese momento:
 - 1 de inicio;
@@ -140,182 +216,170 @@ Se reproducen sus **135 eventos**, cada uno con la asignación completa en ese m
 | GAP x% | 100 · (C − 340) / 340, sobre la asignación actual, que siempre es válida. |
 | Barra amarilla | Cuánto se avanzó desde el costo inicial hasta 340: (486 − C) / (486 − 340). |
 | Chip "9 QUBITS POR SUBPROBLEMA" | Tamaño fijo de la pieza cuántica: 3 vuelos × 3 puertas. |
-| Chip "QAOA ÓPTIMO EN 100% DE SUBPROBLEMAS (512 SHOTS)" | En los 300 subproblemas, la mejor muestra de QAOA fue el óptimo de la pieza. Con 512 muestras y solo 6 asignaciones posibles por pieza, el azar también lo logra, por eso están los dos chips siguientes. |
-| Chip "P(ÓPTIMO) POR PIEZA 0.094 VS AZAR 0.039" | Probabilidad media que QAOA asigna al óptimo de cada pieza (exacta, del statevector), frente a la del azar uniforme sobre estados con una puerta por vuelo. Es la medida directa de lo que aporta QAOA (2.4 veces). |
-| Chip "CON 8 SHOTS: QAOA 59% · AZAR 29%" | El mismo híbrido con solo 8 muestras por pieza: QAOA resuelve el 59% de los subproblemas y el azar el 29%. |
+| Chip "QAOA ÓPTIMO EN 100% DE SUBPROBLEMAS (512 SHOTS)" | En los 300 subproblemas, la mejor muestra de QAOA fue el óptimo de la pieza. Con 512 muestras y solo 6 asignaciones posibles por pieza, el azar también lo logra: por eso la sección 05 compara con pocas muestras. |
+| Chip "P(ÓPTIMO) POR PIEZA 0.094 VS AZAR 0.039" | Probabilidad media que QAOA asigna al óptimo de cada pieza (exacta, del statevector), frente a la del azar uniforme sobre los 27 estados con una puerta por vuelo. Es la medida directa de lo que concentra QAOA (2.4 veces). |
 | Franja inferior | Datos fijos del problema: 10 vuelos, 10 puertas, 10! asignaciones, piezas de 9 qubits, convención de costo, fuente de datos y que las unidades son supuestas. |
+
+### Detalle 05 · ¿Cuánto aporta QAOA?
+
+La ablación: el mismo híbrido con distintos solvers del subproblema, mismas iteraciones, semilla (una sola,
+la 7) y arranque, cambiando solo cómo se resuelve cada pieza de 3 vuelos.
+
+| Solver | Shots | Costo final | Gap | Piezas resueltas | P(óptimo) por pieza | Azar (27 estados) | Tiempo |
+|---|---|---|---|---|---|---|---|
+| QAOA | 512 | 340 | 0.0% | 100% | 0.094 | 0.039 | 186.0 s |
+| Enumeración exacta (6 opciones) | - | 340 | 0.0% | 100% | 1.000 | 0.039 | 0.4 s |
+| Azar (27 estados con una puerta por vuelo) | 512 | 340 | 0.0% | 100% | - | 0.039 | 0.6 s |
+| QAOA | 8 | 372 | 9.4% | 59% | 0.096 | 0.040 | 208.3 s |
+| Azar (27 estados con una puerta por vuelo) | 8 | 390 | 14.7% | 29% | - | 0.039 | 0.7 s |
+| Azar (6 permutaciones válidas) | 512 | - | - | 100% | 0.176 | 0.039 | - |
+| Azar (6 permutaciones válidas) | 8 | - | - | 78% | 0.180 | 0.040 | - |
+
+- Las dos últimas filas salen de `extra.json`: se calculan sobre las 300 piezas de la corrida QAOA con ese
+  número de shots, sin correr el híbrido completo (por eso no tienen costo ni tiempo).
+- **Lectura** (texto debajo de la tabla): QAOA concentra probabilidad respecto a su espacio de partida; en
+  piezas de 3 vuelos aún no supera a muestrear permutaciones válidas ni a enumerar las 6 opciones.
+- **Chips de robustez.** El mismo marco con solver exacto en 12 semillas y arranques: media 354.5, llega a
+  340 en 4/12. Cada chip es una semilla con su costo final; en amarillo, las que llegan a 340.
+
+### Detalle 07 · Escalamiento · día 1
+
+Corrida del día 1 (`results.json`): una semilla y el híbrido anterior. Un aviso con borde amarillo dice que
+la medición vigente es la de la etapa 3 (10 semillas, híbrido en dos fases, mismo presupuesto para todos) y
+un botón "Ver 04 ESCALA →" lleva a esa pestaña.
+
+- **Gráfico "Gap vs cota inferior (%)".** Para N = 10, 12, 14 y 16, el porcentaje sobre la cota de
+  Gilmore-Lawler de simulated annealing (gris), QGate con solver exacto (amarillo) y QGate con QAOA (cian).
+  N > 10 son instancias **sintéticas** (marcadas con *) sin óptimo conocido.
+- **Gráfico "Tiempo (s, escala log)".** Tiempo de pared para los mismos métodos.
+- **Tabla.** N, instancia, método, costo, cota, gap contra la cota, tiempo, memoria pico (Python) y
+  qubits. QGate usa 150 iteraciones por N (no comparable con 02, que usa 300).
+- **Muro de memoria.** Memoria de un statevector genérico de N² qubits (16 bytes por amplitud): N = 4 es
+  1 MiB, N = 10 son 2·10^31 bytes. Es la razón de usar piezas de 9 qubits.
+- **Lectura.** La parte cuántica no crece (9 qubits, menos de 1 MB). En esa corrida de una semilla,
+  simulated annealing ganó a QGate con QAOA en todo N, en calidad y en tiempo. Con una sola semilla no se
+  puede saber si la diferencia de calidad es real: la pestaña 04 la mide con 10 semillas y no encuentra
+  diferencias distinguibles.
 
 ---
 
-## Escena 03 · Resultado ("Tres tarjetas de embarque, una por pregunta")
+## 03 · Resultado ("Tres tarjetas de embarque, una por pregunta")
 
 ### Tarjetas de embarque
 
 | Tarjeta | Pregunta que responde | Campos |
 |---|---|---|
 | **DATOS · VALIDADO** (MPS → F·D) | ¿Leímos bien el archivo? | Óptimos calculados por fuerza bruta en N = 3, 4 y 10 con ✓ si coinciden con los del reto (24, 32, 340); variables del MPS (4 150). Talón: CONTROL 340. |
-| **QAOA · N = 4 · QISKIT** (AZAR → QAOA) | ¿QAOA mejora al azar? | Experimento con mixer XY: P(válida) 47.7%, al azar 9.4%, P(óptimo) 4.2% y CX = 292, que son las compuertas de 2 qubits tras transpilar en el simulador. Talón: 16 qubits. |
-| **HÍBRIDO · N = 10 · QGATE** (AZAR → QGATE) | ¿Llegamos a una buena asignación completa? | Costo final 340, gap 0.0%, QAOA óptimo en el 100% de las piezas con 512 shots, tiempo 186 s. Talón: 9 qubits. |
+| **QAOA · N = 4 · QISKIT** (AZAR → QAOA) | ¿QAOA mejora al azar? | Mixer XY: P(válida) 47.7%, al azar 9.4%, P(óptimo) 4.2% y CX = 292 (compuertas de 2 qubits tras transpilar en el simulador). Talón: 16 qubits. |
+| **HÍBRIDO · N = 10 · QGATE** (AZAR → QGATE) | ¿Llegamos a una buena asignación completa? | Semilla 7 · costo 340; 12 semillas (solver exacto) que llegan a 340: 4; media · mejor · peor: 354.5 · 340 · 374; gap medio 4.3%. Talón: 9 qubits. |
 
 ### Tabla comparativa
 
 | Columna | Qué es |
 |---|---|
-| MÉTODO | Fuerza bruta, simulated annealing, QAOA mixer X y XY (N = 4), QAOA en hardware (N = 3, una fila por mixer), QGate híbrido con 512 shots, QGate con 8 shots y control al azar con 8 shots. |
+| MÉTODO | Fuerza bruta, simulated annealing, QAOA mixer X y XY (N = 4), QAOA en hardware (N = 3, una fila por mixer) y QGate híbrido con la semilla 7. Cada fila lleva el chip de su enfoque (clásico, cuántico, híbrido). |
 | N | Tamaño de la instancia de esa fila. |
 | QUBITS | 0 en métodos clásicos, 16 en QAOA N = 4, 9 en hardware N = 3, "9 / subproblema" en el híbrido. |
 | MEJOR COSTO VÁLIDO | Mejor asignación válida encontrada. En las filas de QAOA es la mejor entre las muestras medidas, no la más probable. |
 | GAP | Contra el óptimo de **esa** instancia: 340 en N = 10, 32 en N = 4 y 24 en N = 3. |
-| TIEMPO | Tiempo de pared en la CPU de la corrida. En las filas de hardware es el tiempo de QPU de todo el job (5 s para los dos circuitos), marcado "(job)". |
+| TIEMPO | Tiempo de pared de la corrida. En las filas de hardware es el tiempo de QPU de todo el job (5 s para los dos circuitos), marcado "(job)". |
 | DÓNDE CORRIÓ | CPU, Qiskit Aer, Qiskit Aer + CPU, o IBM Quantum · ibm_kingston. |
+
+Debajo, una nota: las filas de QAOA son valores crudos de las muestras, sin reparación clásica; "mejor
+costo válido" es el costo C de una asignación válida, no la energía penalizada del QUBO.
+
+### Detalle 04 · Datos validados
+
+- **Tabla.** N, óptimo calculado por fuerza bruta, óptimo esperado según el reto, ✓ y tiempo de cálculo.
+- **Chips.** Variables: 4 150 = 100 x + 4 050 y; 1 820 restricciones; y mapeadas: 4 050 / 4 050; residuo de
+  la factorización SVD: 0; estrategia de índices usada; aviso de que D es distancia Manhattan en una grilla.
+- **Mapas de calor.** Color más intenso = valor más alto; al pasar el mouse se ve el valor. F (amarillo):
+  pasajeros que conectan entre cada par de vuelos. D (cian): distancia entre cada par de puertas.
+- **Cómo se recuperaron los coeficientes del MPS** (desde `extra.json`, `analysis/scale_check.py`):
+  1. Las 20 restricciones con lado derecho 1 y coeficientes 1 son las de asignación: sus variables son las 100 x.
+  2. Esas 20 filas se parten en dos familias de 10 (vuelos y puertas); cada x está una vez en cada familia, y eso da su índice (i, j).
+  3. Cada una de las 4 050 variables y aparece en filas de enlace junto a exactamente dos x: su coeficiente objetivo es F_ik · D_jl.
+  4. Con eso se arma el tensor T y se factoriza en F y D por SVD de rango 1 (residuo 0).
+  5. El orden de índices se elige entre las candidatas con la que reproduce 24 · 32 · 340.
+  6. Control de escala: la asignación óptima cuesta 340 contando cada par una vez y 680 contándolo dos veces.
+- **Qiskit hace / Clásico hace.** Qué parte del método corre en Qiskit y qué parte es clásica.
+
+### Detalle 08 · Reproducibilidad y límites
+
+- **Entorno.** Versiones de Python, NumPy, SciPy, Qiskit y Qiskit Aer; semilla 7, fecha y duración de la
+  corrida (18.5 min); y que el hardware IBM se reporta aparte.
+- **Comando.** El comando exacto para reproducir la corrida del día 1.
+- **Limitaciones.** La lista que guardó el bench en `meta.limitations`, más las líneas "¿Por qué QAOA aquí?":
+  las piezas de 3 vuelos se pueden enumerar; con 8 muestras QAOA resuelve 59% de las piezas, el azar sobre
+  las 6 permutaciones válidas 78% y la enumeración 100%; la memoria cuántica no crece con N y la calidad
+  todavía no escala (resumen de la etapa 3 desde `final.json`); en hardware el ruido borra casi toda la
+  ventaja del mixer XY.
 
 ---
 
-## Secciones de detalle (debajo de las escenas)
+## 04 · Escala ("Etapa 3 · escalamiento")
 
-### 04 · Datos validados
+Lee `results/final.json`, generado por `python -m qgate.final` (SIMULADOR Qiskit Aer y CPU). Instancias:
+qap10 (oficial, N = 10) y tres sintéticas (N = 14, 16 y 20); 10 semillas (7 a 16); B = 100 iteraciones
+externas y 8 shots por bloque para todos los métodos del modo dos fases. Si falta `final.json`, la pestaña
+no aparece.
 
-- **Tabla.** N, óptimo calculado por fuerza bruta, óptimo esperado según el reto, ✓ y tiempo de cálculo.
-- **Chips.** Datos de la lectura del MPS:
-  - variables: 4 150 = 100 x + 4 050 y;
-  - 1 820 restricciones;
-  - y mapeadas: 4 050 / 4 050;
-  - residuo de la factorización F·D: 0;
-  - estrategia de índices usada;
-  - aviso de que D es distancia Manhattan en una grilla.
-- **Mapas de calor.** Color más intenso = valor más alto; al pasar el mouse se ve el valor.
-  - F (amarillo): pasajeros que conectan entre cada par de vuelos.
-  - D (cian): distancia entre cada par de puertas.
-- **Qiskit hace / Clásico hace.** Qué parte del método corre en Qiskit y qué parte es clásica.
+- **Frase de arriba.** Se calcula desde el JSON. Hoy dice: "La memoria cuántica no crece con N; la calidad
+  todavía no escala; ninguna diferencia es distinguible entre semillas; en N>10 la mejor mediana la
+  comparten el 2-swap sin bloques y el híbrido con QAOA, junto con los otros solvers de bloque; SA no la
+  tiene. Los bloques QAOA no aportaron reducción de costo."
+- **Metadatos.** Semillas, B, shots por bloque, presupuesto de SA (50 000 × 3) y nota sobre tiempos: se
+  midieron con 14 procesos en paralelo y solo son comparables dentro de la misma corrida.
+- **¿Cuánto es cuántico y cuánto clásico?** Una fila por instancia, para el híbrido QAOA en dos fases:
 
-### 05 · ¿Cuánto aporta QAOA?
+| Columna | Qué es | qap10 | N=14 | N=16 | N=20 |
+|---|---|---|---|---|---|
+| (i) Variables cuánticas 9/N² | Fracción de variables x que entra al circuito: los 9 qubits de un bloque | 9.00% | 4.59% | 3.52% | 2.25% |
+| (ii) Movimientos swap · bloque QAOA · perturbación | Movimientos aceptados hasta la mejor asignación, por origen, sumados en todas las semillas y los 2 selectores | 2924 · 0 · 641 | 5533 · 0 · 764 | 5369 · 0 · 631 | 9586 · 0 · 823 |
+| (iii) Reducción de costo swap · bloque · perturbación | Cuánto bajó el costo por origen; las perturbaciones suben el costo, por eso restan | 88806 · 0 · −85734 | 128537 · 0 · −124262 | 126288 · 0 · −121791 | 290889 · 0 · −282073 |
+| (iv) % tiempo en QAOA · solo Aer | Fracción del tiempo de pared en la subrutina QAOA (circuito + Aer + COBYLA) y solo en la simulación Aer | 96.8% · 52.0% | 91.9% · 50.2% | 88.4% · 46.3% | 78.8% · 42.1% |
 
-La ablación: el mismo híbrido, con las mismas iteraciones, semilla y arranque, cambiando solo cómo se
-resuelve cada pieza de 3 vuelos.
+  La atribución depende del orden de las fases: el 2-swap corre primero y se lleva las mejoras fáciles.
+- **(v) Tasa de mejora de los bloques k=3 desde un óptimo local 2-swap.** Cuántos de 2000 bloques mejoran,
+  por solver: enumeración 1 a 8, azar sobre las 6 válidas 0 a 4, enumeración con desempate 1 a 8, QAOA 1 o 2.
+  Desde un óptimo local 2-swap casi no quedan mejoras de 3 vuelos, para ningún solver.
+- **Tabla de escalamiento.** Por instancia, método y selector: costo mediana [mín, máx] entre semillas, gap
+  contra la cota Gilmore-Lawler, gap contra el mejor costo encontrado (no es un óptimo demostrado), tiempo,
+  memoria y fracción factible (100% en todas). Métodos: SA, 2-swap con reinicios, y bloques de enumeración,
+  azar sobre 6 válidas, enumeración + desempate y QAOA, cada uno con selector `random` y `tension`.
+  - Un método se marca "mejor (distinguible)" y su costo se colorea solo si su máximo queda por debajo del
+    mínimo de todos los demás. No pasó en ninguna instancia.
+  - Todas las filas empatadas en la mejor mediana llevan "mejor mediana (empate), no distinguible". En qap10
+    empatan todas las filas (340). En N = 14 y 16, todas salvo SA. En N = 20, seis filas: al menos una
+    variante de cada método salvo SA, entre ellas el híbrido QAOA con selector por tensión (1040).
+- **Ángulos reutilizados** (N = 20, 40 bloques, 8 shots): 40 evaluaciones por bloque en frío y 40
+  reutilizando (COBYLA llega a su máximo en ambos); P(óptimo) del bloque 0.093 en frío y 0.128
+  reutilizando; 0.24 s por bloque en ambos.
+- **Lectura.** Ninguna diferencia entre métodos es distinguible entre semillas. El híbrido con QAOA empata
+  con el 2-swap porque la mejora la hace el 2-swap: los bloques QAOA no aportan reducción de costo y se
+  llevan entre 79% y 97% del tiempo de pared.
 
-| Columna | Qué es |
-|---|---|
-| SOLVER | QAOA con 512 shots, solver exacto (enumera las 6 opciones), azar con 512 shots, QAOA con 8 shots y azar con 8 shots. |
-| SHOTS | Muestras por pieza. |
-| COSTO FINAL / GAP | Resultado del híbrido completo (crudo, sin pulido). |
-| PIEZAS RESUELTAS | Porcentaje de subproblemas en que el solver devolvió el óptimo de la pieza. |
-| P(ÓPTIMO) POR PIEZA | Probabilidad media de muestrear el óptimo de una pieza: la de QAOA (exacta), la del azar, o 1 para el solver exacto. |
-| AZAR | Referencia: probabilidad del óptimo con muestreo uniforme. |
-| TIEMPO | Tiempo de pared del híbrido completo. |
+---
 
-Los chips de abajo muestran la robustez: el mismo marco con solver exacto en 12 semillas y arranques.
-- Llega a 340 en 4 de 12, con media 354.5.
-- Cada chip es una semilla con su costo final; en amarillo, las que llegan a 340.
+## Pie de página
 
-### 05b · IBM Quantum real
-
-Aparece solo si existe `results/hardware.json` real; un resultado `fake` se ignora. Es un job en
-ibm_kingston con los ángulos ya optimizados en el simulador, 4 096 shots por circuito, N = 3 (9 qubits).
-
-| Columna | Qué es | Mixer X | Mixer XY |
-|---|---|---|---|
-| VÁLIDAS EN HARDWARE | Fracción de muestras del hardware que son asignaciones válidas. | 6.3% | 25.4% |
-| IDEAL (AER) | La misma probabilidad sin ruido, en el simulador. | 13.7% | 78.9% |
-| AER CON RUIDO 1% | Predicción del simulador con ruido despolarizante. | 8.5% | 25.0% |
-| AZAR | Muestreo uniforme. | 1.2% | 22.2% |
-| P(ÓPTIMO) | Fracción de muestras con costo 24. | 2.1% | 8.7% |
-| MEJOR COSTO | Mejor asignación válida medida. | 24 | 24 |
-| PROFUNDIDAD / COMPUERTAS 2Q | Del circuito ya ruteado para el chip real (mucho mayores que en el simulador). | 246 / 132 | 302 / 161 |
-
-Lectura: el hardware muestrea el óptimo, pero el ruido real borra casi toda la ventaja del mixer XY, tal
-como predijo el simulador con 1% de ruido.
-
-### 06 · Barrido de λ
-
-- **Experimento.** Subinstancia N = 3, QAOA p = 1, para cada factor λ/λ0 ∈ {0.25, 0.5, 1, 2, 4}, con
-  λ0 = 32 en N = 3.
-- **Eje x.** El factor λ/λ0.
-- **Eje y.** Probabilidad, de 0 a 100%.
-- **Líneas.**
-  - Continua: P(válida).
-  - Punteada: P(óptimo).
-  - Cian: mixer XY.
-  - Amarillo: mixer X.
-
-  Al pasar el mouse por un punto se ve su valor.
-- **Lectura.** Con XY, P(válida) es máxima justo en λ0 (79%): λ menor deja ganar asignaciones inválidas,
-  y λ mayor aplana el paisaje de costo.
-
-### 07 · Escalamiento
-
-- **Gráfico "Gap vs cota inferior".** Para N = 10, 12, 14 y 16, el porcentaje sobre la cota de
-  Gilmore-Lawler de:
-  - simulated annealing (gris);
-  - QGate con solver exacto (amarillo);
-  - QGate con QAOA (cian).
-
-  N > 10 son instancias **sintéticas** (marcadas con *) sin óptimo conocido. Por eso se compara contra
-  una cota inferior: un gap de 0 sería imposible de alcanzar en general.
-- **Gráfico "Tiempo".** Tiempo de pared en escala logarítmica para los mismos métodos.
-- **Tabla.** N, instancia, método, costo, cota, gap contra la cota, tiempo, memoria pico (Python) y
-  qubits. QGate usa 150 iteraciones por N.
-- **Muro de memoria.** Memoria de un statevector genérico de N² qubits (16 bytes por amplitud): N = 4 es
-  1 MiB, N = 10 son 2·10^31 bytes. Es la razón de usar piezas de 9 qubits.
-- **Lectura (día 1, una semilla).** La parte cuántica no crece (9 qubits, menos de 1 MB). En esa corrida,
-  frente a QGate con QAOA, simulated annealing ganó en todo N, en calidad y en tiempo. Con una sola semilla
-  no se puede saber si la diferencia de calidad es real: la etapa 3 (pestaña 04, 10 semillas) la mide con
-  rangos y no encuentra diferencias distinguibles. El título de la sección dice "día 1" y un aviso remite a 04.
-
-### 08 · Reproducibilidad y límites
-
-- **Entorno.** Versiones de Python, NumPy, SciPy, Qiskit y Qiskit Aer; semilla, fecha y duración de la
-  corrida; y si hubo hardware.
-- **Comando.** El comando exacto para reproducir la corrida.
-- **Limitaciones.** La lista que guardó el bench en `meta.limitations`, con la línea de hardware ya
-  actualizada.
-
-### Pie de página
-
-Regla de colores de la marca:
-- amarillo: señalética y lo óptimo;
-- cian: todo lo que sale de Qiskit;
-- naranja: inválido.
-
-Además, créditos de librerías y datos, y el link al código.
+Regla de colores de la marca: amarillo para la señalética y lo óptimo; cian para todo lo que sale de
+Qiskit; naranja para lo inválido. Además, créditos de librerías y datos, y el link al código.
 
 ---
 
 ## Qué tener en cuenta al presentarlo
 
 1. Las barras de la escena 01 son probabilidades exactas del simulador, no muestras.
-2. La escena 02 repite una corrida grabada, con semilla 7. En 12 semillas el mismo método llega a 340 en
-   4 de 12, y la escena no muestra esa variación.
-3. El "100% de piezas resueltas" depende de las 512 muestras. Lo que mide el aporte de QAOA es
-   P(óptimo) por pieza (0.094 contra 0.039) y la prueba con 8 shots (59% contra 29%).
-4. Todo es simulador salvo la sección 05b y las dos filas "· hardware" de la tabla de la escena 03.
+2. La escena 02 repite una corrida grabada, con semilla 7. En 12 semillas el mismo marco con solver exacto
+   llega a 340 en 4 de 12; el aviso de la escena lo dice.
+3. El "100% de piezas resueltas" depende de las 512 muestras. Lo que mide el aporte de QAOA es P(óptimo)
+   por pieza (0.094 contra 0.039) y la prueba con 8 shots (59% contra 29% del azar de 27 estados, y 78% del
+   azar sobre las 6 permutaciones válidas).
+4. Todo es simulador salvo la sección 05b, las dos filas "· hardware" de la tabla de 03 y la línea de
+   ibm_kingston del Panorama.
 5. La geometría del terminal es la de la matriz D de qap10, no la de un aeropuerto real.
-
-## Pestaña 04 · Escala (etapa 3)
-
-Lee `results/final.json`, generado por `python -m qgate.final` (SIMULADOR Qiskit Aer y CPU). Instancias:
-qap10 (oficial, N = 10) y tres sintéticas (N = 14, 16 y 20), 10 semillas, el mismo presupuesto para todos los
-métodos del modo dos fases. Si falta `final.json`, la pestaña no aparece.
-
-- **Frase de arriba.** Se calcula desde el JSON: "La memoria cuántica no crece con N; la calidad todavía no
-  escala; …". La segunda mitad dice qué método tiene la mejor mediana en N > 10, si alguna diferencia es
-  distinguible entre semillas y si los bloques QAOA aportaron reducción de costo.
-- **Metadatos.** Semillas, iteraciones externas B, shots por bloque, presupuesto de SA y nota sobre tiempos
-  (medidos con varios procesos en paralelo; comparables solo dentro de la misma corrida).
-- **¿Cuánto es cuántico y cuánto clásico?** Para cada instancia: (i) fracción de variables que entran al
-  circuito (9/N²); (ii) movimientos aceptados hasta la mejor asignación por origen (2-swap, bloque QAOA,
-  perturbación); (iii) reducción de costo por origen (las perturbaciones suben el costo, por eso restan);
-  (iv) fracción del tiempo de pared dentro de la subrutina QAOA y solo en la simulación Aer. La atribución
-  depende del orden de las fases: el 2-swap corre primero y se lleva las mejoras fáciles.
-- **(v) Tasa de mejora de los bloques.** Cuántos bloques de 3 vuelos mejoran partiendo de un óptimo local
-  2-swap, por solver (enumeración, azar sobre las 6 válidas, enumeración con desempate, QAOA).
-- **Tabla de escalamiento.** Por instancia y método: costo mediana [mín, máx] entre semillas, gap contra la
-  cota Gilmore-Lawler y contra el mejor costo encontrado (no es un óptimo demostrado), tiempo, memoria y
-  factibilidad. Un método se marca "mejor (distinguible)" y se colorea solo si su máximo queda por debajo
-  del mínimo de todos los demás; si no, dice "mejor mediana, no distinguible".
-- **Ángulos reutilizados.** En N = 20: evaluaciones por bloque, P(óptimo) del bloque y tiempo, arrancando en
-  frío o desde los ángulos del bloque anterior.
-- **Lectura (corrida actual).** Ninguna diferencia entre métodos es distinguible entre semillas. En N > 10 la
-  mejor mediana la comparten el 2-swap sin bloques y el híbrido con QAOA (junto con los otros solvers de
-  bloque); SA no la tiene. Los bloques QAOA no aportaron reducción de costo y se llevan la mayor parte del
-  tiempo de pared: el híbrido empata con el 2-swap porque la mejora la hace el 2-swap. Todas las filas
-  empatadas en la mejor mediana llevan la marca "mejor mediana (empate), no distinguible".
+6. La sección 07 es del día 1 (una semilla). La medición de escala que cuenta es la pestaña 04 (10
+   semillas). Las instancias de N > 10 son sintéticas.
+7. En la pestaña 04, "no distinguible" significa que los rangos entre semillas se solapan: ningún método se
+   presenta como ganador.
