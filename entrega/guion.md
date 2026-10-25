@@ -47,8 +47,8 @@ COBYLA llega a su máximo).
 Sí, una vez y solo N=3 (9 qubits): un job en ibm_kingston de IBM Quantum, 4096 shots por circuito, 5 s de
 QPU, con los ángulos optimizados en el simulador. Mixer XY: 25.4% válidas (ideal 78.9%, azar
 22.2%); mixer X: 6.3% (ideal 13.7%, azar 1.2%). Ambos muestrearon el óptimo
-24. El ruido real borró casi toda la ventaja de XY, como predijo nuestra simulación con 1% de ruido
-(25.0%). Todo lo demás (N=4, N=10 y escalamiento) es simulador.
+24. El ruido real borró casi toda la ventaja de XY. Nuestra simulación con 1% de ruido coincidió con XY
+(25.0% vs 25.4%) y sobreestimó X (8.5% vs 6.3%). Todo lo demás (N=4, N=10 y escalamiento) es simulador.
 
 **¿Cómo eligieron λ?**
 λ0 es el mayor aporte posible de una sola asignación. Quitar o duplicar una asignación cambia el costo

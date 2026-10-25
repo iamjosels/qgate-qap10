@@ -143,8 +143,8 @@ Aparece solo si existe `results/hardware.json` real; un resultado `fake` se igno
 | MEJOR COSTO | Mejor asignación válida medida. | 24 (ópt 24) | 24 (ópt 24) |
 | PROFUNDIDAD / COMPUERTAS 2Q | Del circuito ya ruteado para el chip real (mucho mayores que en el simulador). | 246 / 132 | 302 / 161 |
 
-- **Lectura.** El hardware muestrea el óptimo, pero el ruido real borra casi toda la ventaja del mixer XY,
-  como predijo el simulador con 1% de ruido.
+- **Lectura.** El hardware muestrea el óptimo, pero el ruido real borra casi toda la ventaja del mixer XY. La
+  simulación con 1% de ruido coincidió con XY (25.0% vs 25.4%) y sobreestimó X (8.5% vs 6.3%).
 
 ### Detalle 06 · Barrido de λ
 

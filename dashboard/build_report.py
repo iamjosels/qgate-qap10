@@ -125,6 +125,11 @@ def build(json_path: str, out_path: str, allow_mismatch: bool = False) -> str:
         with open(fin, encoding="utf-8") as fh:
             Fj = json.load(fh)
         Fj["perm_saved"] = any("best_perm" in r for r in Fj.get("runs", []))   # revisión externa, punto 2
+        bf_ = {i["instance"]: i["best_found"] for i in Fj.get("instances", [])}
+        Fj["hits_best_found"] = {}
+        for r in Fj.get("runs", []):
+            k = f'{r["instance"]}/{r["solver"]}/{r["select"]}'
+            Fj["hits_best_found"][k] = Fj["hits_best_found"].get(k, 0) + (abs(r["best_cost"] - bf_[r["instance"]]) < 1e-9)
         Fj.pop("runs", None)                       # el reporte usa el resumen, no cada corrida
         R["final"] = Fj
     data = R.setdefault("data", {})
@@ -794,7 +799,9 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
     let fact = 1; for (let i = 2; i <= n; i++) fact *= i;
     $("strip").textContent = `${n} VUELOS · ${n} PUERTAS · ${n}! = ${sp(fact)} ASIGNACIONES · SUBPROBLEMAS DE 3 VUELOS = 9 QUBITS · CADA PAR SE CUENTA UNA VEZ · DATOS QAP10 (MIPLIB) · UNIDADES SUPUESTAS`;
     const S0 = R.hybrid_seeds;
-    put("replayNote", hq ? `Repetición grabada, semilla ${meta.seed}; no es el caso típico (ver 05: con solver exacto, ${S0 ? S0.hits_ref + " de " + S0.final_costs.length + " semillas llegan a " + f(REF) : "robustez"})` : null);
+    const Fq = R.final, A10 = Fq && Fq.attribution ? Fq.attribution[(Fq.instances.find((x) => x.N === N) || {}).instance] : null;
+    put("replayNote", hq ? `Versión del día 1: repetición grabada, semilla ${meta.seed}; no es el caso típico (ver 05: con solver exacto en el bloque, ${S0 ? S0.hits_ref + " de " + S0.final_costs.length + " semillas llegan a " + f(REF) : "robustez"})`
+      + (A10 && A10.cost_reduction_at_best_by_origin.block === 0 ? ". En la etapa 3 (04) los bloques QAOA no aportan reducción de costo." : "") : null);
     let ei = 0, prev = null;
     function draw() {
       const ev = evs ? evs[ei] : { perm: final, cost: hq ? hq.final_cost : best.cost, iter: hq ? hq.iters : null, type: "end" };
@@ -857,10 +864,14 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
       fields: [["P(VÁLIDA)", pct(q4.p_feasible)], ["AL AZAR", pct(q4.random_feasible_baseline)], ["P(ÓPTIMO)", pct(q4.p_optimal)], ["CX", num(q4.cx_count) ? String(q4.cx_count) : null]] }));
     const hq = H.qgate_lns_qaoa;
     if (hq) out.push(pass({ kicker: `HÍBRIDO · N = ${N}`, tag: "QGATE", tagBg: "#FFC629", from: "AZAR", to: "QGATE", stubK: "QUBITS", stubV: String(hq.qubits_per_subproblem || 9),
-      fields: (() => { const S = R.hybrid_seeds; return [[`SEMILLA ${meta.seed} · COSTO`, f(hq.final_cost)],
+      fields: (() => { const S = R.hybrid_seeds, Fz = R.final, i10 = Fz ? Fz.instances.find((x) => x.N === N) : null;
+        const s10 = i10 ? Fz.summary.find((x) => x.instance === i10.instance && x.solver === "qaoa" && x.select === "tension") : null;
+        const h10 = i10 && Fz.hits_best_found ? Fz.hits_best_found[i10.instance + "/qaoa/tension"] : null;
+        const st3 = s10 ? [[`ETAPA 3 · ${Fz.meta.seeds.length} SEMILLAS · MEDIANA [MÍN, MÁX]`, `${f(s10.cost_median)} [${f(s10.cost_min)}, ${f(s10.cost_max)}]` + (num(h10) ? ` · ${h10}/${Fz.meta.seeds.length} en ${f(i10.best_found)}` : "")]] : [];
+        return st3.concat([[`DÍA 1 · SEMILLA ${meta.seed} · COSTO`, f(hq.final_cost)],
                [S ? `${S.final_costs.length} SEMILLAS (SOLVER EXACTO) · LLEGAN A ${f(REF)}` : "SEMILLAS", S ? String(S.hits_ref) : null],
                ["MEDIA · MEJOR · PEOR", S ? `${f(S.mean, 1)} · ${f(S.best)} · ${f(S.worst)}` : null],
-               ["GAP MEDIO", S && num(S.mean_gap_pct) ? S.mean_gap_pct.toFixed(1) + "%" : null]]; })() }));
+               ["GAP MEDIO", S && num(S.mean_gap_pct) ? S.mean_gap_pct.toFixed(1) + "%" : null]]); })() }));
     $("passes").innerHTML = out.join("");
     const rows = [];
     const row = (m, n, q, c, g, t, w, color, k) => rows.push(`<tr><td style="color:${color};font-weight:600">${AP(k)}${esc(m)}</td><td>${n}</td><td>${esc(q)}</td><td>${c ?? "-"}</td><td>${g === null ? "-" : g.toFixed(1) + "%"}</td><td>${t ?? "-"}</td><td style="color:var(--mute)">${esc(w)}</td></tr>`);
@@ -967,11 +978,13 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
       else tail += "la mejor mediana cambia de método según N";
       tail += union.has("sa") ? "." : "; SA no la tiene.";
     }
-    $("finSentence").textContent = "La memoria cuántica no crece con N; la calidad todavía no escala; " + tail +
-      (blockRed ? " Los bloques QAOA no aportaron reducción de costo." : "");
+    const fq = insts.map((i) => ((Fn.attribution || {})[i.instance] || {}).frac_wall_in_qaoa_mean).filter(num);
+    $("finSentence").textContent = (sets.length && !anyDist ? "Ningún método se distingue en calidad entre semillas. " : "") +
+      (blockRed && fq.length ? `Los bloques QAOA no reducen el costo y consumen entre ${(100 * Math.min(...fq)).toFixed(0)}% y ${(100 * Math.max(...fq)).toFixed(0)}% del tiempo. ` : "") +
+      "La memoria cuántica no crece con N; la calidad todavía no escala." + (tail && !anyDist ? " Detalle: " + tail.replace(/^ninguna diferencia es distinguible entre semillas; /, "") : "");
     $("finMeta").textContent = "SIMULADOR (Qiskit Aer) y CPU · " + (m.seeds || []).length + " semillas · B=" + m.blocks_B +
       " iteraciones externas para todos los solvers del modo dos fases · " + m.shots + " shots por bloque para QAOA y para el azar · SA " +
-      m.sa_iters + "×" + m.sa_restarts + " · " + (m.nota_tiempos || "") + " · N>10 sintéticas" +
+      m.sa_iters + "×" + m.sa_restarts + " · " + (m.nota_tiempos || "") + ", no comparables con los tiempos del día 1 · N>10 sintéticas" +
       (Fn.perm_saved === false ? " · las permutaciones de estas corridas no se conservaron: costo y factibilidad no son auditables desde el archivo (README 5c)" : "");
     const A = Fn.attribution || {};
     const pc = (x, d = 1) => num(x) ? (100 * x).toFixed(d) + "%" : "-";
