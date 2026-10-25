@@ -33,9 +33,13 @@ Regla de color: amarillo = señalética y lo óptimo; cian = cuántico; naranja 
 
 ## Logo
 
-Isotipo: cuadrado amarillo `#FFC629` (rx 10 de 64) con una "Q" negra cuyo trazo de cola es una flecha
-de señalética hacia abajo a la derecha. Wordmark: una ficha split-flap con "Q" amarilla + "GATE" en
-Barlow Condensed 800. SVG exacto en `Main.dc.html`.
+Vigente (25/10): `design/logo/qgate_icono.png` (isotipo: puerta de embarque amarilla `#FFC629` con un avión
+en el dintel y una esfera de Bloch cian `#4FE3E0`) y `design/logo/qgate_logo_completo.png` (isotipo + "QGATE"
+en amarillo), ambos sobre fondo `#0B0B0C`. Versiones reducidas en la misma carpeta (96, 64 y 36 px; logo de
+360 px). Se usan en la barra del dashboard, el favicon, el chip HÍBRIDO, la portada del PPT y los encabezados.
+
+Anterior (solo referencia de los mockups): cuadrado amarillo con una "Q" negra cuya cola es una flecha de
+señalética; wordmark en ficha split-flap con "Q" amarilla + "GATE" en Barlow Condensed 800 (`Main.dc.html`).
 
 ## Componentes
 

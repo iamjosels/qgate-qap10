@@ -16,6 +16,12 @@ Si en un JSON falta un dato, el elemento que lo usa se oculta: el dashboard nunc
 relleno. `python dashboard/check_panorama.py` verifica que cada número del Panorama esté respaldado por
 `results.json`, `hardware.json` o `final.json`. Todo es simulador salvo lo que viene de `hardware.json`.
 
+**Procedencia.** `build_report.py` incluye `hardware.json`, `extra.json` y `final.json` solo si su sha256 y la
+huella de la instancia (sha256 de N, F y D) coinciden con `results/MANIFEST.json` y con `results.json`. Si no
+coinciden, el archivo no se incluye, aparece un aviso visible arriba ("... no corresponde a esta corrida") y el
+build sale con código 2; con `--allow-mismatch` se muestra como no verificado. Tras regenerar resultados hay que
+correr `python analysis/make_manifest.py`.
+
 **Estructura.** Una barra superior con cinco pestañas. Cada pestaña muestra una escena y, debajo, solo
 las secciones de detalle de su enfoque, para que cada dato aparezca una sola vez:
 
@@ -53,24 +59,29 @@ para que `check_panorama.py` pueda verificar cada número.
 | Columna | Número grande | Líneas | Botón lleva a |
 |---|---|---|---|
 | CLÁSICO | 340: óptimo exacto en 6.9 s | SA 340 en 13.7 s; cota 301 (Gilmore-Lawler) | 03 Resultado |
-| CUÁNTICO | ×112: más asignaciones válidas que el azar (QAOA mixer X, N = 4) | XY 47.7% vs 9.4% azar; ibm_kingston N = 3: X 6.3% vs 1.2% azar | 01 QAOA |
-| HÍBRIDO | 9: qubits por pieza, en cualquier N | 8 muestras: QAOA 59% vs 29% azar de 27 estados; solver exacto: 340 en 4 de 12 semillas | 02 Aeropuerto |
+| CUÁNTICO | ×112: más válidas que el azar (N = 4, mixer X): 4.1% vs 0.037% | XY 47.7% vs 9.4% azar; ibm_kingston N = 3: X 6.3% vs 1.2% azar | 01 QAOA |
+| HÍBRIDO | 9: qubits por pieza, en cualquier N | etapa 3, dos fases, 10 semillas: qap10 mediana 340 [340, 340], 10/10 en 340; bloques QAOA: 0 movimientos aceptados · día 1: 340 (semilla 7); solver exacto llega a 340 en 4 de 12 semillas | 02 Aeropuerto |
+
+  La columna híbrida muestra primero la etapa 3 (`final.json`) y después el día 1 (`results.json`). La
+  comparación con 8 muestras salió del Panorama: queda en la sección 05 con sus tres azares.
 
 - **Cuadro comparativo.** Seis filas por tres enfoques. Cada celda lleva una marca: ✓ ventaja, ✗ desventaja,
   ~ parcial.
 
 | Fila | Clásico | Cuántico | Híbrido | Fuente |
 |---|---|---|---|---|
-| Calidad N=10 | ✓ 340, gap 0.0% | ✗ N=10: 100 qubits | ~ 340 (semilla 7); exacto 4/12 semillas | results.json |
+| Calidad N=10 | ✓ 340, gap 0.0% | ✗ N=10: 100 qubits | ~ día 1: 340 (semilla 7); exacto 4/12 semillas | results.json |
 | Tiempo | ✓ 6.9 s | ~ 19.3 s (N=4) | ✗ 186.0 s | results.json |
 | Qubits | ✓ 0 | ✗ 100 (N=10) | ✓ 9 | results.json |
-| Escala N=20, 10 semillas | ✓ SA 32.8% sobre la cota, 47 s | ✗ 400 qubits | ~ 31.6% sobre la cota, 223 s; no distinguible | final.json |
+| Escala N=20, 10 semillas | ✓ 2-swap 31.6% sobre la cota, 43 s; SA 32.8% | ✗ 400 qubits | ~ 31.6% sobre la cota, 223 s; no distinguible | final.json |
 | Ruido | ✓ no aplica | ✗ XY 25.4% vs 22.2% azar (ibm_kingston) | ~ no medido | hardware.json |
 | Garantiza óptimo | ✓ sí (fuerza bruta) | ✗ P(óptimo) 4.2% | ✗ exacto: 4/12 semillas | results.json |
 
   En la fila "Escala", los porcentajes son la mediana entre 10 semillas del gap contra la cota
-  Gilmore-Lawler en la instancia sintética de N = 20; la columna híbrida es el híbrido en dos fases con QAOA
-  y selector por tensión. "No distinguible": los rangos entre semillas se solapan.
+  Gilmore-Lawler en la instancia sintética de N = 20. La referencia clásica es el método clásico con mejor
+  mediana en esa instancia, calculado desde `final.json` (hoy el 2-swap con reinicios), y SA va como segunda
+  referencia. La columna híbrida es el híbrido en dos fases con QAOA y selector por tensión. "No
+  distinguible": los rangos entre semillas se solapan.
 - **Frase final.** Se calcula desde `final.json`: "De N=10 a 20: el clásico es más rápido y ninguna
   diferencia de calidad es distinguible entre semillas; los bloques QAOA no aportaron reducción de costo;
   QAOA concentra probabilidad sobre el azar; el híbrido escala en memoria, no en calidad."
@@ -166,8 +177,9 @@ Aparece solo si existe `results/hardware.json` real; un resultado `fake` se igno
 - entrada `qgate_lns_qaoa` de `hybrid` en `results.json`;
 - es una repetición grabada, no un cálculo en vivo.
 
-Un aviso arriba del mapa lo dice: "Repetición grabada, semilla 7; no es el caso típico (ver 05: con solver
-exacto, 4 de 12 semillas llegan a 340)".
+Un aviso arriba del mapa lo dice: "Versión del día 1: repetición grabada, semilla 7; no es el caso típico (ver
+05: con solver exacto en el bloque, 4 de 12 semillas llegan a 340). En la etapa 3 (04) los bloques QAOA no
+aportan reducción de costo."
 
 Se reproducen sus **135 eventos**, cada uno con la asignación completa en ese momento:
 - 1 de inicio;
@@ -271,7 +283,7 @@ un botón "Ver 04 ESCALA →" lleva a esa pestaña.
 |---|---|---|
 | **DATOS · VALIDADO** (MPS → F·D) | ¿Leímos bien el archivo? | Óptimos calculados por fuerza bruta en N = 3, 4 y 10 con ✓ si coinciden con los del reto (24, 32, 340); variables del MPS (4 150). Talón: CONTROL 340. |
 | **QAOA · N = 4 · QISKIT** (AZAR → QAOA) | ¿QAOA mejora al azar? | Mixer XY: P(válida) 47.7%, al azar 9.4%, P(óptimo) 4.2% y CX = 292 (compuertas de 2 qubits tras transpilar en el simulador). Talón: 16 qubits. |
-| **HÍBRIDO · N = 10 · QGATE** (AZAR → QGATE) | ¿Llegamos a una buena asignación completa? | Semilla 7 · costo 340; 12 semillas (solver exacto) que llegan a 340: 4; media · mejor · peor: 354.5 · 340 · 374; gap medio 4.3%. Talón: 9 qubits. |
+| **HÍBRIDO · N = 10 · QGATE** (AZAR → QGATE) | ¿Llegamos a una buena asignación completa? | Primero la etapa 3: 10 semillas, mediana [mín, máx] 340 [340, 340], 10/10 en 340 (`final.json`). Después el día 1: semilla 7 · costo 340; 12 semillas (solver exacto) que llegan a 340: 4; media · mejor · peor: 354.5 · 340 · 374; gap medio 4.3%. Talón: 9 qubits. |
 
 ### Tabla comparativa
 
@@ -324,12 +336,18 @@ qap10 (oficial, N = 10) y tres sintéticas (N = 14, 16 y 20); 10 semillas (7 a 1
 externas y 8 shots por bloque para todos los métodos del modo dos fases. Si falta `final.json`, la pestaña
 no aparece.
 
-- **Frase de arriba.** Se calcula desde el JSON. Hoy dice: "La memoria cuántica no crece con N; la calidad
-  todavía no escala; ninguna diferencia es distinguible entre semillas; en N>10 la mejor mediana la
-  comparten el 2-swap sin bloques y el híbrido con QAOA, junto con los otros solvers de bloque; SA no la
-  tiene. Los bloques QAOA no aportaron reducción de costo."
+- **Frase de arriba.** Se calcula desde el JSON. Hoy dice: "Ningún método se distingue en calidad entre
+  semillas. Los bloques QAOA no reducen el costo y consumen entre 79% y 97% del tiempo. La memoria cuántica no
+  crece con N; la calidad todavía no escala. Detalle: en N>10 la mejor mediana la comparten el 2-swap sin
+  bloques y el híbrido con QAOA, junto con los otros solvers de bloque; SA no la tiene."
 - **Metadatos.** Semillas, B, shots por bloque, presupuesto de SA (50 000 × 3) y nota sobre tiempos: se
-  midieron con 14 procesos en paralelo y solo son comparables dentro de la misma corrida.
+  midieron con 14 procesos en paralelo, son comparables dentro de la misma corrida y no con los del día 1.
+  Termina con una nota visible: las permutaciones de estas corridas no se conservaron, así que costo y
+  factibilidad no son auditables desde ese archivo (README 5c). La corrida de verificación reducida sí las
+  guarda (ver "Verificación" abajo).
+- **Verificación.** No se muestra en el dashboard; está en el README 5c: una corrida de verificación con
+  semillas 7 a 11 (`results/final_runs.json.gz`) recalculada con `analysis/verify_final.py` dio 220 corridas,
+  0 discrepancias, y 220 de 220 con el mismo costo que lo publicado.
 - **¿Cuánto es cuántico y cuánto clásico?** Una fila por instancia, para el híbrido QAOA en dos fases:
 
 | Columna | Qué es | qap10 | N=14 | N=16 | N=20 |

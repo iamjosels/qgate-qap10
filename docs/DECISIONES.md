@@ -146,3 +146,13 @@ Windows usa cp1252: el bench fuerza UTF-8 en stdout para poder imprimir λ.
 - Procedencia: un JSON auxiliar entra al dashboard solo si `results/MANIFEST.json` lo atesta para la misma instancia.
   Para los archivos ya publicados la atestación es a posteriori (calculada el 25/10, sin modificar su contenido).
 - El refactor de `build_report.py` (punto 6) queda pendiente a propósito.
+
+## 11. Logos y versión vigente del dashboard (25/10)
+
+- Logos nuevos en `design/logo/` (isotipo y logo completo). El build los incrusta como data URI: el dashboard
+  sigue siendo un solo archivo. Se usan en la barra superior, el favicon, el chip HÍBRIDO del Panorama, la
+  portada de `QGate.pptx` y el encabezado de cada slide.
+- Se publicaron y luego se revirtieron, a pedido del equipo, dos variantes del Panorama: una con un banner de
+  la pregunta del reto, insignia de verificación y revisión externa en la sección 08 (rama `dashboard-v3`), y
+  otra simplificada (rama `panorama-v4`). Se revirtieron con `git revert`, sin reescribir historial; las ramas
+  quedan en el repo. La versión vigente del dashboard es la de los logos (contenido idéntico a f2a2f5a).

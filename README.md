@@ -11,8 +11,8 @@ clásico, sección 5b). Cada número sale de `results/results.json`, `results/ha
 `results/final.json`.
 
 > QAOA solo no llega a 100 qubits. Como subrutina de 9 qubits, la memoria no crece con N; la calidad
-> todavía no escala. Medimos cuánto aporta cada parte. No buscamos demostrar ventaja
-> cuántica: medimos qué funciona, qué no y por qué.
+> todavía no escala. Medimos cuánto aporta cada parte. No buscamos demostrar que lo cuántico
+> supere a lo clásico: medimos qué funciona, qué no y por qué.
 
 ## 1. Problema (Track A)
 
@@ -208,7 +208,7 @@ Un solo job, un solo backend. La simulación con 1% de ruido coincidió con el m
 4. **Híbrido N=10.** Con la semilla 7, QGate con QAOA (512 shots) termina en **340** (gap 0.0%) en 186 s. El control exacto termina en 340 y el azar con las mismas 512 muestras en 340: con piezas de 3 vuelos (6 asignaciones) y 512 muestras, el azar también encuentra el óptimo de cada pieza.
 5. **Qué aporta QAOA (SIMULADOR, piezas de 3 vuelos en N=10).** P(óptimo) medio por pieza: 0.094 con QAOA p=2 frente a 0.039 del azar sobre los 27 estados con una puerta por vuelo (2.4 veces) y 0.180 del azar sobre las 6 permutaciones válidas. Con 8 shots, QAOA resuelve el 59% de las piezas; el azar sobre 27 estados, el 29%; el azar sobre las 6 permutaciones válidas, el 78% (calculado sobre las 300 piezas de esa corrida, `results/extra.json`); la enumeración exacta, el 100%. Costo final (una sola semilla, la 7): QAOA 372, azar sobre 27 estados 390. QAOA concentra probabilidad respecto a su espacio de partida; en piezas de 3 vuelos aún no supera a muestrear permutaciones válidas ni a enumerar las 6 opciones.
 6. **Robustez (híbrido del día 1).** En 12 semillas y arranques, el mismo marco con solver exacto (equivale a QAOA cuando QAOA acierta) llega a 340 en 4 y su media es 354.5 (gap medio 4.3%). El límite es el vecindario de 3 vuelos, no el solver.
-7. **Tiempo.** En simulador, lo clásico gana: fuerza bruta 6.9 s y simulated annealing 13.7 s llegan a 340; el híbrido con QAOA tarda 186 s. No afirmamos ventaja cuántica.
+7. **Tiempo.** En simulador, lo clásico gana: fuerza bruta 6.9 s y simulated annealing 13.7 s llegan a 340; el híbrido con QAOA tarda 186 s. No afirmamos superioridad de lo cuántico.
 9. **Hardware real.** Una corrida N=3 (9 qubits) en ibm_kingston de IBM Quantum: N3-x-p1: 0.063 válidas (ideal 0.137, azar 0.012); N3-xy-p1: 0.254 válidas (ideal 0.789, azar 0.222).
 8. **Escala.** De N=10 a N=16 el subproblema cuántico sigue en 9 qubits y la memoria pico de QGate no pasa de 0.8 MB; un QUBO directo de N=16 serían 256 qubits. Con 150 iteraciones, en N=16 el híbrido queda a 39.3% de la cota y SA a 28.8%: con N grande, 3 vuelos por paso es un vecindario chico. Las diferencias entre QAOA y el control exacto en esta tabla vienen de empates entre permutaciones óptimas del subproblema y de mejoras no óptimas que cambian la trayectoria; no son ventaja de QAOA. Esa comparación es de una sola semilla; en la etapa 3 (sección 5b, 10 semillas, N=10 a 20) ninguna diferencia entre métodos es distinguible y los bloques QAOA no aportaron reducción de costo.
 <!-- FINDINGS:END -->
@@ -356,7 +356,7 @@ Hardware real: una sola corrida N=3 (9 qubits) en ibm_kingston de IBM Quantum (j
 ```bash
 pip install -r requirements.txt
 curl -L -o data/qap10.mps.gz https://miplib.zib.de/WebData/instances/qap10.mps.gz
-python tests/test_core.py && python tests/test_quantum.py && python tests/test_hybrid.py
+python tests/test_core.py && python tests/test_quantum.py && python tests/test_hybrid.py && python tests/test_final.py
 python -m qgate.bench --mps data/qap10.mps.gz --scale 10,12,14,16      # ~15 min, escribe results/
 python -m qgate.bench --mps data/qap10.mps.gz --quick                  # versión rápida
 python analysis/baselines.py --mps data/qap10.mps.gz    # líneas base de piezas y hardware -> results/extra.json
@@ -364,7 +364,18 @@ python analysis/scale_check.py --mps data/qap10.mps.gz   # control de escala 340
 pip install python-pptx
 python entrega/publicar.py           # dashboard (docs/index.html), tablas del README y PPT
 python dashboard/check_panorama.py   # verifica cada número del Panorama contra los JSON
-python entrega/make_ppt_oficial.py "<plantilla oficial .pptx>" entrega/QGate_oficial_v2.pptx
+python entrega/make_ppt_oficial.py "<plantilla oficial con fotos .pptx>" entrega/QGate_final.pptx
+```
+
+Etapa 3 y auditoría:
+
+```bash
+python -m qgate.final --sizes 14,16,20 --seeds 10 --blocks 100 --shots 8 --procs 14     # results/final.json
+python -m qgate.final --sizes 14,16,20 --seeds 5 --out results/final_verif.json         # guarda permutaciones en final_runs.json.gz
+python analysis/verify_final.py results/final_runs.json.gz --compare results/final.json  # costo recalculado de forma independiente
+python analysis/make_manifest.py         # results/MANIFEST.json: huella de instancia y sha256 de cada archivo
+python analysis/repro_fail_closed.py     # el dashboard no mezcla JSON de otra instancia
+pip install -r requirements.lock         # versiones exactas de la corrida
 ```
 
 **Hardware real de IBM Quantum (opcional).** Con la cuenta guardada una vez en la máquina
@@ -389,13 +400,17 @@ Semilla por defecto 7 (`--seed`). Versiones, argumentos, fecha y tiempos quedan 
 
 ```
 qgate/        instance.py  mps.py  classical.py  qubo.py  quantum.py  hybrid.py  bench.py  plots.py
-tests/        pruebas de costo, MPS, QUBO/Ising, QAOA e híbrido
+              twophase.py (híbrido en dos fases)  final.py (etapa 3)  loader.py (instancias oficiales)  provenance.py
+tests/        costo, MPS, QUBO/Ising, QAOA, híbrido y etapa 3, con aserciones sobre factibilidad y costo recalculado
 dashboard/    build_report.py (reporte HTML), panorama.py (pestaña 00), check_panorama.py (verificación de números)
-analysis/     baselines.py (líneas base honestas), scale_check.py (control de escala)
-results/      results.json, hardware.json, extra.json, PNG y report.html
-docs/         DECISIONES.md, ESTADO.md, descripción breve, index.html (GitHub Pages)
+analysis/     baselines.py, scale_check.py, verify_final.py, make_manifest.py, repro_fail_closed.py
+results/      results.json, hardware.json, extra.json, final.json, final_verif.json, final_runs.json.gz,
+              verify_final.json, MANIFEST.json, PNG y report.html
+docs/         DASHBOARD.md, DECISIONES.md, ESTADO.md, descripción breve, index.html (GitHub Pages)
+design/       BRAND.md y logo/ (isotipo y logo completo)
 scripts/      hardware.py (QAOA N = 3 en IBM Quantum real o en backend fake)
-entrega/      QGate_oficial_v2.pptx/.pdf, QGate.pptx, guiones, checklist, generadores de PPT y tablas
+entrega/      QGate_final.pptx/.pdf (plantilla oficial con fotos), QGate.pptx, guiones, checklist, CAMBIOS.md,
+              generadores de PPT y tablas
 examples/     corrida sobre un MPS sintético (no es qap10)
 ```
 
