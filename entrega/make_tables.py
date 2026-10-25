@@ -269,6 +269,13 @@ def main():
     if FSTART in txt:
         i, j = txt.index(FSTART), txt.index(FEND)
         txt = txt[:i + len(FSTART)] + "\n" + findings(R) + "\n" + txt[j:]
+    finp = os.path.join(os.path.dirname(os.path.abspath(src)), "final.json")
+    if "<!-- FINAL:START -->" in txt and os.path.exists(finp):      # etapa 3: python -m qgate.final
+        from final_tables import final_md
+        with open(finp, encoding="utf-8") as fh:
+            Fj = json.load(fh)
+        i, j = txt.index("<!-- FINAL:START -->"), txt.index("<!-- FINAL:END -->")
+        txt = txt[:i + len("<!-- FINAL:START -->")] + "\n" + final_md(Fj) + "\n" + txt[j:]
     with open(readme, "w", encoding="utf-8") as fh:
         fh.write(txt)
     print(f"README actualizado desde {src}")

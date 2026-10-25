@@ -114,3 +114,22 @@ Windows usa cp1252: el bench fuerza UTF-8 en stdout para poder imprimir λ.
   sobre las 6 permutaciones válidas acierta más piezas que QAOA, y enumerar las 6 acierta todas.
 - **Control de escala** (`analysis/scale_check.py`): la asignación óptima cuesta 340 con cada par una vez y
   680 con cada par dos veces.
+
+## 9. Etapa 3 (final): decisiones de diseño
+
+- **Selector de vecindario.** Antes (`qgate_lns`, `select="mixed"`): iteraciones pares al azar e impares por ruleta
+  ponderada por la contribución de cada vuelo, sin control de repetición. Ahora (`qgate/twophase.py`): `random` o
+  `tension`, con ruleta softmax sobre la tensión normalizada y sin repetir el trío del bloque anterior. El mismo
+  selector se aplica a todos los solvers.
+- **Dos fases.** 2-swap de mejor mejora hasta óptimo local, luego un bloque k=3. Así el bloque solo puede aportar
+  movimientos que el 2-swap no encuentra (3-ciclos). Cada movimiento aceptado se registra con su origen (swap, bloque,
+  perturbación) y su reducción de costo; la atribución depende de este orden.
+- **Ángulos reutilizados.** COBYLA arranca desde los ángulos del bloque anterior; si la distribución resultante queda
+  por debajo del azar en P(válida) se repite en frío. El criterio no usa el óptimo del bloque.
+- **Presupuesto idéntico.** Todos los solvers del modo dos fases usan B iteraciones externas, la misma semilla, el
+  mismo arranque y el mismo selector; QAOA y el azar sobre permutaciones válidas usan el mismo número de muestras.
+  SA es la referencia clásica con su propio presupuesto (declarado en `results/final.json`).
+- **Ganador.** Un método se marca como mejor solo si su máximo entre semillas queda por debajo del mínimo de todos
+  los demás; si no, "no distinguible".
+- **Tiempos.** Se miden con varios procesos en paralelo (una corrida por proceso, Aer con un hilo); son comparables
+  entre métodos de la misma corrida, no con tiempos de otras máquinas.
