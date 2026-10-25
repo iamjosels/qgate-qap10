@@ -1,4 +1,4 @@
-"""Verifica que cada número visible en la vista 00 · Panorama sale de results.json o hardware.json.
+"""Verifica que cada número visible en la vista 00 · Panorama sale de results.json, hardware.json o final.json.
 
 Uso:
     python dashboard/check_panorama.py [results/report.html] [results/results.json]
@@ -25,6 +25,8 @@ def main():
     hw = json.load(open(hwp, encoding="utf-8")) if os.path.exists(hwp) else {}
     if hw.get("fake"):
         hw = {}
+    finp = os.path.join(os.path.dirname(os.path.abspath(res)), "final.json")
+    Fn = json.load(open(finp, encoding="utf-8")) if os.path.exists(finp) else {}
     txt = open(rep, encoding="utf-8").read()
     block = txt[txt.index("<!--PANO:START-->"):txt.index("<!--PANO:END-->")]
     block = re.sub(r"<svg.*?</svg>", " ", block, flags=re.S)
@@ -105,6 +107,19 @@ def main():
     # literales estructurales del método (no son resultados): intercambio de 2 vuelos, piezas de 3 vuelos
     add("literal: intercambio de 2 vuelos / piezas de 3 vuelos", "2"); add("literal: piezas de 3 vuelos", "3")
 
+    fmust = []
+    if Fn:
+        FS = {(x["instance"], x["solver"], x["select"]): x for x in Fn["summary"]}
+        fi = sorted(Fn["instances"], key=lambda i: i["N"])
+        add("semillas etapa 3", str(len(Fn["meta"]["seeds"])))
+        for i in fi:
+            add("N etapa 3", str(i["N"])); add(f"qubits N={i['N']} directo", str(i["N"] ** 2))
+        b = fi[-1]["instance"]
+        sa_f, q_f = FS[(b, "sa", None)], FS[(b, "qaoa", "tension")]
+        add(f"SA gap cota mediana {b}", t1(sa_f["gap_vs_gl_median_pct"])); add(f"SA tiempo mediana {b}", i0(sa_f["time_median_s"]))
+        add(f"QGate gap cota mediana {b}", t1(q_f["gap_vs_gl_median_pct"])); add(f"QGate tiempo mediana {b}", i0(q_f["time_median_s"]))
+        fmust = [t1(sa_f["gap_vs_gl_median_pct"]), t1(q_f["gap_vs_gl_median_pct"]), str(len(Fn["meta"]["seeds"]))]
+
     found = re.findall(r"\d+(?:\.\d+)?", text)
     bad = [t for t in found if t not in E]
     must = ["340", t1(bf["time_s"]), i0(gl["bound"]), f"{x4['p_feasible'] / x4['random_feasible_baseline']:.0f}",
@@ -113,14 +128,14 @@ def main():
     if hw:
         x_ = next(e for e in hw["experiments"] if e["mixer"] == "x")
         must += [p1(x_["feasible_fraction"]), p1(x_["random_feasible_baseline"])]
-    missing = [t for t in must if t not in found]
+    missing = [t for t in must + fmust if t not in found]
     print(f"Números en el Panorama: {len(found)} ({len(set(found))} distintos)")
     for t in sorted(set(found), key=lambda z: (len(z), z)):
         print(f"  {t:>10}  <- {', '.join(sorted(set(E.get(t, ['SIN RESPALDO']))))}")
     if bad or missing:
         print("FALLA. Sin respaldo:", sorted(set(bad)), "| faltan:", missing)
         sys.exit(1)
-    print("OK: todos los números del Panorama salen de results.json / hardware.json")
+    print("OK: todos los números del Panorama salen de results.json / hardware.json" + (" / final.json" if Fn else ""))
 
 
 if __name__ == "__main__":

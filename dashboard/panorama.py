@@ -1,7 +1,7 @@
 """Vista "00 · Panorama" del dashboard: los tres enfoques (clásico, cuántico, híbrido) lado a lado y
 un cuadro comparativo de ventajas y desventajas.
 
-Todo número sale de results.json (y de hardware.json si existe) a través de R; si un dato falta, su
+Todo número sale de results.json (y de hardware.json y final.json si existen) a través de R; si un dato falta, su
 celda o línea no se genera. Se construye en Python (no en JavaScript) para que
 dashboard/check_panorama.py pueda verificar cada número contra los JSON.
 """
@@ -81,6 +81,13 @@ def render(R: dict) -> str:
     row = lambda n, m: next((r for r in sc if r["N"] == n and r["method"] == m), None)  # noqa: E731
     sa_big, hq_big = (row(big, "simulated_annealing"), row(big, "qgate_lns_qaoa")) if big else (None, None)
     gap = lambda c: None if c is None or not ref else 100 * (c - ref) / ref  # noqa: E731
+    # etapa 3 (final.json): 10 semillas, todos los métodos con el mismo presupuesto; reemplaza a la corrida de 1 semilla
+    Fn = R.get("final") or {}
+    FS = {(x["instance"], x["solver"], x["select"]): x for x in Fn.get("summary", [])}
+    finst = sorted(Fn.get("instances", []), key=lambda i: i["N"])
+    fbig = finst[-1] if finst else None
+    f_sa = FS.get((fbig["instance"], "sa", None)) if fbig else None
+    f_q = FS.get((fbig["instance"], "qaoa", "tension")) if fbig else None
     out = []
     val = " · ".join(num(V[n]["optimum"]) for n in sorted(V) if V[n].get("ok"))
     out.append(f"""<div class="flow">
@@ -127,6 +134,12 @@ def render(R: dict) -> str:
         ("Tiempo", cell("ok", sec(bf["time_s"])) if bf else cell("ok", None),
          cell("mid", f"{sec(xy4['time_s'])} (N=4)") if xy4 else cell("mid", None), cell("no", sec(hq["time_s"])) if hq else cell("no", None)),
         ("Qubits", cell("ok", "0"), cell("no", f"{N * N} (N={N})"), cell("ok", f"{hq.get('qubits_per_subproblem')}") if hq else cell("ok", None)),
+        (f"Escala N={fbig['N']}, {len(Fn['meta']['seeds'])} semillas",
+         cell("ok", f"SA {num(f_sa['gap_vs_gl_median_pct'], 1)}% sobre la cota, {num(f_sa['time_median_s'])} s"),
+         cell("no", f"{fbig['N'] ** 2} qubits"),
+         cell("mid", f"{num(f_q['gap_vs_gl_median_pct'], 1)}% sobre la cota, {num(f_q['time_median_s'])} s"
+              + ("" if (Fn.get("verdict", {}).get(fbig["instance"]) or {}).get("distinguible") else "; no distinguible")))
+        if f_sa and f_q else
         (f"Escala N={big}", cell("ok", f"SA {num(sa_big['gap_vs_bound_pct'], 1)}% sobre la cota") if sa_big else cell("ok", None),
          cell("no", f"{big * big} qubits") if big else cell("no", None),
          cell("mid", f"{num(hq_big['gap_vs_bound_pct'], 1)}% sobre la cota") if hq_big else cell("mid", None)),
@@ -136,8 +149,21 @@ def render(R: dict) -> str:
         ("Garantiza óptimo", cell("ok", "sí (fuerza bruta)"), cell("no", f"P(óptimo) {pct(xy4['p_optimal'])}") if xy4 else cell("no", None),
          cell("no", f"exacto: {seeds.get('hits_ref')}/{len(seeds.get('seeds', []))} semillas") if seeds.get("seeds") else cell("no", None)),
     ]
+    if f_sa and f_q:
+        names = [i["instance"] for i in finst]
+        faster = all(FS.get((i, "sa", None)) and FS.get((i, "qaoa", "tension"))
+                     and FS[(i, "sa", None)]["time_median_s"] < FS[(i, "qaoa", "tension")]["time_median_s"] for i in names)
+        dist = any((Fn.get("verdict", {}).get(i) or {}).get("distinguible") for i in names)
+        block0 = all(Fn.get("attribution", {}).get(i, {}).get("cost_reduction_at_best_by_origin", {}).get("block", 1) == 0 for i in names)
+        verdict = (f"De N={finst[0]['N']} a {fbig['N']}: " + ("el clásico es más rápido y " if faster else "")
+                   + ("ninguna diferencia de calidad es distinguible entre semillas" if not dist else "hay diferencias de calidad distinguibles (ver 04)")
+                   + ("; los bloques QAOA no aportaron reducción de costo" if block0 else "")
+                   + "; QAOA concentra probabilidad sobre el azar; el híbrido escala en memoria, no en calidad.")
+    else:
+        verdict = (f"Hoy gana el clásico en N={ns[0] if ns else N} a {big or N}; QAOA concentra probabilidad sobre el azar; "
+                   "el híbrido escala en memoria, no en calidad.")
     body = "".join(f"<tr><th scope='row'>{e(r[0])}</th>{r[1]}{r[2]}{r[3]}</tr>" for r in rows)
     out.append(f"""<div class="cmp-wrap"><table class="cmp"><thead><tr><th></th><th>{chip('classic')}</th><th>{chip('quantum')}</th>
   <th>{chip('hybrid')}</th></tr></thead><tbody>{body}</tbody></table></div>
-<p class="verdict">Hoy gana el clásico en N={ns[0] if ns else N} a {big or N}; QAOA concentra probabilidad sobre el azar; el híbrido escala en memoria, no en calidad.</p>""")
+<p class="verdict">{e(verdict)}</p>""")
     return "<!--PANO:START-->" + "\n".join(out) + "<!--PANO:END-->"
