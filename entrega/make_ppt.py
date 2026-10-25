@@ -78,9 +78,17 @@ def pct(x, d=1):
     return f"{100 * x:.{d}f}%"
 
 
+def _logo(name):
+    import base64
+    p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "design", "logo", name)
+    with open(p, "rb") as fh:
+        return "data:image/png;base64," + base64.b64encode(fh.read()).decode("ascii")
+
+
 def head(no, title):
     return (f'<div class="hd"><div class="no">{no}</div><h1>{html.escape(title)}</h1>'
-            f'<div class="brandk">QGATE</div></div>')
+            f'<div class="brandk" style="display:flex;align-items:center;gap:10px"><img src="{_logo("qgate_icono_64.png")}" '
+            f'width="32" height="32" alt="" style="border-radius:6px">QGATE</div></div>')
 
 
 def chips(items):
@@ -106,10 +114,7 @@ def slides(R, team, img):
   <div style="flex:1;padding:56px 56px 44px;display:flex;flex-direction:column;justify-content:space-between">
     <div class="mono" style="font-size:14px;letter-spacing:.16em;color:#9A9890">IBM QUANTUM HACKATHON 2026 · RETO NTT DATA QAP10</div>
     <div style="display:flex;flex-direction:column;gap:20px">
-      <div style="display:flex;align-items:center;gap:12px">
-        <div style="position:relative;width:120px;height:158px;background:#1E2024;border-radius:10px;display:flex;align-items:center;justify-content:center;font:800 136px/1 'Barlow Condensed';color:#FFC629">Q<div style="position:absolute;left:0;right:0;top:78px;height:3px;background:#0B0B0C"></div></div>
-        <div style="font:800 184px/.82 'Barlow Condensed';letter-spacing:.01em">GATE</div>
-      </div>
+      <img src="{_logo('qgate_logo_completo_360.png')}" alt="QGate" style="width:300px;height:auto;display:block">
       <div style="font-size:36px;font-weight:500">Vuelos → puertas con QAOA híbrido</div>
     </div>
     <div class="mono" style="display:grid;grid-template-columns:repeat(2,max-content);gap:10px 40px;font-size:15px;color:#C9C6BC">{names}</div>

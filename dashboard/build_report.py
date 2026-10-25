@@ -101,6 +101,14 @@ def _provenance(json_path: str, R: dict) -> tuple[dict, list]:
     return ok, warn
 
 
+def _logo(name: str) -> str:
+    """PNG de design/logo/ como data URI: el reporte sigue siendo un solo archivo."""
+    import base64
+    p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "design", "logo", name)
+    with open(p, "rb") as fh:
+        return "data:image/png;base64," + base64.b64encode(fh.read()).decode("ascii")
+
+
 def build(json_path: str, out_path: str, allow_mismatch: bool = False) -> str:
     with open(json_path, encoding="utf-8") as fh:
         R = json.load(fh)
@@ -138,7 +146,8 @@ def build(json_path: str, out_path: str, allow_mismatch: bool = False) -> str:
     payload = payload.replace("</", "<\\/")
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import panorama
-    html = TEMPLATE.replace("__DATA__", payload).replace("__PANORAMA__", panorama.render(R))
+    html = (TEMPLATE.replace("__DATA__", payload).replace("__PANORAMA__", panorama.render(R))
+            .replace("__LOGO96__", _logo("qgate_icono_96.png")).replace("__LOGO64__", _logo("qgate_icono_64.png")))
     if prov_warn:                                  # aviso visible; con --allow-mismatch el dato se muestra como no verificado
         msg = "; ".join(prov_warn) + (": se muestra como NO VERIFICADO" if allow_mismatch else ": no se incluye")
         html = html.replace("<main>", '<main><div role="alert" style="margin:12px auto;max-width:1200px;padding:10px 14px;'
@@ -163,6 +172,7 @@ TEMPLATE = r"""<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QGate · Vuelos a puertas</title>
+<link rel="icon" type="image/png" href="__LOGO64__">
 <meta name="description" content="QGate: asignación de vuelos a puertas (QAP qap10) con QAOA híbrido en Qiskit. IBM Quantum Hackathon 2026, reto NTT DATA.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -385,7 +395,7 @@ footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40
 
 <header class="top"><div class="wrap">
   <div class="brand">
-    <svg width="40" height="40" viewBox="0 0 64 64" role="img" aria-label="QGate"><rect width="64" height="64" rx="10" fill="#FFC629"></rect><circle cx="29" cy="29" r="15" fill="none" stroke="#0B0B0C" stroke-width="7"></circle><path d="M38 38 L48 48" stroke="#0B0B0C" stroke-width="7" stroke-linecap="square"></path><polygon points="55,55 55,40 40,55" fill="#0B0B0C"></polygon></svg>
+    <img src="__LOGO96__" width="40" height="40" alt="QGate" style="display:block;border-radius:8px">
     <b>QGATE</b><span id="kicker" hidden></span>
   </div>
   <nav class="tabs" role="tablist" aria-label="Escenas">
