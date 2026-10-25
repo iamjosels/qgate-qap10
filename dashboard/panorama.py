@@ -118,8 +118,7 @@ def render(R: dict) -> str:
         share = 100 * sum(max(r.get("block", 0), 0) for r in red) / pos if pos else None
         kq = hq.get("qubits_per_subproblem")
         def src(kind, sec_, n_, file_):
-            return ('<div class="q-src q-' + kind + '"><b>' + ("HARDWARE ibm_kingston" if kind == "hw" else "SIMULADOR") + "</b> · "
-                    + e(sec_) + " · " + e(n_) + " · " + e(file_) + "</div>")
+            return ('<div class="q-src q-' + kind + '"><b>' + ("HARDWARE" if kind == "hw" else "SIMULADOR") + "</b> · " + e(file_) + "</div>")
         rng_n = "N=" + str(finst[0]["N"]) + " a " + str(fbig["N"])
         cards = ['<article class="q-card"><div class="q-k">Memoria</div><div class="q-big">' + e(kq) + " qubits</div>"
                  + '<div class="q-t">por bloque en cualquier N; un circuito completo serían N² qubits ('
@@ -141,12 +140,7 @@ def render(R: dict) -> str:
         out.append('<section class="qban"><h2 class="q-question">¿Hasta dónde ayuda lo cuántico cuando los recursos son limitados?</h2>'
                    + '<div class="q-cards">' + "".join(cards) + '</div><p class="q-short">' + e(short) + "</p></section>")
     val = " · ".join(num(V[n]["optimum"]) for n in sorted(V) if V[n].get("ok"))
-    out.append(f"""<div class="flow">
-  <div class="fbox"><b>MPS qap10</b></div><div class="farr" aria-hidden="true">→</div>
-  <div class="fbox"><b>F y D</b><span>{e(val)}</span></div><div class="farr" aria-hidden="true">→</div>
-  <div class="flanes">{chip('classic')}{chip('quantum')}{chip('hybrid')}</div><div class="farr" aria-hidden="true">→</div>
-  <div class="fbox"><b>Comparación</b></div>
-</div>""")
+    val = val  # noqa: F841  (el flujo se quitó de la primera vista)
 
     def col(kind, what, star, star_s, lines, goto, title=""):
         ln = "".join(f'<div class="pline">{x}</div>' for x in lines if x)
@@ -168,10 +162,8 @@ def render(R: dict) -> str:
     if hq:
         cols.append(col("hybrid", "QAOA de 9 qubits dentro de búsqueda clásica", str(hq.get("qubits_per_subproblem")),
                         "qubits por pieza, en cualquier N",
-                        [f"etapa 3, dos fases, {len(Fn['meta']['seeds'])} semillas: {e(f10['instance'])} mediana <b>{e(num(fq10['cost_median']))}</b> "
-                         f"[{e(num(fq10['cost_min']))}, {e(num(fq10['cost_max']))}], {e(hits10)}/{len(Fn['meta']['seeds'])} en {e(num(f10['best_found']))}; "
-                         f"bloques QAOA: {e(mv10)} movimientos aceptados" if fq10 else None,
-                         f"día 1: {e(num(hq['final_cost']))} (semilla {e(meta.get('seed'))}); solver exacto llega a {e(num(ref))} en {e(seeds.get('hits_ref'))} de {e(len(seeds.get('seeds', [])))} semillas" if seeds.get("seeds") else None],
+                        [f"etapa 3: mediana <b>{e(num(fq10['cost_median']))}</b>, {e(hits10)}/{len(Fn['meta']['seeds'])} semillas en {e(num(f10['best_found']))}" if fq10 else None,
+                         f"día 1: {e(num(hq['final_cost']))} (semilla {e(meta.get('seed'))})"],
                         "airport", ' title="azar sobre los 27 estados con una puerta por vuelo; detalle y otras líneas base en la sección 05"'))
     out.append('<div class="lanes">' + "".join(cols) + "</div>")
 
@@ -187,10 +179,11 @@ def render(R: dict) -> str:
         ("Tiempo", cell("ok", sec(bf["time_s"])) if bf else cell("ok", None),
          cell("mid", f"{sec(xy4['time_s'])} (N=4)") if xy4 else cell("mid", None), cell("no", sec(hq["time_s"])) if hq else cell("no", None)),
         ("Qubits", cell("ok", "0"), cell("no", f"{N * N} (N={N})"), cell("ok", f"{hq.get('qubits_per_subproblem')}") if hq else cell("ok", None)),
-        (f"Escala N={fbig['N']}, {len(Fn['meta']['seeds'])} semillas (cota Gilmore-Lawler débil)",
+        (f"Escala N={fbig['N']}",
          cell("ok", f"{SHORTN.get(f_cl['solver'], f_cl['solver'])} {num(f_cl['gap_vs_gl_median_pct'], 1)}% sobre la cota, {num(f_cl['time_median_s'])} s, "
               f"costo [{num(f_cl['cost_min'])}, {num(f_cl['cost_max'])}]"
-              + (f"; SA {num(f_sa['gap_vs_gl_median_pct'], 1)}%" if f_cl['solver'] != 'sa' else "")),
+              + (f"; SA {num(f_sa['gap_vs_gl_median_pct'], 1)}%" if f_cl['solver'] != 'sa' else "")
+              + f"; {len(Fn['meta']['seeds'])} semillas, cota Gilmore-Lawler débil"),
          cell("no", f"{fbig['N'] ** 2} qubits"),
          cell("mid", f"{num(f_q['gap_vs_gl_median_pct'], 1)}% sobre la cota, {num(f_q['time_median_s'])} s, costo [{num(f_q['cost_min'])}, {num(f_q['cost_max'])}]"
               + ("" if (Fn.get("verdict", {}).get(fbig["instance"]) or {}).get("distinguible") else "; no distinguible")))
@@ -198,11 +191,6 @@ def render(R: dict) -> str:
         (f"Escala N={big}", cell("ok", f"SA {num(sa_big['gap_vs_bound_pct'], 1)}% sobre la cota") if sa_big else cell("ok", None),
          cell("no", f"{big * big} qubits") if big else cell("no", None),
          cell("mid", f"{num(hq_big['gap_vs_bound_pct'], 1)}% sobre la cota") if hq_big else cell("mid", None)),
-        ("Ruido", cell("ok", "no aplica"),
-         cell("no", f"XY {pct(hxy['feasible_fraction'])} vs {pct(hxy['random_feasible_baseline'])} azar ({hw.get('backend')})") if hxy else cell("no", None),
-         cell("mid", "no medido")),
-        ("Garantiza óptimo", cell("ok", "sí (fuerza bruta)"), cell("no", f"P(óptimo) {pct(xy4['p_optimal'])}") if xy4 else cell("no", None),
-         cell("no", f"exacto: {seeds.get('hits_ref')}/{len(seeds.get('seeds', []))} semillas") if seeds.get("seeds") else cell("no", None)),
     ]
     if f_sa and f_q:
         names = [i["instance"] for i in finst]
@@ -220,6 +208,5 @@ def render(R: dict) -> str:
     body = "".join(f"<tr><th scope='row'>{e(r[0])}</th>{r[1]}{r[2]}{r[3]}</tr>" for r in rows)
     out.append(f"""<div class="cmp-wrap"><table class="cmp"><thead><tr><th></th><th>{chip('classic')}</th><th>{chip('quantum')}</th>
   <th>{chip('hybrid')}</th></tr></thead><tbody>{body}</tbody></table></div>
-<p class="verdict">{e(verdict)}</p>
-<p class="q-op"><b>Conclusión operativa.</b> Para este tamaño, una búsqueda local clásica llega a asignaciones de bajo costo en segundos; el componente cuántico no se justifica todavía por calidad ni por tiempo. Pasajeros, distancias y unidades son supuestos de un benchmark matemático (qap10), no mediciones de un aeropuerto. Falta medir bloques mayores y hardware de más calidad.</p>""")
+<p class="q-op"><b>Conclusión operativa.</b> Una búsqueda local clásica llega a buenas asignaciones en segundos; lo cuántico aún no se justifica por calidad ni por tiempo. Datos de un benchmark (qap10), unidades supuestas.</p>""")
     return "<!--PANO:START-->" + "\n".join(out) + "<!--PANO:END-->"
