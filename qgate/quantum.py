@@ -104,6 +104,10 @@ def _statevector_sim():
     return _SIM_CACHE["sv"]
 
 
+# tiempo de pared dentro de la simulación Aer (para atribuir tiempo cuántico vs clásico)
+TIMERS = {"aer_s": 0.0, "aer_calls": 0}
+
+
 class _ProbEngine:
     """Calcula probabilidades exactas del estado para parámetros dados."""
 
@@ -124,7 +128,10 @@ class _ProbEngine:
         binds = {**{self.g[i]: float(theta[i]) for i in range(p)},
                  **{self.bt[i]: float(theta[p + i]) for i in range(p)}}
         if _HAS_AER:
+            t = time.perf_counter()
             res = self.sim.run(self.tqc.assign_parameters(binds)).result()
+            TIMERS["aer_s"] += time.perf_counter() - t
+            TIMERS["aer_calls"] += 1
             return np.asarray(res.data(0)["probabilities"], dtype=float)
         from qiskit.quantum_info import Statevector
         return Statevector(self.qc.assign_parameters(binds)).probabilities()

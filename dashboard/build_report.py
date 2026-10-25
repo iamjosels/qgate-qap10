@@ -96,6 +96,12 @@ def build(json_path: str, out_path: str) -> str:
     if os.path.exists(ex):                         # cifras nuevas de analysis/baselines.py
         with open(ex, encoding="utf-8") as fh:
             R["extra"] = json.load(fh)
+    fin = os.path.join(os.path.dirname(os.path.abspath(json_path)), "final.json")
+    if os.path.exists(fin):                        # etapa 3 (final): python -m qgate.final
+        with open(fin, encoding="utf-8") as fh:
+            Fj = json.load(fh)
+        Fj.pop("runs", None)                       # el reporte usa el resumen, no cada corrida
+        R["final"] = Fj
     data = R.setdefault("data", {})
     data["gate_grid"] = _grid_layout(data.get("D"))
     payload = json.dumps(_clean(_slim(R)), ensure_ascii=False, allow_nan=False)
@@ -345,6 +351,7 @@ footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40
     <button role="tab" data-scene="qaoa" aria-selected="false">01 QAOA</button>
     <button role="tab" data-scene="airport" aria-selected="false">02 AEROPUERTO</button>
     <button role="tab" data-scene="result" aria-selected="false">03 RESULTADO</button>
+    <button role="tab" data-scene="final" aria-selected="false" id="tabFinal">04 ESCALA</button>
   </nav>
   <div class="ctrl">
     <button class="btn play q" id="play" type="button" aria-label="Reproducir"></button>
@@ -433,6 +440,23 @@ footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40
       </div>
     </section>
     <div class="foot-strip" style="flex-basis:100%" id="strip"></div>
+  </div>
+
+  <div class="scene hidden" id="scene-final" style="flex-direction:column;flex-wrap:nowrap;gap:16px">
+    <h2 class="big">Etapa 3 · escalamiento</h2>
+    <p class="verdict" id="finSentence"></p>
+    <p class="lede" style="font-size:14px" id="finMeta"></p>
+    <div class="panel"><div class="kick" style="margin-bottom:8px">¿Cuánto es cuántico y cuánto clásico? · híbrido QAOA en dos fases · SIMULADOR</div>
+      <div class="tbl" style="padding:0;background:none"><table><thead><tr><th>INSTANCIA</th><th class="r">(I) VARIABLES CUÁNTICAS 9/N²</th>
+        <th class="r">(II) MOVIMIENTOS SWAP · BLOQUE QAOA · PERTURBACIÓN</th><th class="r">(III) REDUCCIÓN DE COSTO SWAP · BLOQUE · PERTURBACIÓN</th>
+        <th class="r">(IV) % TIEMPO EN QAOA · SOLO AER</th></tr></thead><tbody id="finAttr"></tbody></table></div>
+      <ul class="lim" id="finDefs" style="font-size:13px;margin-top:10px"></ul></div>
+    <div class="panel"><div class="kick" style="margin-bottom:8px">(V) Tasa de mejora de los bloques k=3 desde un óptimo local 2-swap</div>
+      <div class="tbl" style="padding:0;background:none"><table><thead><tr><th>INSTANCIA</th><th class="r">ENUMERACIÓN</th><th class="r">AZAR 6 VÁLIDAS</th><th class="r">ENUMERACIÓN + DESEMPATE</th><th class="r">QAOA</th></tr></thead><tbody id="finRates"></tbody></table></div></div>
+    <div class="tbl"><div class="kick" style="padding:6px 10px">Escalamiento · costo mediana [mín, máx] entre semillas · gap vs cota GL y vs mejor costo encontrado</div>
+      <table><thead><tr><th>INSTANCIA</th><th>MÉTODO</th><th>SELECTOR</th><th class="r">COSTO MEDIANA [MÍN, MÁX]</th><th class="r">GAP COTA GL</th><th class="r">GAP VS MEJOR ENCONTRADO</th><th class="r">TIEMPO</th><th class="r">MEMORIA</th><th class="r">FACTIBLE</th></tr></thead>
+      <tbody id="finRows"></tbody></table></div>
+    <p class="lede" style="font-size:14px" id="finReuse"></p>
   </div>
 
   <div class="scene hidden" id="scene-result" style="flex-direction:column;flex-wrap:nowrap">
@@ -602,7 +626,7 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
   function showScene(s) {
     scene = s; clearTimeout(timer);
     document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.scene === s));
-    ["pano", "qaoa", "airport", "result"].forEach((k) => $("scene-" + k).classList.toggle("hidden", k !== s));
+    ["pano", "qaoa", "airport", "result", "final"].forEach((k) => $("scene-" + k).classList.toggle("hidden", k !== s));
     /* cada sección de detalle vive bajo la pestaña de su enfoque: así cada dato aparece una sola vez */
     const TAB = { "d-hw": "qaoa", "d-lambda": "qaoa", "d-ablation": "airport", "d-scale": "airport", "d-valid": "result", "d-repro": "result" };
     Object.entries(TAB).forEach(([id, tab]) => { const el = $(id); if (el) el.classList.toggle("off-tab", tab !== s); });
@@ -878,6 +902,64 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
       <td class="r">${pct(e.random_feasible_baseline) ?? "-"}</td><td class="r">${pct(e.p_optimal) ?? "-"}</td>
       <td class="r">${(() => { const r = hro.find((x) => x.id === e.id); return r ? `${pct(r.random_p_optimal, 2)} (${r.ratio_hw_vs_random.toFixed(2)}×)` : "-"; })()}</td><td class="r">${f(e.best_feasible_cost) ?? "-"}${num(e.optimum) ? " (ópt " + f(e.optimum) + ")" : ""}</td>
       <td class="r">${e.depth ?? "-"}</td><td class="r">${e.two_qubit_gates ?? "-"}</td></tr>`).join("");
+  })();
+
+  (function finalStage() {
+    const Fn = R.final;
+    if (!Fn || !has(Fn.summary)) { hide("tabFinal"); return; }
+    const m = Fn.meta || {};
+    const NAME = { sa: "SA", ls: "2-swap con reinicios", exact: "bloque: enumeración", random_valid: "bloque: azar 6 válidas", exact_rand: "bloque: enumeración + desempate", qaoa: "bloque: QAOA" };
+    const kindOf = (sv) => sv === "qaoa" ? "hybrid" : "classic";
+    const insts = Fn.instances || [];
+    const synth = insts.filter((i) => i.origen === "sintética").map((i) => i.instance);
+    const V0 = Fn.verdict || {};
+    const bests = synth.map((i) => (V0[i] ? V0[i].best_median.split("/")[0] : null));
+    const anyDist = synth.some((i) => V0[i] && V0[i].distinguible);
+    const blockRed = synth.every((i) => { const a = (Fn.attribution || {})[i]; return a && a.cost_reduction_at_best_by_origin.block === 0; });
+    let tail;
+    if (bests.length && bests.every((b) => b === "sa")) tail = "el clásico (SA) gana en todas las instancias sintéticas.";
+    else if (bests.length && bests.every((b) => b && b !== "qaoa")) tail = "la mejor mediana en N>10 es de un método clásico (" + [...new Set(bests.map((b) => NAME[b] || b))].join(", ") + ")" +
+      (anyDist ? "." : " y ninguna diferencia es distinguible entre semillas; SA no tiene la mejor mediana en N>10.");
+    else tail = "la tabla indica en cada N qué método tiene la mejor mediana y si es distinguible.";
+    $("finSentence").textContent = "La memoria cuántica no crece con N; la calidad todavía no escala; " + tail +
+      (blockRed ? " Los bloques QAOA no aportaron reducción de costo." : "");
+    $("finMeta").textContent = "SIMULADOR (Qiskit Aer) y CPU · " + (m.seeds || []).length + " semillas · B=" + m.blocks_B +
+      " iteraciones externas para todos los solvers del modo dos fases · " + m.shots + " shots por bloque para QAOA y para el azar · SA " +
+      m.sa_iters + "×" + m.sa_restarts + " · " + (m.nota_tiempos || "") + " · N>10 sintéticas";
+    const A = Fn.attribution || {};
+    const pc = (x, d = 1) => num(x) ? (100 * x).toFixed(d) + "%" : "-";
+    $("finAttr").innerHTML = insts.filter((i) => A[i.instance]).map((i) => {
+      const a = A[i.instance], mv = a.moves_at_best_by_origin, rd = a.cost_reduction_at_best_by_origin;
+      return "<tr><td>" + esc(i.instance) + " <span class='kick' style='letter-spacing:.04em'>" + esc(i.origen) + "</span></td><td class='r'>" + pc(a.variables_quantum_frac) +
+        "</td><td class='r'>" + mv.swap + " · " + mv.block + " · " + mv.kick + "</td><td class='r'>" + f(rd.swap) + " · " + f(rd.block) + " · " + f(rd.kick) +
+        "</td><td class='r'>" + pc(a.frac_wall_in_qaoa_mean) + " · " + pc(a.frac_wall_in_aer_mean) + "</td></tr>";
+    }).join("");
+    $("finDefs").innerHTML = [
+      "(i) fracción de las N² variables x que entra en el circuito: los 9 qubits de un bloque.",
+      "(ii) movimientos aceptados hasta llegar a la mejor asignación, sumados en todas las semillas y los 2 selectores, por origen.",
+      "(iii) reducción de costo por origen, desde la asignación inicial hasta la mejor; las perturbaciones suben el costo (exploración), por eso restan. Depende del orden de las fases: el 2-swap corre primero y se lleva las mejoras fáciles.",
+      "(iv) fracción del tiempo de pared dentro de la subrutina QAOA (circuito Qiskit + simulación Aer + COBYLA clásico que la orquesta) y solo en la simulación Aer.",
+      "Fuente: results/final.json · python -m qgate.final"].map((x) => "<li>" + esc(x) + "</li>").join("");
+    $("finRates").innerHTML = insts.filter((i) => A[i.instance]).map((i) => {
+      const r = A[i.instance].block_improve_rate_from_local_opt;
+      const c = (k) => r[k] && num(r[k].rate) ? pc(r[k].rate) + " (" + r[k].blocks_improved + "/" + r[k].blocks_tried + ")" : "-";
+      return "<tr><td>" + esc(i.instance) + "</td><td class='r'>" + c("exact") + "</td><td class='r'>" + c("random_valid") + "</td><td class='r'>" + c("exact_rand") + "</td><td class='r'>" + c("qaoa") + "</td></tr>";
+    }).join("");
+    const V = Fn.verdict || {};
+    $("finRows").innerHTML = Fn.summary.map((sm) => {
+      const v = V[sm.instance] || {}, key = sm.solver + "/" + sm.select;
+      const top = v.best_median === key;
+      const mark = top ? (v.distinguible ? " · mejor (distinguible)" : " · mejor mediana, no distinguible") : "";
+      return "<tr><td>" + esc(sm.instance) + "</td><td>" + AP(kindOf(sm.solver)) + esc(NAME[sm.solver] || sm.solver) +
+        "<span class='kick' style='letter-spacing:.04em'>" + esc(mark) + "</span></td><td>" + (sm.select ? esc(sm.select) : "-") +
+        "</td><td class='r'" + (top && v.distinguible ? " style='color:var(--signal)'" : "") + ">" + f(sm.cost_median) + " [" + f(sm.cost_min) + ", " + f(sm.cost_max) + "]</td>" +
+        "<td class='r'>" + f(sm.gap_vs_gl_median_pct, 1) + "%</td><td class='r'>" + f(sm.gap_vs_best_found_median_pct, 1) + "% [" + f(sm.gap_vs_best_found_min_pct, 1) + ", " + f(sm.gap_vs_best_found_max_pct, 1) + "]</td>" +
+        "<td class='r'>" + f(sm.time_median_s, 1) + " s</td><td class='r'>" + f(sm.peak_mem_median_mb, 2) + " MB</td><td class='r'>" + pc(sm.feasible_rate, 0) + "</td></tr>";
+    }).join("");
+    const ar = Fn.angle_reuse;
+    put("finReuse", ar ? "Ángulos reutilizados (" + ar.instance + ", " + ar.cold.blocks + " bloques, " + ar.shots + " shots): evaluaciones por bloque " + f(ar.cold.evals_mean, 1) +
+      " en frío y " + f(ar.warm.evals_mean, 1) + " reutilizando; P(óptimo) del bloque " + ar.cold.p_optimal_mean.toFixed(3) + " vs " + ar.warm.p_optimal_mean.toFixed(3) +
+      "; tiempo " + ar.cold.time_mean_s.toFixed(2) + " s vs " + ar.warm.time_mean_s.toFixed(2) + " s." : null);
   })();
 
   (function traceability() {

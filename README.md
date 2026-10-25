@@ -209,6 +209,105 @@ Un solo job, un solo backend. La simulación con 1% de ruido coincidió con el m
 8. **Escala.** De N=10 a N=16 el subproblema cuántico sigue en 9 qubits y la memoria pico de QGate no pasa de 0.8 MB; un QUBO directo de N=16 serían 256 qubits. Con 150 iteraciones, en N=16 el híbrido queda a 39.3% de la cota y SA a 28.8%: con N grande, 3 vuelos por paso es un vecindario chico. Las diferencias entre QAOA y el control exacto en esta tabla vienen de empates entre permutaciones óptimas del subproblema y de mejoras no óptimas que cambian la trayectoria; no son ventaja de QAOA.
 <!-- FINDINGS:END -->
 
+## 5b. Etapa 3 (final): escalamiento N ≥ 14
+
+**Método.** Híbrido en dos fases (`qgate/twophase.py`): (1) búsqueda local 2-swap hasta un óptimo local;
+(2) un bloque de 3 vuelos (9 qubits) elegido por el selector de vecindario; si el bloque mejora se vuelve a (1), si
+no, se perturba desde la mejor asignación. Selector `random` (3 vuelos al azar) o `tension` (ruleta softmax sobre
+tension(i) = Σ_m F[i,m]·D[π(i),π(m)], sin repetir el trío anterior). Solvers del bloque, todos con el mismo
+selector, semilla, arranque y presupuesto de B iteraciones externas: enumeración de las 6 opciones, enumeración con
+desempate aleatorio entre mejoras (control de diversificación), azar sobre las 6 permutaciones válidas y QAOA (p=2,
+mixer XY, ángulos del bloque anterior con respaldo a arranque frío). Controles clásicos: búsqueda 2-swap con
+reinicios (sin bloque) y simulated annealing (presupuesto propio). Cargador de instancias oficiales con validaciones:
+`python -m qgate.loader F.npy D.npy` (también .csv, .txt, .json, .npz, QAPLIB .dat o MPS). Ejecutor:
+`python -m qgate.final --sizes 14,16,20 --seeds 10 --blocks 100 --shots 8 --procs 14` (`--official` agrega una
+instancia oficial; `--estimate` mide y extrapola el tiempo).
+
+<!-- FINAL:START -->
+> **La memoria cuántica no crece con N; la calidad todavía no escala; la mejor mediana en N>10 es de un método clásico (2-swap con reinicios) y ninguna diferencia es distinguible entre semillas; SA no tiene la mejor mediana en N>10.** Los bloques QAOA no aportaron reducción de costo.
+
+SIMULADOR (Qiskit Aer) y CPU. 10 semillas (7 a 16), B=100 iteraciones externas para todos los solvers del modo dos fases, 8 shots por bloque para QAOA y para el azar, SA 50000×3. tiempos medidos con 14 procesos en paralelo; comparables entre métodos de la misma corrida. Corrida: 31.2 min. Comando: `python -m qgate.final --sizes 14,16,20 --seeds 10 --blocks 100 --shots 8 --sa-iters 50000 --procs 14 --out results/final.json`. Fuente: `results/final.json`.
+
+**Instancias.** qap10 (oficial (qap10), N=10, cota GL 301, mejor costo encontrado 340); synthetic-14 (sintética, N=14, cota GL 548, mejor costo encontrado 664); synthetic-16 (sintética, N=16, cota GL 524, mejor costo encontrado 670); synthetic-20 (sintética, N=20, cota GL 790, mejor costo encontrado 1038). El mejor costo encontrado no es un óptimo demostrado.
+
+### ¿Cuánto es cuántico y cuánto clásico? (híbrido QAOA en dos fases)
+
+| Instancia | (i) Variables cuánticas 9/N² | (ii) Movimientos swap · bloque QAOA · perturbación | (iii) Reducción de costo swap · bloque · perturbación | (iv) % tiempo en QAOA · solo Aer |
+|---|---|---|---|---|
+| qap10 | 9.0% | 2924 · 0 · 641 | 88806 · 0 · -85734 | 96.8% · 52.0% |
+| synthetic-14 | 4.6% | 5533 · 0 · 764 | 128537 · 0 · -124262 | 91.9% · 50.2% |
+| synthetic-16 | 3.5% | 5369 · 0 · 631 | 126288 · 0 · -121791 | 88.4% · 46.3% |
+| synthetic-20 | 2.2% | 9586 · 0 · 823 | 290889 · 0 · -282073 | 78.8% · 42.1% |
+
+*(ii) y (iii): movimientos aceptados y reducción de costo hasta la mejor asignación, sumados en todas las semillas y los dos selectores; las perturbaciones suben el costo, por eso restan. La atribución depende del orden de las fases: el 2-swap corre primero y se lleva las mejoras fáciles. (iv): subrutina QAOA = circuito Qiskit + simulación Aer + COBYLA clásico que la orquesta.*
+
+**(v) Tasa de mejora de los bloques k=3 desde un óptimo local 2-swap**
+
+| Instancia | Enumeración | Azar 6 válidas | Enumeración + desempate | QAOA |
+|---|---|---|---|---|
+| qap10 | 0.4% (8/2000) | 0.2% (4/2000) | 0.4% (8/2000) | 0.1% (1/2000) |
+| synthetic-14 | 0.1% (3/2000) | 0.2% (4/2000) | 0.1% (3/2000) | 0.1% (1/2000) |
+| synthetic-16 | 0.2% (4/2000) | 0.0% (0/2000) | 0.2% (4/2000) | 0.1% (2/2000) |
+| synthetic-20 | 0.1% (1/2000) | 0.0% (0/2000) | 0.1% (1/2000) | 0.1% (1/2000) |
+
+### Escalamiento: mediana [mín, máx] entre semillas
+
+| Instancia | Método | Selector | Costo | Gap vs cota GL | Gap vs mejor encontrado | Tiempo (s) | Memoria (MB) | Factible |
+|---|---|---|---|---|---|---|---|---|
+| qap10 | SA | - | 340 [340, 348] | 13.0% | 0.0% [0.0, 2.4] | 50.1 | 0.04 | 100% |
+| qap10 | 2-swap con reinicios | random | 340 [340, 350] | 13.0% | 0.0% [0.0, 2.9] | 4.9 | 0.02 | 100% |
+| qap10 | 2-swap con reinicios | tension | 340 [340, 350] | 13.0% | 0.0% [0.0, 2.9] | 4.5 | 0.02 | 100% |
+| qap10 | Bloque: enumeración | random | 340 [340, 340] | 13.0% | 0.0% [0.0, 0.0] | 5.0 | 0.03 | 100% |
+| qap10 | Bloque: enumeración | tension | 340 [340, 340] | 13.0% | 0.0% [0.0, 0.0] | 5.0 | 0.03 | 100% |
+| qap10 | Bloque: azar 6 válidas | random | 340 [340, 340] | 13.0% | 0.0% [0.0, 0.0] | 5.0 | 0.02 | 100% |
+| qap10 | Bloque: azar 6 válidas | tension | 340 [340, 340] | 13.0% | 0.0% [0.0, 0.0] | 5.2 | 0.03 | 100% |
+| qap10 | Bloque: enumeración + desempate | random | 340 [340, 340] | 13.0% | 0.0% [0.0, 0.0] | 5.0 | 0.02 | 100% |
+| qap10 | Bloque: enumeración + desempate | tension | 340 [340, 340] | 13.0% | 0.0% [0.0, 0.0] | 4.8 | 0.03 | 100% |
+| qap10 | Bloque: QAOA (p=2, XY) | random | 340 [340, 340] | 13.0% | 0.0% [0.0, 0.0] | 198.7 | 1.25 | 100% |
+| qap10 | Bloque: QAOA (p=2, XY) | tension | 340 [340, 340] | 13.0% | 0.0% [0.0, 0.0] | 200.4 | 1.24 | 100% |
+| synthetic-14 | SA | - | 666 [665, 669] | 21.4% | 0.2% [0.2, 0.8] | 47.8 | 0.04 | 100% |
+| synthetic-14 | 2-swap con reinicios | random | 665 [664, 669] | 21.4% | 0.2% [0.0, 0.8] | 13.4 | 0.02 | 100% |
+| synthetic-14 | 2-swap con reinicios | tension | 665 [664, 669] | 21.4% | 0.2% [0.0, 0.8] | 13.1 | 0.02 | 100% |
+| synthetic-14 | Bloque: enumeración | random | 665 [664, 666] | 21.4% | 0.2% [0.0, 0.3] | 13.6 | 0.03 | 100% |
+| synthetic-14 | Bloque: enumeración | tension | 665 [664, 669] | 21.4% | 0.2% [0.0, 0.8] | 13.6 | 0.03 | 100% |
+| synthetic-14 | Bloque: azar 6 válidas | random | 665 [664, 669] | 21.4% | 0.2% [0.0, 0.8] | 13.0 | 0.02 | 100% |
+| synthetic-14 | Bloque: azar 6 válidas | tension | 665 [664, 669] | 21.4% | 0.2% [0.0, 0.8] | 13.9 | 0.03 | 100% |
+| synthetic-14 | Bloque: enumeración + desempate | random | 665 [664, 666] | 21.4% | 0.2% [0.0, 0.3] | 13.5 | 0.02 | 100% |
+| synthetic-14 | Bloque: enumeración + desempate | tension | 665 [664, 669] | 21.4% | 0.2% [0.0, 0.8] | 13.4 | 0.03 | 100% |
+| synthetic-14 | Bloque: QAOA (p=2, XY) | random | 665 [664, 669] | 21.4% | 0.2% [0.0, 0.8] | 202.6 | 0.81 | 100% |
+| synthetic-14 | Bloque: QAOA (p=2, XY) | tension | 665 [664, 669] | 21.4% | 0.2% [0.0, 0.8] | 208.1 | 0.81 | 100% |
+| synthetic-16 | SA | - | 674 [670, 675] | 28.6% | 0.6% [0.0, 0.7] | 45.8 | 0.04 | 100% |
+| synthetic-16 | 2-swap con reinicios | random | 670 [670, 670] | 27.9% | 0.0% [0.0, 0.0] | 20.0 | 0.02 | 100% |
+| synthetic-16 | 2-swap con reinicios | tension | 670 [670, 670] | 27.9% | 0.0% [0.0, 0.0] | 20.1 | 0.02 | 100% |
+| synthetic-16 | Bloque: enumeración | random | 670 [670, 674] | 27.9% | 0.0% [0.0, 0.6] | 20.0 | 0.03 | 100% |
+| synthetic-16 | Bloque: enumeración | tension | 670 [670, 675] | 27.9% | 0.0% [0.0, 0.7] | 19.5 | 0.04 | 100% |
+| synthetic-16 | Bloque: azar 6 válidas | random | 670 [670, 674] | 27.9% | 0.0% [0.0, 0.6] | 19.9 | 0.03 | 100% |
+| synthetic-16 | Bloque: azar 6 válidas | tension | 670 [670, 670] | 27.9% | 0.0% [0.0, 0.0] | 20.1 | 0.04 | 100% |
+| synthetic-16 | Bloque: enumeración + desempate | random | 670 [670, 674] | 27.9% | 0.0% [0.0, 0.6] | 19.7 | 0.02 | 100% |
+| synthetic-16 | Bloque: enumeración + desempate | tension | 670 [670, 675] | 27.9% | 0.0% [0.0, 0.7] | 19.3 | 0.04 | 100% |
+| synthetic-16 | Bloque: QAOA (p=2, XY) | random | 670 [670, 674] | 27.9% | 0.0% [0.0, 0.6] | 194.8 | 0.81 | 100% |
+| synthetic-16 | Bloque: QAOA (p=2, XY) | tension | 670 [670, 675] | 27.9% | 0.0% [0.0, 0.7] | 196.2 | 0.80 | 100% |
+| synthetic-20 | SA | - | 1049 [1038, 1059] | 32.8% | 1.1% [0.0, 2.0] | 46.9 | 0.05 | 100% |
+| synthetic-20 | 2-swap con reinicios | random | 1040 [1038, 1058] | 31.6% | 0.2% [0.0, 1.9] | 42.6 | 0.03 | 100% |
+| synthetic-20 | 2-swap con reinicios | tension | 1040 [1038, 1058] | 31.6% | 0.2% [0.0, 1.9] | 42.6 | 0.03 | 100% |
+| synthetic-20 | Bloque: enumeración | random | 1044 [1038, 1056] | 32.2% | 0.6% [0.0, 1.7] | 42.6 | 0.04 | 100% |
+| synthetic-20 | Bloque: enumeración | tension | 1040 [1038, 1052] | 31.6% | 0.2% [0.0, 1.3] | 42.6 | 0.04 | 100% |
+| synthetic-20 | Bloque: azar 6 válidas | random | 1040 [1038, 1060] | 31.6% | 0.2% [0.0, 2.1] | 42.5 | 0.03 | 100% |
+| synthetic-20 | Bloque: azar 6 válidas | tension | 1048 [1038, 1056] | 32.7% | 1.0% [0.0, 1.7] | 43.2 | 0.04 | 100% |
+| synthetic-20 | Bloque: enumeración + desempate | random | 1044 [1038, 1056] | 32.2% | 0.6% [0.0, 1.7] | 42.0 | 0.03 | 100% |
+| synthetic-20 | Bloque: enumeración + desempate | tension | 1040 [1038, 1052] | 31.6% | 0.2% [0.0, 1.3] | 42.1 | 0.04 | 100% |
+| synthetic-20 | Bloque: QAOA (p=2, XY) | random | 1044 [1038, 1056] | 32.2% | 0.6% [0.0, 1.7] | 217.4 | 0.81 | 100% |
+| synthetic-20 | Bloque: QAOA (p=2, XY) | tension | 1040 [1038, 1052] | 31.6% | 0.2% [0.0, 1.3] | 223.2 | 0.80 | 100% |
+
+**Veredicto por instancia** (un método se marca ganador solo si su máximo queda por debajo del mínimo de todos los demás):
+- synthetic-20: mejor mediana ls/random (no distinguible); empatados en esa mediana: exact/tension, exact_rand/tension, ls/random, ls/tension, qaoa/tension, random_valid/random.
+- synthetic-14: mejor mediana ls/random (no distinguible); empatados en esa mediana: exact/random, exact/tension, exact_rand/random, exact_rand/tension, ls/random, ls/tension, qaoa/random, qaoa/tension, random_valid/random, random_valid/tension.
+- qap10: mejor mediana sa/None (no distinguible); empatados en esa mediana: exact/random, exact/tension, exact_rand/random, exact_rand/tension, ls/random, ls/tension, qaoa/random, qaoa/tension, random_valid/random, random_valid/tension, sa/None.
+- synthetic-16: mejor mediana ls/random (no distinguible); empatados en esa mediana: exact/random, exact/tension, exact_rand/random, exact_rand/tension, ls/random, ls/tension, qaoa/random, qaoa/tension, random_valid/random, random_valid/tension.
+
+**Ángulos reutilizados** (synthetic-20, 40 bloques, 8 shots): evaluaciones por bloque 40.0 en frío y 40.0 reutilizando (COBYLA agota el máximo de 40 en ambos); P(óptimo) del bloque 0.093 en frío y 0.128 reutilizando; tiempo por bloque 0.24 s y 0.24 s.
+<!-- FINAL:END -->
+
 ## 6. Limitaciones y cómo las manejamos
 
 | Limitación | Cómo la manejamos |
@@ -220,6 +319,9 @@ Un solo job, un solo backend. La simulación con 1% de ruido coincidió con el m
 | El vecindario de 3 vuelos limita la calidad final | Control exacto y varias semillas para separar el efecto del solver del de la búsqueda |
 | Sin óptimo conocido para N > 10 | Comparación contra la cota Gilmore-Lawler; instancias sintéticas marcadas |
 | Unidades del aeropuerto | Supuestos de negocio: qap10 es un benchmark matemático |
+| Bloques de 3 vuelos: se pueden enumerar (6 opciones) | QAOA se mide por cuánta probabilidad concentra, no porque se espere que gane a la enumeración |
+| QAOA dentro del híbrido corre solo en simulador | El único hardware es un job con N=3 (ibm_kingston); el híbrido no se ejecutó en hardware |
+| Etapa 3: N > 10 son instancias sintéticas, sin óptimo conocido | Gap contra la cota Gilmore-Lawler (débil) y contra el mejor costo encontrado, rotulado así |
 | `stall_limit` se ajustó probando semillas sobre qap10 contra el óptimo conocido | Posible sesgo a favor de qap10; declarado en `docs/DECISIONES.md` |
 | Hardware: un solo job, un solo backend (ibm_kingston, N=3) | Se reporta aparte; sin repeticiones no hay barra de error |
 | En piezas de 3 vuelos, muestrear las 6 permutaciones válidas o enumerarlas supera a QAOA | Medido en `analysis/baselines.py` (`results/extra.json`); QAOA se usa para medir concentración, no para ganar |
