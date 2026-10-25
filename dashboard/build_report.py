@@ -632,7 +632,7 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
     const TAB = { "d-hw": "qaoa", "d-lambda": "qaoa", "d-ablation": "airport", "d-scale": "airport", "d-valid": "result", "d-repro": "result" };
     Object.entries(TAB).forEach(([id, tab]) => { const el = $(id); if (el) el.classList.toggle("off-tab", tab !== s); });
     $("mixerSeg").classList.toggle("hidden", s !== "qaoa");
-    $("kicker").textContent = { pano: "PANORAMA · CLÁSICO · CUÁNTICO · HÍBRIDO", qaoa: "MODO DEMO · COMPUERTAS CUÁNTICAS", airport: "MODO DEMO · TRACK A AEROPUERTO", result: "RESULTADOS · QAP10" }[s];
+    $("kicker").textContent = { pano: "PANORAMA · CLÁSICO · CUÁNTICO · HÍBRIDO", qaoa: "MODO DEMO · COMPUERTAS CUÁNTICAS", airport: "MODO DEMO · TRACK A AEROPUERTO", result: "RESULTADOS · QAP10", final: "ETAPA 3 · ESCALAMIENTO · SIMULADOR" }[s];
     setPlaying(!RM && !!players[s]);
   }
   document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => showScene(b.dataset.scene)));
