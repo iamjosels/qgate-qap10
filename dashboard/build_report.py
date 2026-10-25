@@ -520,8 +520,9 @@ footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40
   </section>
 
   <section class="detail" id="d-scale">
-    <div class="sec-head"><span class="num-sign">07</span><h3>Escalamiento</h3>
-      <p>La parte cuántica no crece: 9 qubits por subproblema en todo N. 150 iteraciones por N (no comparable con 02, que usa 300). La cota Gilmore-Lawler es débil: en N=10 SA está en el óptimo y aun así marca más de 10% contra ella. Sin óptimo conocido en N &gt; 10 se mide contra la cota Gilmore-Lawler. * = instancia sintética.</p></div>
+    <div class="sec-head"><span class="num-sign">07</span><h3 id="scTitle">Escalamiento</h3>
+      <p>La parte cuántica no crece: 9 qubits por subproblema en todo N. 150 iteraciones por N (no comparable con 02, que usa 300). La cota Gilmore-Lawler es débil: en N=10 SA está en el óptimo y aun así marca más de 10% contra ella. Sin óptimo conocido en N &gt; 10 se mide contra la cota Gilmore-Lawler. * = instancia sintética.</p>
+      <p id="scDay1" hidden style="border-left:3px solid var(--signal);padding-left:10px"></p></div>
     <div class="grid2">
       <div class="panel"><div class="kick" style="margin-bottom:8px">Gap vs cota inferior (%)</div><div class="legend" id="scLeg" style="margin-bottom:8px"></div><div class="chart" id="scGap"></div></div>
       <div class="panel"><div class="kick" style="margin-bottom:8px">Tiempo (s, escala log)</div><div class="legend" id="scLeg2" style="margin-bottom:8px"></div><div class="chart" id="scTime"></div></div>
@@ -913,14 +914,22 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
     const insts = Fn.instances || [];
     const synth = insts.filter((i) => i.origen === "sintética").map((i) => i.instance);
     const V0 = Fn.verdict || {};
-    const bests = synth.map((i) => (V0[i] ? V0[i].best_median.split("/")[0] : null));
+    const tieSet = (v) => new Set((v.ties_at_best_median || [v.best_median]).map((t) => t.split("/")[0]));
     const anyDist = synth.some((i) => V0[i] && V0[i].distinguible);
+    const sets = synth.filter((i) => V0[i]).map((i) => tieSet(V0[i]));
+    const wa = sets.length ? [...sets[0]].filter((x) => sets.every((st) => st.has(x))) : [];
+    const union = new Set(sets.flatMap((st) => [...st]));
     const blockRed = synth.every((i) => { const a = (Fn.attribution || {})[i]; return a && a.cost_reduction_at_best_by_origin.block === 0; });
     let tail;
-    if (bests.length && bests.every((b) => b === "sa")) tail = "el clásico (SA) gana en todas las instancias sintéticas.";
-    else if (bests.length && bests.every((b) => b && b !== "qaoa")) tail = "la mejor mediana en N>10 es de un método clásico (" + [...new Set(bests.map((b) => NAME[b] || b))].join(", ") + ")" +
-      (anyDist ? "." : " y ninguna diferencia es distinguible entre semillas; SA no tiene la mejor mediana en N>10.");
-    else tail = "la tabla indica en cada N qué método tiene la mejor mediana y si es distinguible.";
+    if (!sets.length) tail = "";
+    else if (anyDist) tail = "ver en la tabla qué método es mejor en cada N y si es distinguible.";
+    else {
+      tail = "ninguna diferencia es distinguible entre semillas; ";
+      if (wa.includes("ls") && wa.includes("qaoa")) tail += "en N>10 la mejor mediana la comparten el 2-swap sin bloques y el híbrido con QAOA" + (wa.length > 2 ? ", junto con los otros solvers de bloque" : "");
+      else if (wa.length) tail += "en N>10 la mejor mediana la comparten: " + wa.map((b) => NAME[b] || b).join(", ");
+      else tail += "la mejor mediana cambia de método según N";
+      tail += union.has("sa") ? "." : "; SA no la tiene.";
+    }
     $("finSentence").textContent = "La memoria cuántica no crece con N; la calidad todavía no escala; " + tail +
       (blockRed ? " Los bloques QAOA no aportaron reducción de costo." : "");
     $("finMeta").textContent = "SIMULADOR (Qiskit Aer) y CPU · " + (m.seeds || []).length + " semillas · B=" + m.blocks_B +
@@ -930,7 +939,7 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
     const pc = (x, d = 1) => num(x) ? (100 * x).toFixed(d) + "%" : "-";
     $("finAttr").innerHTML = insts.filter((i) => A[i.instance]).map((i) => {
       const a = A[i.instance], mv = a.moves_at_best_by_origin, rd = a.cost_reduction_at_best_by_origin;
-      return "<tr><td>" + esc(i.instance) + " <span class='kick' style='letter-spacing:.04em'>" + esc(i.origen) + "</span></td><td class='r'>" + pc(a.variables_quantum_frac) +
+      return "<tr><td>" + esc(i.instance) + " <span class='kick' style='letter-spacing:.04em'>" + esc(i.origen) + "</span></td><td class='r'>" + pc(a.variables_quantum_frac, 2) +
         "</td><td class='r'>" + mv.swap + " · " + mv.block + " · " + mv.kick + "</td><td class='r'>" + f(rd.swap) + " · " + f(rd.block) + " · " + f(rd.kick) +
         "</td><td class='r'>" + pc(a.frac_wall_in_qaoa_mean) + " · " + pc(a.frac_wall_in_aer_mean) + "</td></tr>";
     }).join("");
@@ -947,9 +956,10 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
     }).join("");
     const V = Fn.verdict || {};
     $("finRows").innerHTML = Fn.summary.map((sm) => {
-      const v = V[sm.instance] || {}, key = sm.solver + "/" + sm.select;
-      const top = v.best_median === key;
-      const mark = top ? (v.distinguible ? " · mejor (distinguible)" : " · mejor mediana, no distinguible") : "";
+      const v = V[sm.instance] || {}, key = sm.solver + "/" + (sm.select == null ? "None" : sm.select);
+      const ties = v.ties_at_best_median || [v.best_median];
+      const top = ties.includes(key);
+      const mark = top ? (v.distinguible ? " · mejor (distinguible)" : ties.length > 1 ? " · mejor mediana (empate), no distinguible" : " · mejor mediana, no distinguible") : "";
       return "<tr><td>" + esc(sm.instance) + "</td><td>" + AP(kindOf(sm.solver)) + esc(NAME[sm.solver] || sm.solver) +
         "<span class='kick' style='letter-spacing:.04em'>" + esc(mark) + "</span></td><td>" + (sm.select ? esc(sm.select) : "-") +
         "</td><td class='r'" + (top && v.distinguible ? " style='color:var(--signal)'" : "") + ">" + f(sm.cost_median) + " [" + f(sm.cost_min) + ", " + f(sm.cost_max) + "]</td>" +
@@ -977,7 +987,14 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
     const hw = R.hardware, B8 = X.baselines_qaoa_s8;
     const why = ["Las piezas de 3 vuelos tienen solo 6 opciones válidas: se pueden enumerar. QAOA se mide ahí para ver cuánto concentra probabilidad con un circuito que cabe en hardware, no porque se espere que gane."];
     if (B8) why.push(`SIMULADOR, N=10, piezas de 3 vuelos, 8 muestras: QAOA resuelve ${f(100 * (H.qgate_lns_qaoa_s8 || {}).sub_success_rate)}% de las piezas; el azar sobre las 6 permutaciones válidas, ${f(100 * B8.hit_k8_random_valid_6)}%; la enumeración, 100%.`);
-    why.push(`La memoria cuántica no crece con N (9 qubits por pieza); la calidad todavía no escala: en N=16 el híbrido queda más lejos de la cota que simulated annealing (ver 07).`);
+    const Fw = R.final;
+    if (Fw) {
+      const ins = Fw.instances.map((i) => i.instance), Ns = Fw.instances.map((i) => i.N);
+      const dist = ins.some((i) => (Fw.verdict[i] || {}).distinguible);
+      const b0 = ins.every((i) => { const a = (Fw.attribution || {})[i]; return a && a.cost_reduction_at_best_by_origin.block === 0; });
+      why.push(`La memoria cuántica no crece con N (9 qubits por pieza); la calidad todavía no escala: en la etapa 3 (${Fw.meta.seeds.length} semillas, N=${Math.min(...Ns)} a ${Math.max(...Ns)}) ` +
+        (dist ? "hay diferencias distinguibles entre métodos" : "ninguna diferencia entre métodos es distinguible") + (b0 ? " y los bloques QAOA no aportaron reducción de costo" : "") + " (ver 04).");
+    } else why.push(`La memoria cuántica no crece con N (9 qubits por pieza); la calidad todavía no escala: en N=16 el híbrido queda más lejos de la cota que simulated annealing (ver 07).`);
     if (hw) { const e = hw.experiments.find((x) => x.mixer === "xy"); if (e) why.push(`HARDWARE ${hw.backend}: el ruido real borra casi toda la ventaja del mixer XY (${pct(e.feasible_fraction)} válidas vs ${pct(e.random_feasible_baseline)} de su azar). Es un solo job con N=3.`); }
     window.__why = why; hide("whyBox");            /* se fusiona en la sección 08 (límites) */
     const x4 = Q["N4-xy-p1"];
@@ -1026,6 +1043,13 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
   (function scale() {
     const S = R.scaling || [];
     if (!has(S)) { hide("d-scale"); return; }
+    if (R.final) {                                  /* la etapa 3 reemplaza a esta corrida de 1 semilla */
+      $("scTitle").textContent = "Escalamiento · día 1";
+      const d1 = $("scDay1");
+      d1.innerHTML = esc("Corrida del día 1: una semilla y el híbrido anterior. La medición vigente es la de la etapa 3: " + R.final.meta.seeds.length +
+        " semillas, híbrido en dos fases y el mismo presupuesto para todos los métodos.") + ' <button class="goto" type="button" data-goto="final">Ver 04 ESCALA →</button>';
+      d1.hidden = false;
+    }
     const Ns = [...new Set(S.map((r) => r.N))].sort((a, b) => a - b);
     const lab = Ns.map((n) => { const r = S.find((x) => x.N === n); return "N=" + n + (r && r.instance !== meta.instance ? "*" : ""); });
     const M = [["simulated_annealing", "SA", "#9A9890"], ["qgate_lns_exact", "QGate exacto", "#FFC629"], ["qgate_lns_qaoa", "QGate QAOA", "#4FE3E0"]].filter(([m]) => S.some((r) => r.method === m));

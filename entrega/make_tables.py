@@ -114,7 +114,11 @@ def tables(R: dict) -> str:
 
     sc = R.get("scaling", [])
     if sc:
-        out.append("\n### Escalamiento (N > 10 son instancias sintéticas)\n")
+        Fn = R.get("final")
+        out.append("\n### Escalamiento del día 1 (una semilla; N > 10 son instancias sintéticas)\n")
+        if Fn:
+            out.append(f"*Corrida del día 1 con el híbrido anterior. La medición vigente es la de la etapa 3 (sección 5b): "
+                       f"{len(Fn['meta']['seeds'])} semillas, híbrido en dos fases y el mismo presupuesto para todos los métodos.*\n")
         out.append(f"*{_scale_iters(meta)} iteraciones del híbrido por N: no comparable con la tabla de N=10 (300). "
                    "La cota Gilmore-Lawler es débil: en N=10 SA está en el óptimo y aun así marca más de 10% contra la cota.*\n")
         out.append("| N | Instancia | Método | Costo | Cota GL | Gap vs cota (%) | Tiempo (s) | Memoria pico (MB) | Qubits |")
@@ -161,6 +165,17 @@ def tables(R: dict) -> str:
                f"Qiskit Aer {v.get('qiskit_aer')}, NumPy {v.get('numpy')}, SciPy {v.get('scipy')} · "
                f"corrida total {g(meta['total_time_s'] / 60, 1)} min.*")
     return "\n".join(out)
+
+
+def _stage3_line(Fn: dict) -> str:
+    """Una frase que remite al día 1 a la etapa 3: rango de N, semillas, si algo es distinguible y aporte de los bloques."""
+    ins = [i["instance"] for i in Fn["instances"]]
+    ns = [i["N"] for i in Fn["instances"]]
+    dist = any(Fn["verdict"].get(i, {}).get("distinguible") for i in ins)
+    b0 = all(Fn["attribution"].get(i, {}).get("cost_reduction_at_best_by_origin", {}).get("block", 1) == 0 for i in ins)
+    return (f" Esa comparación es de una sola semilla; en la etapa 3 (sección 5b, {len(Fn['meta']['seeds'])} semillas, N={min(ns)} a {max(ns)}) "
+            + ("hay diferencias distinguibles entre métodos" if dist else "ninguna diferencia entre métodos es distinguible")
+            + (" y los bloques QAOA no aportaron reducción de costo." if b0 else "."))
 
 
 def _scale_iters(meta: dict) -> int:
@@ -243,7 +258,8 @@ def findings(R: dict) -> str:
                       f"de la cota y SA a {g(sb['gap_vs_bound_pct'], 1)}%: con N grande, 3 vuelos por paso es un vecindario chico. "
                       if sb else " ")
                    + "Las diferencias entre QAOA y el control exacto en esta tabla vienen de empates entre permutaciones "
-                     "óptimas del subproblema y de mejoras no óptimas que cambian la trayectoria; no son ventaja de QAOA.")
+                     "óptimas del subproblema y de mejoras no óptimas que cambian la trayectoria; no son ventaja de QAOA."
+                   + (_stage3_line(R["final"]) if R.get("final") else ""))
     return "\n".join(out)
 
 
@@ -262,6 +278,10 @@ def main():
     if os.path.exists(exp):
         with open(exp, encoding="utf-8") as fh:
             R["extra"] = json.load(fh)
+    finp = os.path.join(os.path.dirname(os.path.abspath(src)), "final.json")
+    if os.path.exists(finp):
+        with open(finp, encoding="utf-8") as fh:
+            R["final"] = json.load(fh)
     with open(readme, encoding="utf-8") as fh:
         txt = fh.read()
     i, j = txt.index(START), txt.index(END)
@@ -269,11 +289,9 @@ def main():
     if FSTART in txt:
         i, j = txt.index(FSTART), txt.index(FEND)
         txt = txt[:i + len(FSTART)] + "\n" + findings(R) + "\n" + txt[j:]
-    finp = os.path.join(os.path.dirname(os.path.abspath(src)), "final.json")
-    if "<!-- FINAL:START -->" in txt and os.path.exists(finp):      # etapa 3: python -m qgate.final
+    if "<!-- FINAL:START -->" in txt and R.get("final"):      # etapa 3: python -m qgate.final
         from final_tables import final_md
-        with open(finp, encoding="utf-8") as fh:
-            Fj = json.load(fh)
+        Fj = R["final"]
         i, j = txt.index("<!-- FINAL:START -->"), txt.index("<!-- FINAL:END -->")
         txt = txt[:i + len("<!-- FINAL:START -->")] + "\n" + final_md(Fj) + "\n" + txt[j:]
     with open(readme, "w", encoding="utf-8") as fh:

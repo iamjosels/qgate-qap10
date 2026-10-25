@@ -6,6 +6,11 @@
 > barrido de λ; 02 Aeropuerto, "¿Cuánto aporta QAOA?" y el escalamiento; 03 Resultado, los datos validados
 > y la reproducibilidad. La sección 05 suma la línea base sobre las 6 permutaciones válidas
 > (`results/extra.json`) y 05b, el azar de P(óptimo) del hardware.
+>
+> **Actualización (etapa 3, final).** Nueva pestaña **04 Escala**, que lee `results/final.json` (ver la
+> sección "Pestaña 04" al final). La fila "Escala" y la frase final del Panorama ahora salen de
+> `final.json` (10 semillas); la sección de detalle 07 se rotula "Escalamiento · día 1" (una semilla, híbrido
+> anterior) y remite a la pestaña 04, que es la medición vigente.
 
 Demo: https://iamjosels.github.io/qgate-qap10/ (archivo `docs/index.html`, generado por
 `dashboard/build_report.py`).
@@ -251,9 +256,10 @@ como predijo el simulador con 1% de ruido.
   qubits. QGate usa 150 iteraciones por N.
 - **Muro de memoria.** Memoria de un statevector genérico de N² qubits (16 bytes por amplitud): N = 4 es
   1 MiB, N = 10 son 2·10^31 bytes. Es la razón de usar piezas de 9 qubits.
-- **Lectura.** La parte cuántica no crece (9 qubits, menos de 1 MB). Frente a QGate con QAOA, simulated
-  annealing gana en todo N, tanto en calidad como en tiempo. QGate con solver exacto es el más rápido,
-  pero queda peor en calidad.
+- **Lectura (día 1, una semilla).** La parte cuántica no crece (9 qubits, menos de 1 MB). En esa corrida,
+  frente a QGate con QAOA, simulated annealing ganó en todo N, en calidad y en tiempo. Con una sola semilla
+  no se puede saber si la diferencia de calidad es real: la etapa 3 (pestaña 04, 10 semillas) la mide con
+  rangos y no encuentra diferencias distinguibles. El título de la sección dice "día 1" y un aviso remite a 04.
 
 ### 08 · Reproducibilidad y límites
 
@@ -283,3 +289,33 @@ Además, créditos de librerías y datos, y el link al código.
    P(óptimo) por pieza (0.094 contra 0.039) y la prueba con 8 shots (59% contra 29%).
 4. Todo es simulador salvo la sección 05b y las dos filas "· hardware" de la tabla de la escena 03.
 5. La geometría del terminal es la de la matriz D de qap10, no la de un aeropuerto real.
+
+## Pestaña 04 · Escala (etapa 3)
+
+Lee `results/final.json`, generado por `python -m qgate.final` (SIMULADOR Qiskit Aer y CPU). Instancias:
+qap10 (oficial, N = 10) y tres sintéticas (N = 14, 16 y 20), 10 semillas, el mismo presupuesto para todos los
+métodos del modo dos fases. Si falta `final.json`, la pestaña no aparece.
+
+- **Frase de arriba.** Se calcula desde el JSON: "La memoria cuántica no crece con N; la calidad todavía no
+  escala; …". La segunda mitad dice qué método tiene la mejor mediana en N > 10, si alguna diferencia es
+  distinguible entre semillas y si los bloques QAOA aportaron reducción de costo.
+- **Metadatos.** Semillas, iteraciones externas B, shots por bloque, presupuesto de SA y nota sobre tiempos
+  (medidos con varios procesos en paralelo; comparables solo dentro de la misma corrida).
+- **¿Cuánto es cuántico y cuánto clásico?** Para cada instancia: (i) fracción de variables que entran al
+  circuito (9/N²); (ii) movimientos aceptados hasta la mejor asignación por origen (2-swap, bloque QAOA,
+  perturbación); (iii) reducción de costo por origen (las perturbaciones suben el costo, por eso restan);
+  (iv) fracción del tiempo de pared dentro de la subrutina QAOA y solo en la simulación Aer. La atribución
+  depende del orden de las fases: el 2-swap corre primero y se lleva las mejoras fáciles.
+- **(v) Tasa de mejora de los bloques.** Cuántos bloques de 3 vuelos mejoran partiendo de un óptimo local
+  2-swap, por solver (enumeración, azar sobre las 6 válidas, enumeración con desempate, QAOA).
+- **Tabla de escalamiento.** Por instancia y método: costo mediana [mín, máx] entre semillas, gap contra la
+  cota Gilmore-Lawler y contra el mejor costo encontrado (no es un óptimo demostrado), tiempo, memoria y
+  factibilidad. Un método se marca "mejor (distinguible)" y se colorea solo si su máximo queda por debajo
+  del mínimo de todos los demás; si no, dice "mejor mediana, no distinguible".
+- **Ángulos reutilizados.** En N = 20: evaluaciones por bloque, P(óptimo) del bloque y tiempo, arrancando en
+  frío o desde los ángulos del bloque anterior.
+- **Lectura (corrida actual).** Ninguna diferencia entre métodos es distinguible entre semillas. En N > 10 la
+  mejor mediana la comparten el 2-swap sin bloques y el híbrido con QAOA (junto con los otros solvers de
+  bloque); SA no la tiene. Los bloques QAOA no aportaron reducción de costo y se llevan la mayor parte del
+  tiempo de pared: el híbrido empata con el 2-swap porque la mejora la hace el 2-swap. Todas las filas
+  empatadas en la mejor mediana llevan la marca "mejor mediana (empate), no distinguible".

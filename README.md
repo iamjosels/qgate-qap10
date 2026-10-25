@@ -5,8 +5,10 @@
 **Demo:** https://iamjosels.github.io/qgate-qap10/ · **PPT (plantilla oficial, con fotos):** [`entrega/QGate_final.pptx`](entrega/QGate_final.pptx) ([PDF](entrega/QGate_final.pdf)) · **Descripción breve:** [`entrega/descripcion.md`](entrega/descripcion.md)
 
 **Dashboard.** Pestañas 00 Panorama (los tres enfoques y el cuadro comparativo), 01 QAOA (con IBM Quantum real y el
-barrido de λ), 02 Aeropuerto (con la ablación del solver y el escalamiento) y 03 Resultado (con los datos validados y la
-reproducibilidad). Cada número sale de `results/results.json`, `results/hardware.json` o `results/extra.json`.
+barrido de λ), 02 Aeropuerto (con la ablación del solver y el escalamiento del día 1), 03 Resultado (con los datos
+validados y la reproducibilidad) y 04 Escala (etapa 3: escalamiento N ≥ 14 entre semillas y cuánto es cuántico y cuánto
+clásico, sección 5b). Cada número sale de `results/results.json`, `results/hardware.json`, `results/extra.json` o
+`results/final.json`.
 
 > QAOA solo no llega a 100 qubits. Como subrutina de 9 qubits, la memoria no crece con N; la calidad
 > todavía no escala. Medimos cuánto aporta cada parte. No buscamos demostrar ventaja
@@ -152,7 +154,9 @@ Robustez (solver exacto, 300 iteraciones, semillas 7 a 18): media 354.5 (gap med
 | X P(válida) / P(óptimo) | 0.02 / 0.0082 | 0.076 / 0.027 | 0.137 / 0.047 | 0.255 / 0.082 | 0.243 / 0.079 |
 | XY P(válida) / P(óptimo) | 0.241 / 0.119 | 0.557 / 0.230 | 0.789 / 0.266 | 0.361 / 0.115 | 0.364 / 0.116 |
 
-### Escalamiento (N > 10 son instancias sintéticas)
+### Escalamiento del día 1 (una semilla; N > 10 son instancias sintéticas)
+
+*Corrida del día 1 con el híbrido anterior. La medición vigente es la de la etapa 3 (sección 5b): 10 semillas, híbrido en dos fases y el mismo presupuesto para todos los métodos.*
 
 *150 iteraciones del híbrido por N: no comparable con la tabla de N=10 (300). La cota Gilmore-Lawler es débil: en N=10 SA está en el óptimo y aun así marca más de 10% contra la cota.*
 
@@ -206,7 +210,7 @@ Un solo job, un solo backend. La simulación con 1% de ruido coincidió con el m
 6. **Robustez.** En 12 semillas y arranques, el mismo marco con solver exacto (equivale a QAOA cuando QAOA acierta) llega a 340 en 4 y su media es 354.5 (gap medio 4.3%). El límite es el vecindario de 3 vuelos, no el solver.
 7. **Tiempo.** En simulador, lo clásico gana: fuerza bruta 6.9 s y simulated annealing 13.7 s llegan a 340; el híbrido con QAOA tarda 186 s. No afirmamos ventaja cuántica.
 9. **Hardware real.** Una corrida N=3 (9 qubits) en ibm_kingston de IBM Quantum: N3-x-p1: 0.063 válidas (ideal 0.137, azar 0.012); N3-xy-p1: 0.254 válidas (ideal 0.789, azar 0.222).
-8. **Escala.** De N=10 a N=16 el subproblema cuántico sigue en 9 qubits y la memoria pico de QGate no pasa de 0.8 MB; un QUBO directo de N=16 serían 256 qubits. Con 150 iteraciones, en N=16 el híbrido queda a 39.3% de la cota y SA a 28.8%: con N grande, 3 vuelos por paso es un vecindario chico. Las diferencias entre QAOA y el control exacto en esta tabla vienen de empates entre permutaciones óptimas del subproblema y de mejoras no óptimas que cambian la trayectoria; no son ventaja de QAOA.
+8. **Escala.** De N=10 a N=16 el subproblema cuántico sigue en 9 qubits y la memoria pico de QGate no pasa de 0.8 MB; un QUBO directo de N=16 serían 256 qubits. Con 150 iteraciones, en N=16 el híbrido queda a 39.3% de la cota y SA a 28.8%: con N grande, 3 vuelos por paso es un vecindario chico. Las diferencias entre QAOA y el control exacto en esta tabla vienen de empates entre permutaciones óptimas del subproblema y de mejoras no óptimas que cambian la trayectoria; no son ventaja de QAOA. Esa comparación es de una sola semilla; en la etapa 3 (sección 5b, 10 semillas, N=10 a 20) ninguna diferencia entre métodos es distinguible y los bloques QAOA no aportaron reducción de costo.
 <!-- FINDINGS:END -->
 
 ## 5b. Etapa 3 (final): escalamiento N ≥ 14
@@ -224,7 +228,7 @@ reinicios (sin bloque) y simulated annealing (presupuesto propio). Cargador de i
 instancia oficial; `--estimate` mide y extrapola el tiempo).
 
 <!-- FINAL:START -->
-> **La memoria cuántica no crece con N; la calidad todavía no escala; la mejor mediana en N>10 es de un método clásico (2-swap con reinicios) y ninguna diferencia es distinguible entre semillas; SA no tiene la mejor mediana en N>10.** Los bloques QAOA no aportaron reducción de costo.
+> **La memoria cuántica no crece con N; la calidad todavía no escala; ninguna diferencia es distinguible entre semillas; en N>10 la mejor mediana la comparten el 2-swap sin bloques y el híbrido con QAOA, junto con los otros solvers de bloque; SA no la tiene.** Los bloques QAOA no aportaron reducción de costo.
 
 SIMULADOR (Qiskit Aer) y CPU. 10 semillas (7 a 16), B=100 iteraciones externas para todos los solvers del modo dos fases, 8 shots por bloque para QAOA y para el azar, SA 50000×3. tiempos medidos con 14 procesos en paralelo; comparables entre métodos de la misma corrida. Corrida: 31.2 min. Comando: `python -m qgate.final --sizes 14,16,20 --seeds 10 --blocks 100 --shots 8 --sa-iters 50000 --procs 14 --out results/final.json`. Fuente: `results/final.json`.
 
@@ -234,10 +238,10 @@ SIMULADOR (Qiskit Aer) y CPU. 10 semillas (7 a 16), B=100 iteraciones externas p
 
 | Instancia | (i) Variables cuánticas 9/N² | (ii) Movimientos swap · bloque QAOA · perturbación | (iii) Reducción de costo swap · bloque · perturbación | (iv) % tiempo en QAOA · solo Aer |
 |---|---|---|---|---|
-| qap10 | 9.0% | 2924 · 0 · 641 | 88806 · 0 · -85734 | 96.8% · 52.0% |
-| synthetic-14 | 4.6% | 5533 · 0 · 764 | 128537 · 0 · -124262 | 91.9% · 50.2% |
-| synthetic-16 | 3.5% | 5369 · 0 · 631 | 126288 · 0 · -121791 | 88.4% · 46.3% |
-| synthetic-20 | 2.2% | 9586 · 0 · 823 | 290889 · 0 · -282073 | 78.8% · 42.1% |
+| qap10 | 9.00% | 2924 · 0 · 641 | 88806 · 0 · -85734 | 96.8% · 52.0% |
+| synthetic-14 | 4.59% | 5533 · 0 · 764 | 128537 · 0 · -124262 | 91.9% · 50.2% |
+| synthetic-16 | 3.52% | 5369 · 0 · 631 | 126288 · 0 · -121791 | 88.4% · 46.3% |
+| synthetic-20 | 2.25% | 9586 · 0 · 823 | 290889 · 0 · -282073 | 78.8% · 42.1% |
 
 *(ii) y (iii): movimientos aceptados y reducción de costo hasta la mejor asignación, sumados en todas las semillas y los dos selectores; las perturbaciones suben el costo, por eso restan. La atribución depende del orden de las fases: el 2-swap corre primero y se lleva las mejoras fáciles. (iv): subrutina QAOA = circuito Qiskit + simulación Aer + COBYLA clásico que la orquesta.*
 
@@ -300,10 +304,10 @@ SIMULADOR (Qiskit Aer) y CPU. 10 semillas (7 a 16), B=100 iteraciones externas p
 | synthetic-20 | Bloque: QAOA (p=2, XY) | tension | 1040 [1038, 1052] | 31.6% | 0.2% [0.0, 1.3] | 223.2 | 0.80 | 100% |
 
 **Veredicto por instancia** (un método se marca ganador solo si su máximo queda por debajo del mínimo de todos los demás):
-- synthetic-20: mejor mediana ls/random (no distinguible); empatados en esa mediana: exact/tension, exact_rand/tension, ls/random, ls/tension, qaoa/tension, random_valid/random.
-- synthetic-14: mejor mediana ls/random (no distinguible); empatados en esa mediana: exact/random, exact/tension, exact_rand/random, exact_rand/tension, ls/random, ls/tension, qaoa/random, qaoa/tension, random_valid/random, random_valid/tension.
-- qap10: mejor mediana sa/None (no distinguible); empatados en esa mediana: exact/random, exact/tension, exact_rand/random, exact_rand/tension, ls/random, ls/tension, qaoa/random, qaoa/tension, random_valid/random, random_valid/tension, sa/None.
-- synthetic-16: mejor mediana ls/random (no distinguible); empatados en esa mediana: exact/random, exact/tension, exact_rand/random, exact_rand/tension, ls/random, ls/tension, qaoa/random, qaoa/tension, random_valid/random, random_valid/tension.
+- synthetic-20: no distinguible; comparten la mejor mediana: Bloque: enumeración (tension); Bloque: enumeración + desempate (tension); 2-swap con reinicios (random, tension); Bloque: QAOA (p=2, XY) (tension); Bloque: azar 6 válidas (random).
+- synthetic-14: no distinguible; comparten la mejor mediana: Bloque: enumeración (random, tension); Bloque: enumeración + desempate (random, tension); 2-swap con reinicios (random, tension); Bloque: QAOA (p=2, XY) (random, tension); Bloque: azar 6 válidas (random, tension).
+- qap10: no distinguible; comparten la mejor mediana: Bloque: enumeración (random, tension); Bloque: enumeración + desempate (random, tension); 2-swap con reinicios (random, tension); Bloque: QAOA (p=2, XY) (random, tension); Bloque: azar 6 válidas (random, tension); SA.
+- synthetic-16: no distinguible; comparten la mejor mediana: Bloque: enumeración (random, tension); Bloque: enumeración + desempate (random, tension); 2-swap con reinicios (random, tension); Bloque: QAOA (p=2, XY) (random, tension); Bloque: azar 6 válidas (random, tension).
 
 **Ángulos reutilizados** (synthetic-20, 40 bloques, 8 shots): evaluaciones por bloque 40.0 en frío y 40.0 reutilizando (COBYLA agota el máximo de 40 en ambos); P(óptimo) del bloque 0.093 en frío y 0.128 reutilizando; tiempo por bloque 0.24 s y 0.24 s.
 <!-- FINAL:END -->

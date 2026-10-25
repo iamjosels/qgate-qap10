@@ -11,7 +11,7 @@ La entrega en el portal la hace una persona del equipo. Completar antes de las 1
 | Demo funcional | https://iamjosels.github.io/qgate-qap10/ |
 | Video (opcional) | guion en `entrega/guion_video.md` |
 | Descripción breve | `docs/descripcion_breve.md` |
-| PPT | `entrega/QGate.pptx` (también en el repo) |
+| PPT | `entrega/QGate_final.pptx` (plantilla oficial, con fotos; PDF en `entrega/QGate_final.pdf`) |
 
 ## Verificación (24/10, 13:40)
 
@@ -25,3 +25,13 @@ La entrega en el portal la hace una persona del equipo. Completar antes de las 1
 - [ ] Entrega en el portal (una persona del equipo) antes de las 14:40
 - [ ] Repartir los bloques del guion (entrega/guion.md, columna "Quién") entre los 4 integrantes
 - [ ] Los 4 integrantes en la presentación (15:00 a 16:40)
+
+## Final, etapa 3 (25/10)
+
+- [x] `results/final.json`: qap10 oficial y sintéticas N=14, 16 y 20, 10 semillas, mismo presupuesto para todos (SIMULADOR)
+- [x] `results.json`, `hardware.json` y `extra.json` sin cambios
+- [x] Dashboard: pestaña 04 Escala; fila "Escala" y frase del Panorama desde `final.json`; sección 07 rotulada "día 1"
+- [x] `check_panorama.py` verifica los números del Panorama contra results.json, hardware.json y final.json
+- [x] README sección 5b, DECISIONES §9, guion (bloque 7 y preguntas "¿Cuánto es cuántico?" y "¿Qué tiene de nuevo?")
+- [x] PPT `entrega/QGate_final.pptx`: slide "Escala (etapa 3)" y límite de la etapa 3 en el cierre
+- [ ] Repartir de nuevo el bloque 7 del guion y las respuestas nuevas entre los 4 integrantes

@@ -62,6 +62,8 @@ img.fig{max-width:100%;max-height:100%;border-radius:10px;display:block;margin:a
 </style></head><body><div class="s">__BODY__</div></body></html>"""
 
 
+from final_tables import stage3_tail, tie_label  # noqa: E402  (misma regla que el README)
+
 def g(x, d=None):
     if x is None:
         return "-"
@@ -253,12 +255,7 @@ def slides(R, team, img):
 
     # 7 · escala
     Fn = R.get("final")
-    HUMAN = {"sa": "SA", "ls": "2-swap con reinicios", "exact": "bloque enumeración", "random_valid": "bloque azar válido",
-             "exact_rand": "bloque enumeración + desempate", "qaoa": "bloque QAOA"}
-
-    def _human(key):
-        sv, _, sel = key.partition("/")
-        return HUMAN.get(sv, sv) + ("" if sel in ("", "None") or sv in ("sa", "ls") else f" · {sel}")
+    solvers_all = {x["solver"] for x in Fn["summary"]} if Fn else set()
     if Fn:
         S = {(x["instance"], x["solver"], x["select"]): x for x in Fn["summary"]}
         rows_html = ""
@@ -273,19 +270,12 @@ def slides(R, team, img):
             rows_html += (f"<tr><td>{html.escape(i['instance'])}<br><span style='font-size:12px;color:#9A9890'>{html.escape(i['origen'])}</span></td>"
                           f"<td>{g(sa_['cost_median'])} [{g(sa_['cost_min'])}, {g(sa_['cost_max'])}]<br><span style='font-size:12px;color:#9A9890'>{g(sa_['time_median_s'], 0)} s</span></td>"
                           f"<td>{g(q_['cost_median'])} [{g(q_['cost_min'])}, {g(q_['cost_max'])}]<br><span style='font-size:12px;color:#9A9890'>{g(q_['time_median_s'], 0)} s</span></td>"
-                          f"<td>{100 * a.get('variables_quantum_frac', 0):.1f}%</td><td>{g(rd.get('block'))} de {g(sum(rd.values()))}</td>"
+                          f"<td>{100 * a.get('variables_quantum_frac', 0):.2f}%</td><td>{g(rd.get('block'))} de {g(sum(rd.values()))}</td>"
                           f"<td>{100 * a.get('frac_wall_in_qaoa_mean', 0):.0f}%</td>"
-                          f"<td>{html.escape(_human(v.get('best_median', '-')))}{'' if v.get('distinguible') else ' (no distinguible)'}</td></tr>")
+                          f"<td>{html.escape(tie_label(v, solvers_all))}</td></tr>")
         m_ = Fn["meta"]
         synth = [i["instance"] for i in Fn["instances"] if i["origen"] == "sintética"]
-        bests = [Fn["verdict"][i]["best_median"].split("/")[0] for i in synth if i in Fn["verdict"]]
-        dist = any(Fn["verdict"][i]["distinguible"] for i in synth if i in Fn["verdict"])
-        if bests and all(b == "sa" for b in bests):
-            fin_tail = "SA gana en N>10."
-        elif bests and all(b != "qaoa" for b in bests):
-            fin_tail = "Mejor mediana: búsqueda clásica" + ("." if dist else "; nada distinguible entre semillas.")
-        else:
-            fin_tail = ""
+        fin_tail = stage3_tail(Fn, short=True)
         if all(Fn["attribution"].get(i, {}).get("cost_reduction_at_best_by_origin", {}).get("block", 1) == 0 for i in synth):
             fin_tail += " Bloques QAOA: 0 de reducción de costo."
         out.append((f"""<div class="c" style="height:100%">{head("06", "Escala (etapa 3)")}
@@ -324,10 +314,13 @@ def slides(R, team, img):
 
     # 8 · cierre
     bf, sa = C["brute_force"], C["simulated_annealing"]
+    lim = ["Simulador más lento que SA", "El ruido borra la ventaja de XY", "Con muchos shots el azar también llega"]
+    if Fn and all(Fn["attribution"].get(i["instance"], {}).get("cost_reduction_at_best_by_origin", {}).get("block", 1) == 0
+                  for i in Fn["instances"]):
+        lim.append("Etapa 3: bloques QAOA sin reducción de costo")
     cols = [("Hoy", "#4FE3E0", ["XY + estado W: reglas por construcción", "QAOA concentra probabilidad en el óptimo",
                                  "Pieza cuántica de tamaño fijo"]),
-            ("Límites", "#FF6B3D", ["Simulador más lento que SA", "El ruido borra la ventaja de XY",
-                                    "Con muchos shots el azar también llega"]),
+            ("Límites", "#FF6B3D", lim),
             ("Siguiente", "#FFC629", ["Más corridas en hardware IBM" if R.get("hardware") else "Hardware IBM real (9 qubits)",
                                       "Piezas de 4 vuelos (16 qubits)", "Mitigación de errores"])]
     colh = "".join(f"""<div class="card" style="border-top:6px solid {c};justify-content:flex-start;gap:18px">

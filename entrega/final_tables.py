@@ -5,6 +5,53 @@ NAME = {"sa": "SA", "ls": "2-swap con reinicios", "exact": "Bloque: enumeración
         "exact_rand": "Bloque: enumeración + desempate", "qaoa": "Bloque: QAOA (p=2, XY)"}
 
 
+SHORT = {"sa": "SA", "ls": "2-swap con reinicios", "exact": "bloque enumeración", "random_valid": "bloque azar válido",
+         "exact_rand": "bloque enumeración + desempate", "qaoa": "bloque QAOA"}
+
+
+def tie_solvers(v: dict) -> set:
+    """Solvers (sin selector) que empatan en la mejor mediana de una instancia."""
+    return {t.split("/")[0] for t in (v.get("ties_at_best_median") or [v.get("best_median", "")]) if t}
+
+
+def tie_label(v: dict, all_solvers: set) -> str:
+    """Rótulo corto de quién tiene la mejor mediana: empate de todos, todos salvo SA, o la lista."""
+    t = tie_solvers(v)
+    if len(t) > 1 and t == all_solvers:
+        lab = "empate de todos"
+    elif len(t) > 1 and t == all_solvers - {"sa"}:
+        lab = "empate, todos salvo SA"
+    else:
+        lab = ", ".join(SHORT.get(x, x) for x in sorted(t))
+    return lab + ("" if v.get("distinguible") else " (no distinguible)")
+
+
+def stage3_tail(F: dict, short: bool = False) -> str:
+    """Segunda mitad de la frase fija, calculada desde final.json (empates y distinguibilidad en N>10)."""
+    synth = [i["instance"] for i in F["instances"] if i["origen"] == "sintética" and i["instance"] in F["verdict"]]
+    if not synth:
+        return ""
+    V = F["verdict"]
+    if any(V[i]["distinguible"] for i in synth):
+        return "ver en la tabla qué método es mejor en cada N y si es distinguible."
+    wa = set.intersection(*(tie_solvers(V[i]) for i in synth))
+    union = set.union(*(tie_solvers(V[i]) for i in synth))
+    if short:
+        s = "Nada distinguible entre semillas"
+        if {"ls", "qaoa"} <= wa:
+            s += ": en N>10 empatan el 2-swap sin bloques y el híbrido QAOA"
+        return s + ("; SA no tiene la mejor mediana." if "sa" not in union else ".")
+    s = "ninguna diferencia es distinguible entre semillas; "
+    if {"ls", "qaoa"} <= wa:
+        s += ("en N>10 la mejor mediana la comparten el 2-swap sin bloques y el híbrido con QAOA"
+              + (", junto con los otros solvers de bloque" if wa - {"ls", "qaoa"} else ""))
+    elif wa:
+        s += "en N>10 la mejor mediana la comparten: " + ", ".join(SHORT.get(x, x) for x in sorted(wa))
+    else:
+        s += "la mejor mediana cambia de método según N"
+    return s + ("; SA no la tiene." if "sa" not in union else ".")
+
+
 def g(x, d=0):
     return "-" if x is None else f"{x:.{d}f}"
 
@@ -20,16 +67,8 @@ def final_md(F: dict) -> str:
            f"{m['sa_iters']}×{m['sa_restarts']}. {m['nota_tiempos']}. Corrida: {g(m['wall_s'] / 60, 1)} min. Comando: `{m['command']}`. "
            f"Fuente: `results/final.json`."]
     synth = [i["instance"] for i in F["instances"] if i["origen"] == "sintética"]
-    bests = [F["verdict"][i]["best_median"].split("/")[0] for i in synth if i in F["verdict"]]
-    dist = any(F["verdict"][i]["distinguible"] for i in synth if i in F["verdict"])
     block0 = all(F["attribution"].get(i, {}).get("cost_reduction_at_best_by_origin", {}).get("block", 1) == 0 for i in synth)
-    if bests and all(b == "sa" for b in bests):
-        tail = "el clásico (SA) gana en todas las instancias sintéticas."
-    elif bests and all(b != "qaoa" for b in bests):
-        tail = ("la mejor mediana en N>10 es de un método clásico (" + ", ".join(sorted({NAME.get(b, b) for b in bests})) + ")"
-                + ("." if dist else " y ninguna diferencia es distinguible entre semillas; SA no tiene la mejor mediana en N>10."))
-    else:
-        tail = "ver en la tabla qué método tiene la mejor mediana en cada N y si es distinguible."
+    tail = stage3_tail(F)
     out.insert(0, "> **La memoria cuántica no crece con N; la calidad todavía no escala; " + tail + "**"
                + (" Los bloques QAOA no aportaron reducción de costo." if block0 else "") + "\n")
     out.append("\n**Instancias.** " + "; ".join(f"{i['instance']} ({i['origen']}, N={i['N']}, cota GL {g(i['gl_bound'])}, mejor costo encontrado {g(i['best_found'])})"
@@ -42,7 +81,7 @@ def final_md(F: dict) -> str:
         if not a:
             continue
         mv, rd = a["moves_at_best_by_origin"], a["cost_reduction_at_best_by_origin"]
-        out.append(f"| {i['instance']} | {pc(a['variables_quantum_frac'])} | {mv['swap']} · {mv['block']} · {mv['kick']} | "
+        out.append(f"| {i['instance']} | {pc(a['variables_quantum_frac'], 2)} | {mv['swap']} · {mv['block']} · {mv['kick']} | "
                    f"{g(rd['swap'])} · {g(rd['block'])} · {g(rd['kick'])} | {pc(a['frac_wall_in_qaoa_mean'])} · {pc(a['frac_wall_in_aer_mean'])} |")
     out.append("\n*(ii) y (iii): movimientos aceptados y reducción de costo hasta la mejor asignación, sumados en todas las semillas y los dos "
                "selectores; las perturbaciones suben el costo, por eso restan. La atribución depende del orden de las fases: el 2-swap corre "
@@ -65,7 +104,12 @@ def final_md(F: dict) -> str:
                    f"{g(s['time_median_s'], 1)} | {g(s['peak_mem_median_mb'], 2)} | {pc(s['feasible_rate'], 0)} |")
     out.append("\n**Veredicto por instancia** (un método se marca ganador solo si su máximo queda por debajo del mínimo de todos los demás):")
     for inst, v in F["verdict"].items():
-        out.append(f"- {inst}: mejor mediana {v['best_median']} ({'distinguible' if v['distinguible'] else 'no distinguible'}); empatados en esa mediana: {', '.join(v['ties_at_best_median'])}.")
+        grp = {}
+        for t in v["ties_at_best_median"]:
+            sv, _, sel = t.partition("/")
+            grp.setdefault(sv, []).append(sel)
+        who = "; ".join(NAME.get(sv, sv) + ("" if sels == ["None"] else f" ({', '.join(sels)})") for sv, sels in grp.items())
+        out.append(f"- {inst}: {'distinguible' if v['distinguible'] else 'no distinguible'}; comparten la mejor mediana: {who}.")
     ar = F.get("angle_reuse")
     if ar:
         out.append(f"\n**Ángulos reutilizados** ({ar['instance']}, {ar['cold']['blocks']} bloques, {ar['shots']} shots): evaluaciones por bloque "
