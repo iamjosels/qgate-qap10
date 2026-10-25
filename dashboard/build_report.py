@@ -433,7 +433,7 @@ table.cmp td { white-space: normal; vertical-align: top; line-height: 1.35; }
 .m-ok .mk, b.m-ok { color: var(--paper); } .m-no .mk, b.m-no { color: var(--invalid); } .m-mid .mk, b.m-mid { color: var(--mute); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .cmp-leg { margin-top: 10px; }
-.qban { display: flex; flex-direction: column; gap: 16px; margin-bottom: 26px; }
+.qban { display: flex; flex-direction: column; gap: 14px; margin-bottom: 18px; }
 .q-question { margin: 0; font: 800 clamp(30px, 3.4vw, 46px)/1.05 'Barlow Condensed', sans-serif; text-transform: uppercase; letter-spacing: .01em; }
 .q-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 @media (max-width: 1000px) { .q-cards { grid-template-columns: minmax(0, 1fr); } }
@@ -442,8 +442,8 @@ table.cmp td { white-space: normal; vertical-align: top; line-height: 1.35; }
 .q-big { font: 800 40px/1.05 'Barlow Condensed', sans-serif; }
 .q-vs { font-size: 20px; color: #9A9890; }
 .q-t { font-size: 16px; line-height: 1.4; }
-.q-src { margin-top: auto; font: 13px/1.35 var(--mono, monospace); letter-spacing: .08em; color: #6E6C66; }
-.q-src.q-hw b { color: #B79CFF; }
+.q-src { margin-top: auto; font: 16px/1.35 var(--mono, monospace); color: #9A9890; border-left: 3px solid #6E6C66; padding-left: 8px; }
+.q-src.q-hw { border-left-color: #B79CFF; color: #CDBBFF; }
 .q-short { margin: 0; font: 700 clamp(18px, 2vw, 22px)/1.35 var(--sans); }
 .q-op { margin: 10px 0 0; font-size: 16px; line-height: 1.5; color: #C9C6BC; }
 .audit td, .audit th { font-size: 16px; vertical-align: top; white-space: normal; }
@@ -484,6 +484,7 @@ footer { border-top: 1px solid var(--line); margin-top: 30px; padding: 22px 0 40
 <div class="stage wrap" id="stage">
 
   <div class="scene" id="scene-pano">
+    <h2 class="big">Tres enfoques, un problema</h2>
     __PANORAMA__
   </div>
 
