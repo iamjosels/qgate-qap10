@@ -33,7 +33,7 @@ las secciones de detalle de su enfoque, para que cada dato aparezca una sola vez
 
 | Elemento | Qué es |
 |---|---|
-| Logo y "QGATE" | Isotipo de `design/BRAND.md`. El texto gris de al lado indica el modo de la escena (por ejemplo "MODO DEMO · TRACK A AEROPUERTO"). |
+| Logo y "QGATE" | Isotipo de `design/BRAND.md`. Cada escena tiene un rótulo de modo (por ejemplo "MODO DEMO · TRACK A AEROPUERTO" o "ETAPA 3 · ESCALAMIENTO · SIMULADOR"), pero está oculto desde la simplificación del dashboard: no se ve en ninguna pestaña. |
 | Pestañas 00 a 04 | Cambian de escena. Al entrar a una escena con animación (01 y 02), empieza a reproducirse sola, salvo que el navegador pida movimiento reducido. |
 | Botón play / pausa y x2 | Reproducen, detienen o duplican la velocidad de la animación. Solo aparecen en 01 y 02. |
 | MIXER X / MIXER XY | Solo en 01: cambia el experimento QAOA que se muestra. |
