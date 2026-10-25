@@ -1,0 +1,74 @@
+{
+ "generated_at": "2026-10-25T09:28:27",
+ "instance": {
+  "name": "qap10",
+  "N": 10,
+  "sha256": "af782f5ee3c1dcc84473a52bc6193b5cd0707f17cd1a21eed832c005973f438d"
+ },
+ "files": {
+  "results.json": {
+   "sha256": "a5cc6dd04e5504c39c9bf5364f91dad114fe48ed9f8cae7ab9540db10e6a2bb8",
+   "instance_sha256": "af782f5ee3c1dcc84473a52bc6193b5cd0707f17cd1a21eed832c005973f438d",
+   "producido_por": "python -m qgate.bench --mps data/qap10.mps.gz --scale 10,12,14,16 (día 1)",
+   "atestacion": "a posteriori, 2026-10-25T09:28:27"
+  },
+  "hardware.json": {
+   "sha256": "5682230d840a5b6de6597412a8655fd77b8e000b30baef5d02d589b7d43cb2ad",
+   "instance_sha256": "af782f5ee3c1dcc84473a52bc6193b5cd0707f17cd1a21eed832c005973f438d",
+   "producido_por": "python scripts/hardware.py (ibm_kingston, N=3)",
+   "atestacion": "a posteriori, 2026-10-25T09:28:27",
+   "job_id": "dbefhdom94ac738rnc00",
+   "backend": "ibm_kingston",
+   "subinstancia_N3": {
+    "name": "qap10 N=3",
+    "N": 3,
+    "sha256": "3b37375bd83d897ebaf2f5eb8fa27338acd79b9e068e18ca594e7d67423715eb"
+   },
+   "checks": [
+    {
+     "id": "N3-x-p1",
+     "optimo_coincide": true,
+     "p_valida_ideal_coincide": true,
+     "angulos_de_results_json": [
+      3.116716057116697,
+      0.5325694212143446
+     ]
+    },
+    {
+     "id": "N3-xy-p1",
+     "optimo_coincide": true,
+     "p_valida_ideal_coincide": true,
+     "angulos_de_results_json": [
+      2.0541351812862256,
+      0.49374003583417403
+     ]
+    }
+   ],
+   "consistente": true
+  },
+  "extra.json": {
+   "sha256": "105c52dc0cb207f909406c97514d01c70db14ce506e1b00f5486d4ced024c0f1",
+   "instance_sha256": "af782f5ee3c1dcc84473a52bc6193b5cd0707f17cd1a21eed832c005973f438d",
+   "producido_por": "python analysis/baselines.py y python analysis/scale_check.py",
+   "atestacion": "a posteriori, 2026-10-25T09:28:27"
+  },
+  "final.json": {
+   "sha256": "389b799e14c1e73ae3b057dbdd317bffbcceb7fd735594cf3b951b55d99cc1de",
+   "instance_sha256": "af782f5ee3c1dcc84473a52bc6193b5cd0707f17cd1a21eed832c005973f438d",
+   "producido_por": "python -m qgate.final --sizes 14,16,20 --seeds 10 (etapa 3)",
+   "atestacion": "a posteriori, 2026-10-25T09:28:27"
+  },
+  "final_verif.json": {
+   "sha256": "d05246e3088934101cdd014ffa44998d7136226cfc5b7a94fe42e1db7e175408",
+   "instance_sha256": "af782f5ee3c1dcc84473a52bc6193b5cd0707f17cd1a21eed832c005973f438d",
+   "producido_por": "python -m qgate.final --sizes 14,16,20 --seeds 5 --out results/final_verif.json (corrida de verificación reducida)",
+   "atestacion": "al generar, 2026-10-25T09:28:27"
+  },
+  "final_runs.json.gz": {
+   "sha256": "db8dc07f0f6c280e32bf90a12f3b0d8919586f3f56cd575cc2fcfd43859dc02e",
+   "instance_sha256": "af782f5ee3c1dcc84473a52bc6193b5cd0707f17cd1a21eed832c005973f438d",
+   "producido_por": "corridas completas de la corrida de verificación (best_perm, trayectoria, F y D)",
+   "atestacion": "al generar, 2026-10-25T09:28:27"
+  }
+ }
+}

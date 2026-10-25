@@ -131,6 +131,7 @@ def two_phase(inst: QAPInstance, solver: str = "qaoa", select: str = "tension", 
     failed = 0
     warm, last = None, None
     history = [{"it": 0, "best": float(best_cost)}]
+    traj = []                                                  # movimientos aceptados: iteración, costo, origen
 
     def mark():
         nonlocal best_cost, best_perm, snap
@@ -142,6 +143,8 @@ def two_phase(inst: QAPInstance, solver: str = "qaoa", select: str = "tension", 
         perm, cost, mv, red = local_search_moves(inst, perm, cost)            # fase 1
         origin["swap"]["moves"] += mv
         origin["swap"]["reduction"] += red
+        if mv:
+            traj.append({"it": it, "cost": float(cost), "o": "swap", "n": int(mv)})
         mark()
         improved = False
         if solver != "ls":                                                    # fase 2
@@ -164,6 +167,7 @@ def two_phase(inst: QAPInstance, solver: str = "qaoa", select: str = "tension", 
                 cost = new_cost
                 blocks_improved += 1
                 improved = True
+                traj.append({"it": it, "cost": float(cost), "o": "block", "el": [int(e) for e in el]})
                 mark()
             if block_log is not None:
                 block_log.append({"it": it, "elems": el, "improved": improved, "perm_before": sub.meta.get("perm_before")})
@@ -177,6 +181,7 @@ def two_phase(inst: QAPInstance, solver: str = "qaoa", select: str = "tension", 
                 a, b = rng.choice(n, 2, replace=False)
                 perm[a], perm[b] = perm[b], perm[a]
             cost = inst.cost(perm)
+            traj.append({"it": it, "cost": float(cost), "o": "kick"})
             origin["kick"]["moves"] += 1
             origin["kick"]["reduction"] += prev - cost
         else:
@@ -205,4 +210,5 @@ def two_phase(inst: QAPInstance, solver: str = "qaoa", select: str = "tension", 
                  if solver == "qaoa" else None),
         "variables_quantum_frac": (k * k) / (n * n) if solver == "qaoa" else 0.0,
         "history": history,
+        "traj": traj,
     }

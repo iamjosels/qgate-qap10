@@ -129,7 +129,7 @@ Control de escala (`analysis/scale_check.py`): la asignación óptima cuesta 340
 
 *Éxito = el solver devolvió el óptimo del subproblema (sin muestra válida cuenta como fallo). Azar P(óptimo) = muestras uniformes sobre los 27 estados con una puerta por vuelo (el espacio del estado W). Las filas de azar sobre las 6 permutaciones válidas salen de `analysis/baselines.py` (`results/extra.json`): P(acierto con k muestras) = 1 - (1 - n_óptimos/6)^k, promediado sobre las piezas. Control · subproblema exacto = enumeración de las 6 opciones.*
 
-Robustez (solver exacto, 300 iteraciones, semillas 7 a 18): media 354.5 (gap medio 4.3%), mejor 340, peor 374, llega a 340 en 4 de 12.
+Robustez del híbrido del día 1 (solver exacto, 300 iteraciones, semillas 7 a 18): media 354.5 (gap medio 4.3%), mejor 340, peor 374, llega a 340 en 4 de 12.
 
 ### QAOA en subinstancias (Qiskit Aer)
 
@@ -207,7 +207,7 @@ Un solo job, un solo backend. La simulación con 1% de ruido coincidió con el m
 3. **Ruido.** Con ruido despolarizante de 1%, la fracción válida del mixer XY cae de 0.789 a 0.250 (su azar es 0.222); la del mixer X, de 0.137 a 0.085. La ventaja estructural de XY es frágil al ruido.
 4. **Híbrido N=10.** Con la semilla 7, QGate con QAOA (512 shots) termina en **340** (gap 0.0%) en 186 s. El control exacto termina en 340 y el azar con las mismas 512 muestras en 340: con piezas de 3 vuelos (6 asignaciones) y 512 muestras, el azar también encuentra el óptimo de cada pieza.
 5. **Qué aporta QAOA (SIMULADOR, piezas de 3 vuelos en N=10).** P(óptimo) medio por pieza: 0.094 con QAOA p=2 frente a 0.039 del azar sobre los 27 estados con una puerta por vuelo (2.4 veces) y 0.180 del azar sobre las 6 permutaciones válidas. Con 8 shots, QAOA resuelve el 59% de las piezas; el azar sobre 27 estados, el 29%; el azar sobre las 6 permutaciones válidas, el 78% (calculado sobre las 300 piezas de esa corrida, `results/extra.json`); la enumeración exacta, el 100%. Costo final (una sola semilla, la 7): QAOA 372, azar sobre 27 estados 390. QAOA concentra probabilidad respecto a su espacio de partida; en piezas de 3 vuelos aún no supera a muestrear permutaciones válidas ni a enumerar las 6 opciones.
-6. **Robustez.** En 12 semillas y arranques, el mismo marco con solver exacto (equivale a QAOA cuando QAOA acierta) llega a 340 en 4 y su media es 354.5 (gap medio 4.3%). El límite es el vecindario de 3 vuelos, no el solver.
+6. **Robustez (híbrido del día 1).** En 12 semillas y arranques, el mismo marco con solver exacto (equivale a QAOA cuando QAOA acierta) llega a 340 en 4 y su media es 354.5 (gap medio 4.3%). El límite es el vecindario de 3 vuelos, no el solver.
 7. **Tiempo.** En simulador, lo clásico gana: fuerza bruta 6.9 s y simulated annealing 13.7 s llegan a 340; el híbrido con QAOA tarda 186 s. No afirmamos ventaja cuántica.
 9. **Hardware real.** Una corrida N=3 (9 qubits) en ibm_kingston de IBM Quantum: N3-x-p1: 0.063 válidas (ideal 0.137, azar 0.012); N3-xy-p1: 0.254 válidas (ideal 0.789, azar 0.222).
 8. **Escala.** De N=10 a N=16 el subproblema cuántico sigue en 9 qubits y la memoria pico de QGate no pasa de 0.8 MB; un QUBO directo de N=16 serían 256 qubits. Con 150 iteraciones, en N=16 el híbrido queda a 39.3% de la cota y SA a 28.8%: con N grande, 3 vuelos por paso es un vecindario chico. Las diferencias entre QAOA y el control exacto en esta tabla vienen de empates entre permutaciones óptimas del subproblema y de mejoras no óptimas que cambian la trayectoria; no son ventaja de QAOA. Esa comparación es de una sola semilla; en la etapa 3 (sección 5b, 10 semillas, N=10 a 20) ninguna diferencia entre métodos es distinguible y los bloques QAOA no aportaron reducción de costo.
@@ -311,6 +311,24 @@ SIMULADOR (Qiskit Aer) y CPU. 10 semillas (7 a 16), B=100 iteraciones externas p
 
 **Ángulos reutilizados** (synthetic-20, 40 bloques, 8 shots): evaluaciones por bloque 40.0 en frío y 40.0 reutilizando (COBYLA agota el máximo de 40 en ambos); P(óptimo) del bloque 0.093 en frío y 0.128 reutilizando; tiempo por bloque 0.24 s y 0.24 s.
 <!-- FINAL:END -->
+
+## 5c. Revisión externa del organizador (25/10)
+
+Un organizador (QuantumHub Perú) revisó el código y reportó seis puntos. Los reprodujimos el 25/10 a las 9:15,
+antes de cambiar código, y corregimos lo que cupo antes de la final. Un punto figura como corregido solo si su
+verificación, indicada en la última columna, pasa.
+
+| # | Punto reportado | Reproducción (9:15) | Estado | Verificación |
+|---|---|---|---|---|
+| 1 | `build_report.py` incorpora `hardware.json`, `extra.json` y `final.json` sin verificar que sean de la misma instancia o corrida | Confirmado: con un coeficiente de F cambiado los incluía sin aviso | Corregido y verificado. `results/MANIFEST.json` guarda la huella de la instancia (sha256 de N, F y D) y el sha256 de cada archivo, con atestación a posteriori para los existentes. El build excluye el archivo que no corresponde, muestra un aviso visible y sale con código 2; `--allow-mismatch` lo muestra como no verificado. `hardware.json` coincide con `results.json` en el óptimo N=3 y en la P(válida) ideal de los dos mixers (no guarda los ángulos; el manifiesto registra los de `results.json`) | `python analysis/repro_fail_closed.py` |
+| 2 | `final.py` descarta `best_perm` e historial; SA tampoco guarda la permutación | Confirmado: 0 de 440 corridas con permutación | Parcialmente corregido. `final.py` guarda `best_perm` de todas las corridas y la trayectoria de movimientos aceptados de las de dos fases (SA: solo `best_perm`) en `results/final_runs.json.gz`, con su sha256 en el resumen. **Corrida de verificación reducida (2026-10-25)**: semillas 7 a 11, 220 corridas, 14 procesos, 9.9 min. `verify_final.py`: 0 discrepancias y 0 no factibles. Contra lo publicado: 220 de 220 corridas con el mismo costo y 44 de 44 grupos (instancia, método, selector) con la misma mediana y rango. Las cifras publicadas de `final.json` (10 semillas) se mantienen; sus permutaciones no se conservaron | `python analysis/verify_final.py results/final_runs.json.gz --compare results/final.json` |
+| 3 | `test_core.py` línea 31 compara una expresión consigo misma | Confirmado | Corregido y verificado (los cuatro tests pasan): costo recalculado en permutaciones al azar, pares dos veces = 2x, inválidas sobre el mínimo con λ0, 24/32/340 sobre el qap10 real | `python tests/test_core.py` |
+| 4 | `test_quantum.py` y `test_hybrid.py` sin aserciones de factibilidad ni de costo | Confirmado (0 y 2 aserciones) | Corregido y verificado (los cuatro tests pasan): P(válida) igual a la suma de las válidas, costo de la mejor muestra recalculado, N=3 sobre el azar; permutación válida, costo recalculado, monotonía salvo perturbación y reproducibilidad | `python tests/test_quantum.py`, `python tests/test_hybrid.py` |
+| 5 | `requirements.txt` con versiones abiertas | Parcial: 2 de 6 fijas | Corregido: versiones exactas de la corrida y `requirements.lock` con el cierre de dependencias. Pendiente: instalar en un clon limpio (no se alcanzó antes de la final) | `pip install -r requirements.lock` |
+| 6 | `build_report.py` mezcla datos, estilos y lógica de interfaz | Confirmado | Pendiente, limitación declarada: no se separa antes de la final para no arriesgar el HTML publicado | |
+
+Los tiempos de la corrida de verificación se midieron con 14 procesos en paralelo y no son comparables con
+los publicados.
 
 ## 6. Limitaciones y cómo las manejamos
 

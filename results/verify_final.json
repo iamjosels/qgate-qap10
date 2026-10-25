@@ -1,0 +1,24 @@
+{
+ "fecha": "2026-10-25T09:28:20",
+ "comando": "python analysis/verify_final.py results/final_runs.json.gz --compare results/final.json --out results/verify_final.json",
+ "archivo": "results/final_runs.json.gz",
+ "corridas": 220,
+ "discrepancias": 0,
+ "no_factibles": 0,
+ "semillas": [
+  7,
+  8,
+  9,
+  10,
+  11
+ ],
+ "comparacion": {
+  "contra": "results/final.json",
+  "corridas_mismo_costo": 220,
+  "corridas_distintas": 0,
+  "sin_par_publicado": 0,
+  "grupos_mediana_y_rango_iguales": 44,
+  "grupos": 44,
+  "diferencias": []
+ }
+}

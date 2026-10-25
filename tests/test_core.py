@@ -28,7 +28,13 @@ for tag, cand in rec.candidates.items():
     print(tag, "maxdiff T:", np.abs(cand.T - inst.T).max(), "resid", cand.meta["factorization_residual"])
 c = rec.candidates["orden_columnas"]
 assert np.abs(c.T - inst.T).max() < 1e-9
-assert np.allclose(np.outer(c.F[np.triu_indices(10,1)], 1), np.outer(c.F[np.triu_indices(10,1)],1))
+# F y D recuperados reproducen el costo original, calculado con bucles explícitos, en permutaciones al azar
+for s_ in range(20):
+    pp = np.random.default_rng(100 + s_).permutation(10)
+    once = sum(c.F[i, k] * c.D[pp[i], pp[k]] for i in range(10) for k in range(i + 1, 10))
+    twice = sum(c.F[i, k] * c.D[pp[i], pp[k]] for i in range(10) for k in range(10) if i != k)
+    assert abs(once - inst.cost(pp)) < 1e-6, (once, inst.cost(pp))
+    assert abs(twice - 2 * once) < 1e-6           # contar cada par dos veces duplica el costo
 # named version
 write_linearized_mps(inst, os.path.join(TMP, "test_named.mps"), opaque_names=False)
 rec2 = recover_qap(os.path.join(TMP, "test_named.mps"))
@@ -48,8 +54,18 @@ for sidx in np.where(fm)[0]:
     perm = x_to_perm(index_to_x(int(sidx),3)); assert abs(E[sidx]-s3.cost(perm))<1e-9
 print("QUBO feasible energies == costs; min E overall", E.min(), "min feasible", E[fm].min(), "lam", q.lam)
 assert E.argmin() in np.where(fm)[0]
+assert E[~fm].min() > E[fm].min()                 # con λ = λ0 toda inválida queda sobre el mínimo válido
 # ising check
 h,J,off = q.to_ising()
 z = 1-2*bits.astype(float)
 Ei = off + z@h + sum(val*z[:,v]*z[:,w] for (v,w),val in J.items())
 assert np.allclose(Ei, E); print("ising ok")
+# óptimos de control del reto sobre el qap10 real (si el MPS está en data/)
+MPS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "qap10.mps.gz")
+if os.path.exists(MPS):
+    rq = recover_qap(MPS)
+    ok = [k for k, cand in rq.candidates.items()
+          if abs(brute_force(cand.subinstance(3))["cost"] - 24) < 1e-9 and abs(brute_force(cand.subinstance(4))["cost"] - 32) < 1e-9]
+    assert ok, "ninguna candidata reproduce 24 y 32"
+    assert abs(brute_force(rq.candidates[ok[0]])["cost"] - 340) < 1e-9
+    print("qap10: 24, 32 y 340 ok con", ok[0])

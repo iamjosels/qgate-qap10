@@ -50,6 +50,10 @@ def sci(v) -> str:
     return f"{m}×10{sup}"
 
 
+SHORTN = {"sa": "SA", "ls": "2-swap", "exact": "bloque enumeración", "exact_rand": "bloque enumeración + desempate",
+          "random_valid": "bloque azar válido"}
+
+
 def chip(kind: str, where: bool = False) -> str:
     return (f'<span class="ap ap-{kind}">{ICON[kind]}<b>{NAME[kind]}</b>'
             + (f'<span class="ap-w">{e(WHERE[kind])}</span>' if where else "") + "</span>")
@@ -88,6 +92,14 @@ def render(R: dict) -> str:
     fbig = finst[-1] if finst else None
     f_sa = FS.get((fbig["instance"], "sa", None)) if fbig else None
     f_q = FS.get((fbig["instance"], "qaoa", "tension")) if fbig else None
+    f10 = next((i for i in finst if i["N"] == N), None)
+    fq10 = FS.get((f10["instance"], "qaoa", "tension")) if f10 else None
+    hits10 = (Fn.get("hits_best_found") or {}).get(f"{f10['instance']}/qaoa/tension") if f10 else None
+    mv10 = ((Fn.get("attribution") or {}).get(f10["instance"], {}).get("moves_at_best_by_origin", {}).get("block")) if f10 else None
+    # D5: referencia clásica = método clásico con mejor mediana en la instancia más grande; SA como segunda referencia
+    order = ["ls", "exact", "exact_rand", "random_valid", "sa"]
+    f_cl = min((x for x in Fn.get("summary", []) if fbig and x["instance"] == fbig["instance"] and x["solver"] != "qaoa"),
+               key=lambda x: (x["cost_median"], order.index(x["solver"]) if x["solver"] in order else 9), default=None)
     out = []
     val = " · ".join(num(V[n]["optimum"]) for n in sorted(V) if V[n].get("ok"))
     out.append(f"""<div class="flow">
@@ -110,15 +122,17 @@ def render(R: dict) -> str:
                          f"cota <b>{e(num(gl['bound']))}</b>" if gl else None], "result"))
     if x4 and xy4:
         ratio = x4["p_feasible"] / x4["random_feasible_baseline"]
-        cols.append(col("quantum", "QAOA en Qiskit sobre instancias pequeñas", f"×{ratio:.0f}", "más válidas que el azar (N=4)",
+        cols.append(col("quantum", "QAOA en Qiskit sobre instancias pequeñas", f"×{ratio:.0f}", f"más válidas que el azar (N=4, mixer X): {pct(x4['p_feasible'])} vs {pct(x4['random_feasible_baseline'], 3)}",
                         [f"XY <b>{e(pct(xy4['p_feasible']))}</b> vs {e(pct(xy4['random_feasible_baseline']))} azar",
                          f"{e(hw.get('backend'))} N=3: X <b>{e(pct(hx['feasible_fraction']))}</b> vs {e(pct(hx['random_feasible_baseline']))} azar" if hx else None],
                         "qaoa"))
     if hq:
         cols.append(col("hybrid", "QAOA de 9 qubits dentro de búsqueda clásica", str(hq.get("qubits_per_subproblem")),
                         "qubits por pieza, en cualquier N",
-                        [f"8 muestras: QAOA <b>{e(pct(hq8['sub_success_rate'], 0))}</b> vs {e(pct(hr8['sub_success_rate'], 0))} azar de 27 estados" if hq8 and hr8 else None,
-                         f"solver exacto: {e(num(ref))} en <b>{e(seeds.get('hits_ref'))} de {e(len(seeds.get('seeds', [])))}</b> semillas" if seeds.get("seeds") else None],
+                        [f"etapa 3, dos fases, {len(Fn['meta']['seeds'])} semillas: {e(f10['instance'])} mediana <b>{e(num(fq10['cost_median']))}</b> "
+                         f"[{e(num(fq10['cost_min']))}, {e(num(fq10['cost_max']))}], {e(hits10)}/{len(Fn['meta']['seeds'])} en {e(num(f10['best_found']))}; "
+                         f"bloques QAOA: {e(mv10)} movimientos aceptados" if fq10 else None,
+                         f"día 1: {e(num(hq['final_cost']))} (semilla {e(meta.get('seed'))}); solver exacto llega a {e(num(ref))} en {e(seeds.get('hits_ref'))} de {e(len(seeds.get('seeds', [])))} semillas" if seeds.get("seeds") else None],
                         "airport", ' title="azar sobre los 27 estados con una puerta por vuelo; detalle y otras líneas base en la sección 05"'))
     out.append('<div class="lanes">' + "".join(cols) + "</div>")
 
@@ -130,12 +144,13 @@ def render(R: dict) -> str:
 
     rows = [
         ("Calidad N=10", cell("ok", f"{num(bf['cost'])}, gap {pct(gap(bf['cost']) / 100)}") if bf else cell("ok", None),
-         cell("no", f"N={N}: {N * N} qubits"), cell("mid", f"{num(hq['final_cost'])} (semilla {meta.get('seed')}); exacto {seeds.get('hits_ref')}/{len(seeds.get('seeds', []))} semillas") if hq and seeds else cell("mid", None)),
+         cell("no", f"N={N}: {N * N} qubits"), cell("mid", f"día 1: {num(hq['final_cost'])} (semilla {meta.get('seed')}); exacto {seeds.get('hits_ref')}/{len(seeds.get('seeds', []))} semillas") if hq and seeds else cell("mid", None)),
         ("Tiempo", cell("ok", sec(bf["time_s"])) if bf else cell("ok", None),
          cell("mid", f"{sec(xy4['time_s'])} (N=4)") if xy4 else cell("mid", None), cell("no", sec(hq["time_s"])) if hq else cell("no", None)),
         ("Qubits", cell("ok", "0"), cell("no", f"{N * N} (N={N})"), cell("ok", f"{hq.get('qubits_per_subproblem')}") if hq else cell("ok", None)),
         (f"Escala N={fbig['N']}, {len(Fn['meta']['seeds'])} semillas",
-         cell("ok", f"SA {num(f_sa['gap_vs_gl_median_pct'], 1)}% sobre la cota, {num(f_sa['time_median_s'])} s"),
+         cell("ok", f"{SHORTN.get(f_cl['solver'], f_cl['solver'])} {num(f_cl['gap_vs_gl_median_pct'], 1)}% sobre la cota, {num(f_cl['time_median_s'])} s"
+              + (f"; SA {num(f_sa['gap_vs_gl_median_pct'], 1)}%" if f_cl['solver'] != 'sa' else "")),
          cell("no", f"{fbig['N'] ** 2} qubits"),
          cell("mid", f"{num(f_q['gap_vs_gl_median_pct'], 1)}% sobre la cota, {num(f_q['time_median_s'])} s"
               + ("" if (Fn.get("verdict", {}).get(fbig["instance"]) or {}).get("distinguible") else "; no distinguible")))

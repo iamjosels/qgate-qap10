@@ -67,6 +67,7 @@ def main():
     add("variables MPS", str(R["data"]["mps_report"]["n_cols"]))
     add("ratio N=4 X vs azar", f"{x4['p_feasible'] / x4['random_feasible_baseline']:.0f}")
     add("P(válida) N=4 X", p1(x4["p_feasible"])); add("P(válida) N=4 XY", p1(xy4["p_feasible"]))
+    add("azar N=4 X", f"{100 * x4['random_feasible_baseline']:.3f}")
     add("azar N=4 XY", p1(xy4["random_feasible_baseline"])); add("P(óptimo) N=4 XY", p1(xy4["p_optimal"]))
     add("tiempo N=4 XY", t1(xy4["time_s"])); add("qubits N=4", str(xy4["qubits"]))
     add("mejor costo N=4", i0(xy4["best_feasible_cost"])); add("óptimo N=4", i0(xy4["optimum"]))
@@ -106,6 +107,7 @@ def main():
     add("shots de la corrida de 8 muestras", str(hq8["shots"]))
     # literales estructurales del método (no son resultados): intercambio de 2 vuelos, piezas de 3 vuelos
     add("literal: intercambio de 2 vuelos / piezas de 3 vuelos", "2"); add("literal: piezas de 3 vuelos", "3")
+    add("literal: día 1", "1")
 
     fmust = []
     if Fn:
@@ -119,12 +121,24 @@ def main():
         add(f"SA gap cota mediana {b}", t1(sa_f["gap_vs_gl_median_pct"])); add(f"SA tiempo mediana {b}", i0(sa_f["time_median_s"]))
         add(f"QGate gap cota mediana {b}", t1(q_f["gap_vs_gl_median_pct"])); add(f"QGate tiempo mediana {b}", i0(q_f["time_median_s"]))
         fmust = [t1(sa_f["gap_vs_gl_median_pct"]), t1(q_f["gap_vs_gl_median_pct"]), str(len(Fn["meta"]["seeds"]))]
+        order = ["ls", "exact", "exact_rand", "random_valid", "sa"]
+        cl = min((x for x in Fn["summary"] if x["instance"] == b and x["solver"] != "qaoa"),
+                 key=lambda x: (x["cost_median"], order.index(x["solver"]) if x["solver"] in order else 9))
+        add(f"clásico mejor mediana gap {b}", t1(cl["gap_vs_gl_median_pct"])); add(f"clásico mejor mediana tiempo {b}", i0(cl["time_median_s"]))
+        f10 = next(i for i in fi if i["N"] == N)
+        q10 = FS[(f10["instance"], "qaoa", "tension")]
+        for v in (q10["cost_median"], q10["cost_min"], q10["cost_max"], f10["best_found"]):
+            add("etapa 3 qap10 QAOA tensión", i0(v))
+        runs = Fn.get("runs", [])
+        add("etapa 3 qap10 corridas en el mejor", str(sum(1 for r in runs if r["instance"] == f10["instance"] and r["solver"] == "qaoa"
+                                                             and r["select"] == "tension" and abs(r["best_cost"] - f10["best_found"]) < 1e-9)))
+        add("movimientos de bloque aceptados qap10", str(Fn["attribution"][f10["instance"]]["moves_at_best_by_origin"]["block"]))
 
     found = re.findall(r"\d+(?:\.\d+)?", text)
     bad = [t for t in found if t not in E]
     must = ["340", t1(bf["time_s"]), i0(gl["bound"]), f"{x4['p_feasible'] / x4['random_feasible_baseline']:.0f}",
-            p1(xy4["p_feasible"]), p1(xy4["random_feasible_baseline"]), p0(hq8["sub_success_rate"]),
-            p0(hr8["sub_success_rate"]), str(S["hits_ref"]), str(len(S["seeds"]))]
+            p1(xy4["p_feasible"]), p1(xy4["random_feasible_baseline"]), str(S["hits_ref"]), str(len(S["seeds"]))]
+    # la comparación de 8 muestras salió del Panorama (D3): queda en la sección 05
     if hw:
         x_ = next(e for e in hw["experiments"] if e["mixer"] == "x")
         must += [p1(x_["feasible_fraction"]), p1(x_["random_feasible_baseline"])]

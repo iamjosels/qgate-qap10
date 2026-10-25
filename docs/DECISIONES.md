@@ -133,3 +133,16 @@ Windows usa cp1252: el bench fuerza UTF-8 en stdout para poder imprimir λ.
   los demás; si no, "no distinguible".
 - **Tiempos.** Se miden con varios procesos en paralelo (una corrida por proceso, Aer con un hilo); son comparables
   entre métodos de la misma corrida, no con tiempos de otras máquinas.
+
+## 10. Revisión externa del organizador (25/10)
+
+- Se reprodujeron los seis puntos antes de cambiar código (25/10, 9:15); el detalle y la evidencia están en la
+  sección 5c del README.
+- El plazo se extendió a las 9:50. Como el límite de lanzamiento de la corrida completa ya había pasado, se lanzó
+  la **corrida de verificación reducida** (semillas 7 a 11, mismas instancias, B, shots y presupuestos)
+  en `results/final_verif.json` y `results/final_runs.json.gz`, sin tocar `results/final.json`.
+- Las cifras publicadas de `final.json` (10 semillas) siguen vigentes; sus permutaciones no se conservaron (nota
+  visible en el README y en la pestaña 04). La corrida reducida sirve para auditar el método con permutaciones.
+- Procedencia: un JSON auxiliar entra al dashboard solo si `results/MANIFEST.json` lo atesta para la misma instancia.
+  Para los archivos ya publicados la atestación es a posteriori (calculada el 25/10, sin modificar su contenido).
+- El refactor de `build_report.py` (punto 6) queda pendiente a propósito.
