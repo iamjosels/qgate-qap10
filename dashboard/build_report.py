@@ -100,6 +100,7 @@ def build(json_path: str, out_path: str) -> str:
     if os.path.exists(fin):                        # etapa 3 (final): python -m qgate.final
         with open(fin, encoding="utf-8") as fh:
             Fj = json.load(fh)
+        Fj["perm_saved"] = any("best_perm" in r for r in Fj.get("runs", []))   # revisión externa, punto 2
         Fj.pop("runs", None)                       # el reporte usa el resumen, no cada corrida
         R["final"] = Fj
     data = R.setdefault("data", {})
@@ -934,7 +935,8 @@ Desarrollado con asistencia de Claude Code (Anthropic), supervisada por el equip
       (blockRed ? " Los bloques QAOA no aportaron reducción de costo." : "");
     $("finMeta").textContent = "SIMULADOR (Qiskit Aer) y CPU · " + (m.seeds || []).length + " semillas · B=" + m.blocks_B +
       " iteraciones externas para todos los solvers del modo dos fases · " + m.shots + " shots por bloque para QAOA y para el azar · SA " +
-      m.sa_iters + "×" + m.sa_restarts + " · " + (m.nota_tiempos || "") + " · N>10 sintéticas";
+      m.sa_iters + "×" + m.sa_restarts + " · " + (m.nota_tiempos || "") + " · N>10 sintéticas" +
+      (Fn.perm_saved === false ? " · las permutaciones de estas corridas no se conservaron: costo y factibilidad no son auditables desde el archivo (README 5c)" : "");
     const A = Fn.attribution || {};
     const pc = (x, d = 1) => num(x) ? (100 * x).toFixed(d) + "%" : "-";
     $("finAttr").innerHTML = insts.filter((i) => A[i.instance]).map((i) => {
