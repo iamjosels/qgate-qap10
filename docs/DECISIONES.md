@@ -138,11 +138,11 @@ Windows usa cp1252: el bench fuerza UTF-8 en stdout para poder imprimir λ.
 
 - Se reprodujeron los seis puntos antes de cambiar código (25/10, 9:15); el detalle y la evidencia están en la
   sección 5c del README.
-- La tanda de correcciones llegó a las 9:07, después del límite de lanzamiento de la corrida de verificación
-  (8:45) y del congelamiento de código (9:15). Decisión: no lanzar una corrida que no termina antes del plazo
-  (9:40), no declarar nada corregido y documentar el estado real de cada punto.
-- Las cifras de `results/final.json` quedan publicadas sin cambios, con la nota visible de que sus permutaciones
-  no se conservaron (README 5c y pestaña 04 del dashboard).
-- `analysis/repro_fail_closed.py` queda como evidencia del punto 1: hoy sale con código 1 y debe pasar cuando
-  exista la verificación de procedencia.
-
+- El plazo se extendió a las 9:50. Como el límite de lanzamiento de la corrida completa ya había pasado, se lanzó
+  la **corrida de verificación reducida** (semillas 7 a 11, mismas instancias, B, shots y presupuestos)
+  en `results/final_verif.json` y `results/final_runs.json.gz`, sin tocar `results/final.json`.
+- Las cifras publicadas de `final.json` (10 semillas) siguen vigentes; sus permutaciones no se conservaron (nota
+  visible en el README y en la pestaña 04). La corrida reducida sirve para auditar el método con permutaciones.
+- Procedencia: un JSON auxiliar entra al dashboard solo si `results/MANIFEST.json` lo atesta para la misma instancia.
+  Para los archivos ya publicados la atestación es a posteriori (calculada el 25/10, sin modificar su contenido).
+- El refactor de `build_report.py` (punto 6) queda pendiente a propósito.

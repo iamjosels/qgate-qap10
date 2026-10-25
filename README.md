@@ -314,24 +314,21 @@ SIMULADOR (Qiskit Aer) y CPU. 10 semillas (7 a 16), B=100 iteraciones externas p
 
 ## 5c. Revisión externa del organizador (25/10)
 
-Un organizador (QuantumHub Perú) revisó el código y reportó seis puntos. Los reprodujimos el 25/10 a las 9:15
-antes de tocar nada. La tanda de correcciones llegó a las 9:07, después del límite para lanzar una corrida de
-verificación (8:45) y a minutos del congelamiento de código (9:15): **ningún punto se declara corregido**. Lo que
-sigue es el estado real, con la evidencia.
+Un organizador (QuantumHub Perú) revisó el código y reportó seis puntos. Los reprodujimos el 25/10 a las 9:15,
+antes de cambiar código, y corregimos lo que cupo antes de la final. Un punto figura como corregido solo si su
+verificación, indicada en la última columna, pasa.
 
-| # | Punto reportado | Reproducción | Estado |
-|---|---|---|---|
-| 1 | `dashboard/build_report.py` (líneas 82 a 105) incorpora `hardware.json`, `extra.json` y `final.json` sin verificar que sean de la misma instancia o corrida | Confirmado: con un coeficiente de F cambiado, el build los incluye sin aviso. `python analysis/repro_fail_closed.py` sale hoy con código 1 | Pendiente (huella de instancia y `MANIFEST.json`) |
-| 2 | `qgate/final.py` (líneas 56 y 57) descarta `best_perm` e historial; SA tampoco guarda la permutación | Confirmado: ninguna de las 440 corridas de `results/final.json` trae permutación | Pendiente. Las cifras de la etapa 3 quedan publicadas tal cual, pero `feasible` y el costo no son auditables desde el archivo: sus permutaciones no se conservaron |
-| 3 | `tests/test_core.py` línea 31 compara una expresión consigo misma | Confirmado | Pendiente |
-| 4 | `tests/test_quantum.py` y `tests/test_hybrid.py` imprimen métricas sin afirmar factibilidad ni coherencia de costos | Confirmado: `test_quantum.py` no tiene aserciones; `test_hybrid.py` tiene dos, solo sobre el costo del subproblema | Pendiente |
-| 5 | `requirements.txt` con versiones abiertas | Parcial: `qiskit` y `qiskit-aer` están fijos; `numpy`, `scipy`, `matplotlib` y `qiskit-ibm-runtime` no | Pendiente (versiones exactas de `results.json` meta y lockfile) |
-| 6 | `build_report.py` mezcla datos, estilos y lógica de interfaz | Confirmado | Limitación declarada: no se separa antes de la final para no arriesgar el HTML publicado |
+| # | Punto reportado | Reproducción (9:15) | Estado | Verificación |
+|---|---|---|---|---|
+| 1 | `build_report.py` incorpora `hardware.json`, `extra.json` y `final.json` sin verificar que sean de la misma instancia o corrida | Confirmado: con un coeficiente de F cambiado los incluía sin aviso | Corregido y verificado. `results/MANIFEST.json` guarda la huella de la instancia (sha256 de N, F y D) y el sha256 de cada archivo, con atestación a posteriori para los existentes. El build excluye el archivo que no corresponde, muestra un aviso visible y sale con código 2; `--allow-mismatch` lo muestra como no verificado. `hardware.json` coincide con `results.json` en el óptimo N=3 y en la P(válida) ideal de los dos mixers (no guarda los ángulos; el manifiesto registra los de `results.json`) | `python analysis/repro_fail_closed.py` |
+| 2 | `final.py` descarta `best_perm` e historial; SA tampoco guarda la permutación | Confirmado: 0 de 440 corridas con permutación | Parcialmente corregido. `final.py` guarda `best_perm` de todas las corridas y la trayectoria de movimientos aceptados de las de dos fases (SA: solo `best_perm`) en `results/final_runs.json.gz`, con su sha256 en el resumen. **Corrida de verificación reducida (2026-10-25)**: semillas 7 a 11, 220 corridas, 14 procesos, 9.9 min. `verify_final.py`: 0 discrepancias y 0 no factibles. Contra lo publicado: 220 de 220 corridas con el mismo costo y 44 de 44 grupos (instancia, método, selector) con la misma mediana y rango. Las cifras publicadas de `final.json` (10 semillas) se mantienen; sus permutaciones no se conservaron | `python analysis/verify_final.py results/final_runs.json.gz --compare results/final.json` |
+| 3 | `test_core.py` línea 31 compara una expresión consigo misma | Confirmado | Corregido y verificado (los cuatro tests pasan): costo recalculado en permutaciones al azar, pares dos veces = 2x, inválidas sobre el mínimo con λ0, 24/32/340 sobre el qap10 real | `python tests/test_core.py` |
+| 4 | `test_quantum.py` y `test_hybrid.py` sin aserciones de factibilidad ni de costo | Confirmado (0 y 2 aserciones) | Corregido y verificado (los cuatro tests pasan): P(válida) igual a la suma de las válidas, costo de la mejor muestra recalculado, N=3 sobre el azar; permutación válida, costo recalculado, monotonía salvo perturbación y reproducibilidad | `python tests/test_quantum.py`, `python tests/test_hybrid.py` |
+| 5 | `requirements.txt` con versiones abiertas | Parcial: 2 de 6 fijas | Corregido: versiones exactas de la corrida y `requirements.lock` con el cierre de dependencias. Pendiente: instalar en un clon limpio (no se alcanzó antes de la final) | `pip install -r requirements.lock` |
+| 6 | `build_report.py` mezcla datos, estilos y lógica de interfaz | Confirmado | Pendiente, limitación declarada: no se separa antes de la final para no arriesgar el HTML publicado | |
 
-Qué sí se puede verificar hoy: `python dashboard/check_panorama.py` (cada número del Panorama contra los JSON),
-los cuatro tests de `tests/` y el build del dashboard. Las cifras de la etapa 3 (sección 5b) se mantienen como
-resultado de una corrida cuyas permutaciones no se guardaron; una corrida de verificación con permutaciones y un
-verificador independiente del costo quedan como el siguiente paso.
+Los tiempos de la corrida de verificación se midieron con 14 procesos en paralelo y no son comparables con
+los publicados.
 
 ## 6. Limitaciones y cómo las manejamos
 
