@@ -1,6 +1,8 @@
+# Versiones exactas de la corrida publicada (results/results.json meta.versions, Python 3.14.7).
+# Lista completa de dependencias transitivas en requirements.lock (pip freeze del entorno de la corrida).
 qiskit==2.6.1
 qiskit-aer==0.18.0
-numpy>=2.0
-scipy>=1.13
-matplotlib>=3.8
-qiskit-ibm-runtime>=0.40   # solo para scripts/hardware.py
+numpy==2.5.4
+scipy==1.18.1
+matplotlib==3.11.2
+qiskit-ibm-runtime==0.51.0   # solo para scripts/hardware.py
